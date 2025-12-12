@@ -43,7 +43,6 @@ const getApiUrl = () => {
       console.log('Detected remote access:', {
         hostname,
         port,
-        isDevMode,
         isPrivateIP,
         apiProtocol,
         apiUrl

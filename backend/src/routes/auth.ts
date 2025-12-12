@@ -78,7 +78,15 @@ router.post('/register', async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
   try {
+    console.log('Login attempt from:', req.headers.origin || req.ip)
+    console.log('Login request headers:', {
+      origin: req.headers.origin,
+      'user-agent': req.headers['user-agent'],
+      'content-type': req.headers['content-type']
+    })
+    
     const { email, password } = loginSchema.parse(req.body)
+    console.log('Login attempt for email:', email)
     
     // Find user
     const user = await prisma.user.findUnique({
@@ -86,6 +94,7 @@ router.post('/login', async (req, res) => {
     })
     
     if (!user) {
+      console.log('Login failed: User not found for email:', email)
       return res.status(401).json({ error: 'Invalid credentials' })
     }
     
@@ -93,8 +102,11 @@ router.post('/login', async (req, res) => {
     const isValid = await bcrypt.compare(password, user.password)
     
     if (!isValid) {
+      console.log('Login failed: Invalid password for email:', email)
       return res.status(401).json({ error: 'Invalid credentials' })
     }
+    
+    console.log('Login successful for email:', email)
     
     // Generate token
     const token = jwt.sign(
