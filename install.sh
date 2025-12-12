@@ -180,11 +180,18 @@ if [ ! -f ".env" ]; then
         JWT_SECRET=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
     fi
     
+    # Get server IP address for mobile access
+    SERVER_IP=$(hostname -I | awk '{print $1}' 2>/dev/null || ip route get 1.1.1.1 | awk '{print $7; exit}' 2>/dev/null || echo "localhost")
+    
     cat > .env << EOF
 DATABASE_URL="file:$(pwd)/prisma/dev.db"
 JWT_SECRET="$JWT_SECRET"
 PORT=5000
+HOST=0.0.0.0
 EOF
+    print_info "Backend will listen on all interfaces (0.0.0.0) for mobile access"
+    print_info "Server IP: $SERVER_IP"
+    print_info "Access from iPhone: http://$SERVER_IP:5000"
     print_success ".env file created"
 else
     print_info ".env file already exists, skipping..."
@@ -259,6 +266,8 @@ Type=simple
 User=$SERVICE_USER
 WorkingDirectory=$SCRIPT_DIR/backend
 Environment=NODE_ENV=production
+Environment=HOST=0.0.0.0
+Environment=PORT=5000
 ExecStart=/usr/bin/node dist/index.js
 Restart=always
 RestartSec=10

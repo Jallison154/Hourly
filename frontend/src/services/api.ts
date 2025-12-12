@@ -1,7 +1,27 @@
 import axios from 'axios'
 import type { User, TimeEntry, Break, PayCalculation, TimesheetData, Metrics, PayPeriod } from '../types'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+// Auto-detect API URL for mobile access
+// If VITE_API_URL is set, use it. Otherwise, try to detect the server IP
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // If we're on localhost, try to use the hostname (works for mobile on same network)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    // If accessing from a mobile device, use the hostname (server IP)
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return `http://${hostname}:5000/api`
+    }
+  }
+  
+  // Default to localhost for development
+  return 'http://localhost:5000/api'
+}
+
+const API_URL = getApiUrl()
 
 const api = axios.create({
   baseURL: API_URL,
