@@ -17,7 +17,7 @@ export default function Timesheet() {
   const [copied, setCopied] = useState(false)
   const [payPeriods, setPayPeriods] = useState<Array<{ start: string; end: string }>>([])
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
-  const [clockStatus, setClockStatus] = useState<{ isClockedIn: boolean; entry: TimeEntry | null } | null>(null)
+  // Removed unused clockStatus state
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
 
   useEffect(() => {
@@ -117,8 +117,10 @@ export default function Timesheet() {
     )
   }
 
-  const isClockedIn = clockStatus?.isClockedIn || false
-  const currentEntry = clockStatus?.entry
+  // Type guard: timesheet is guaranteed to be non-null after early returns
+  if (!timesheet) {
+    return null
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 sm:pb-8">
@@ -126,16 +128,6 @@ export default function Timesheet() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        {/* Active Timer - Show if clocked in */}
-        {isClockedIn && currentEntry && user && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6"
-          >
-            <ActiveTimer entry={currentEntry} user={user} />
-          </motion.div>
-        )}
 
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex-1">
@@ -343,35 +335,35 @@ export default function Timesheet() {
 
         {/* Pay Period Totals */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: timesheet.weeks.length * 0.1 }}
-          className="bg-blue-600 dark:bg-blue-700 rounded-lg shadow-lg p-6 text-white"
-        >
-            <h2 className="text-2xl font-bold mb-4">Pay Period Totals</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div className="text-blue-100 text-sm mb-1">Total Hours</div>
-                <div className="text-2xl font-bold">{formatHours(timesheet.totals.totalHours)}</div>
-              </div>
-              <div>
-                <div className="text-blue-100 text-sm mb-1">Gross Pay</div>
-                <div className="text-2xl font-bold">{formatCurrency(timesheet.totals.grossPay)}</div>
-              </div>
-              <div>
-                <div className="text-blue-100 text-sm mb-1">Total Taxes</div>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(
-                    timesheet.totals.federalTax + timesheet.totals.stateTax + timesheet.totals.fica
-                  )}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: timesheet.weeks.length * 0.1 }}
+            className="bg-blue-600 dark:bg-blue-700 rounded-lg shadow-lg p-6 text-white"
+          >
+              <h2 className="text-2xl font-bold mb-4">Pay Period Totals</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-blue-100 text-sm mb-1">Total Hours</div>
+                  <div className="text-2xl font-bold">{formatHours(timesheet.totals.totalHours)}</div>
                 </div>
-              </div>
-              <div>
-                <div className="text-blue-100 text-sm mb-1">Net Pay</div>
-                <div className="text-3xl font-bold">{formatCurrency(timesheet.totals.netPay)}</div>
-              </div>
-          </div>
-        </motion.div>
+                <div>
+                  <div className="text-blue-100 text-sm mb-1">Gross Pay</div>
+                  <div className="text-2xl font-bold">{formatCurrency(timesheet.totals.grossPay)}</div>
+                </div>
+                <div>
+                  <div className="text-blue-100 text-sm mb-1">Total Taxes</div>
+                  <div className="text-2xl font-bold">
+                    {formatCurrency(
+                      timesheet.totals.federalTax + timesheet.totals.stateTax + timesheet.totals.fica
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-blue-100 text-sm mb-1">Net Pay</div>
+                  <div className="text-3xl font-bold">{formatCurrency(timesheet.totals.netPay)}</div>
+                </div>
+            </div>
+          </motion.div>
       </motion.div>
 
       {/* Dialog */}
