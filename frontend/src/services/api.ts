@@ -4,19 +4,24 @@ import type { User, TimeEntry, Break, PayCalculation, TimesheetData, Metrics, Pa
 // Auto-detect API URL for mobile access
 // If VITE_API_URL is set, use it. Otherwise, try to detect the server IP
 const getApiUrl = () => {
+  // Check for explicit API URL in environment variable
   if (import.meta.env.VITE_API_URL) {
+    console.log('Using VITE_API_URL:', import.meta.env.VITE_API_URL)
     return import.meta.env.VITE_API_URL
   }
   
   // If we're in the browser, use the current hostname (works for mobile on same network)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
-    const port = window.location.port || '5173'
+    const protocol = window.location.protocol
     
     // If accessing from a mobile device or remote IP, use the hostname (server IP)
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      const apiUrl = `http://${hostname}:5000/api`
-      console.log('Using API URL:', apiUrl)
+    // Always use port 5000 for the backend API
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '') {
+      // Use http for local network IPs (192.168.x.x, 10.x.x.x, etc.)
+      const apiProtocol = hostname.match(/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/) ? 'http' : protocol.replace(':', '')
+      const apiUrl = `${apiProtocol}://${hostname}:5000/api`
+      console.log('Detected remote access, using API URL:', apiUrl)
       return apiUrl
     }
   }
@@ -54,7 +59,25 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
-    console.error('API Error:', error.response?.status, error.response?.data, error.config?.url)
+    console.error('API Error Details:')
+    console.error('  Status:', error.response?.status)
+    console.error('  Status Text:', error.response?.statusText)
+    console.error('  Data:', error.response?.data)
+    console.error('  URL:', error.config?.url)
+    console.error('  Base URL:', error.config?.baseURL)
+    console.error('  Full URL:', error.config?.baseURL + error.config?.url)
+    console.error('  Error Code:', error.code)
+    console.error('  Error Message:', error.message)
+    
+    // Provide better error messages for common issues
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+      error.userMessage = `Network error: Cannot reach server at ${error.config?.baseURL}. Please check your connection and that the server is running.`
+    } else if (error.response?.status === 401) {
+      error.userMessage = 'Invalid email or password'
+    } else if (error.response?.status === 0) {
+      error.userMessage = `CORS error: The server may not be allowing requests from this origin. Check CORS configuration.`
+    }
+    
     return Promise.reject(error)
   }
 )
@@ -70,11 +93,24 @@ export const authAPI = {
   },
   
   login: async (email: string, password: string) => {
-    const { data } = await api.post('/auth/login', { email, password })
-    if (data.token) {
-      localStorage.setItem('token', data.token)
+    try {
+      console.log('Login request to:', `${api.defaults.baseURL}/auth/login`)
+      const { data } = await api.post('/auth/login', { email, password })
+      if (data.token) {
+        localStorage.setItem('token', data.token)
+        console.log('Login successful, token saved')
+      }
+      return data
+    } catch (error: any) {
+      console.error('Login API error:', error)
+      console.error('Request URL:', error.config?.url)
+      console.error('Request baseURL:', error.config?.baseURL)
+      console.error('Full URL:', error.config?.baseURL + error.config?.url)
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        throw new Error(`Cannot connect to server. Please check that the backend is running at ${api.defaults.baseURL}`)
+      }
+      throw error
     }
-    return data
   },
   
   logout: () => {

@@ -18,8 +18,14 @@ const HOST = process.env.HOST || '0.0.0.0' // Listen on all interfaces to allow 
 // CORS configuration - allow requests from any origin (for mobile access)
 app.use(cors({
   origin: true, // Allow all origins
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization']
 }))
+
+// Handle preflight requests explicitly
+app.options('*', cors())
 app.use(express.json({ limit: '10mb' })) // Increase limit for CSV imports
 
 // Routes
@@ -33,6 +39,16 @@ app.use('/api/import', importRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
+})
+
+// Test endpoint for connectivity
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    message: 'Backend is reachable',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin || 'unknown'
+  })
 })
 
 app.listen(PORT, HOST, () => {

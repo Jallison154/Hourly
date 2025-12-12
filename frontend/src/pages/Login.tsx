@@ -25,7 +25,13 @@ export default function Login() {
       console.error('Login error:', err)
       console.error('Error response:', err.response?.data)
       console.error('Error status:', err.response?.status)
-      const errorMessage = err.response?.data?.error || err.message || 'Login failed'
+      console.error('Error code:', err.code)
+      
+      // Use user-friendly error message if available, otherwise fall back to response error
+      const errorMessage = err.userMessage || 
+                          err.response?.data?.error || 
+                          err.message || 
+                          'Login failed. Please check your connection and try again.'
       setError(errorMessage)
     } finally {
       setLoading(false)
