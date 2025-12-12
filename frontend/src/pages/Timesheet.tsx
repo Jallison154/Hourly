@@ -14,7 +14,7 @@ export default function Timesheet() {
   const [copied, setCopied] = useState(false)
   const [payPeriods, setPayPeriods] = useState<Array<{ start: string; end: string }>>([])
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
-  // Removed unused clockStatus state
+  const [isClockedIn, setIsClockedIn] = useState(false)
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
 
   useEffect(() => {
@@ -43,6 +43,50 @@ export default function Timesheet() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeriod])
+
+  // Check clock status periodically and refresh timesheet if clocked in
+  useEffect(() => {
+    const checkClockStatus = async () => {
+      try {
+        const status = await timeEntriesAPI.getStatus()
+        setIsClockedIn(status.isClockedIn)
+      } catch (error) {
+        console.error('Failed to check clock status:', error)
+      }
+    }
+
+    // Check immediately
+    checkClockStatus()
+
+    // Check every 5 seconds
+    const interval = setInterval(checkClockStatus, 5000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Auto-refresh timesheet when clocked in and viewing current period
+  useEffect(() => {
+    if (!isClockedIn || !selectedPeriod || payPeriods.length === 0) {
+      return
+    }
+
+    // Only auto-refresh if viewing the current pay period (first period)
+    const isCurrentPeriod = payPeriods[0] && 
+      selectedPeriod.start === payPeriods[0].start && 
+      selectedPeriod.end === payPeriods[0].end
+
+    if (!isCurrentPeriod) {
+      return
+    }
+
+    // Refresh timesheet every 5 seconds when clocked in
+    const refreshInterval = setInterval(() => {
+      loadTimesheet(selectedPeriod.start, selectedPeriod.end)
+    }, 5000)
+
+    return () => clearInterval(refreshInterval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClockedIn, selectedPeriod, payPeriods])
 
   const loadTimesheet = async (startDate?: string, endDate?: string) => {
     setLoading(true)
