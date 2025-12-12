@@ -3,15 +3,12 @@ import { motion } from 'framer-motion'
 import { timesheetAPI, timeEntriesAPI } from '../services/api'
 import { formatDate, formatTime, formatHours, formatCurrency } from '../utils/date'
 import { formatTimesheetAsText } from '../utils/timesheetFormatter'
-import ActiveTimer from '../components/ActiveTimer'
 import Dialog from '../components/Dialog'
-import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
-import type { TimesheetData, TimeEntry } from '../types'
+import type { TimesheetData } from '../types'
 import { TrashIcon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
-  const { user } = useAuth()
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
