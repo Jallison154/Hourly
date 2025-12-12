@@ -8,20 +8,27 @@ const getApiUrl = () => {
     return import.meta.env.VITE_API_URL
   }
   
-  // If we're on localhost, try to use the hostname (works for mobile on same network)
+  // If we're in the browser, use the current hostname (works for mobile on same network)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
-    // If accessing from a mobile device, use the hostname (server IP)
+    const port = window.location.port || '5173'
+    
+    // If accessing from a mobile device or remote IP, use the hostname (server IP)
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return `http://${hostname}:5000/api`
+      const apiUrl = `http://${hostname}:5000/api`
+      console.log('Using API URL:', apiUrl)
+      return apiUrl
     }
   }
   
   // Default to localhost for development
-  return 'http://localhost:5000/api'
+  const defaultUrl = 'http://localhost:5000/api'
+  console.log('Using default API URL:', defaultUrl)
+  return defaultUrl
 }
 
 const API_URL = getApiUrl()
+console.log('API URL configured:', API_URL)
 
 const api = axios.create({
   baseURL: API_URL,
