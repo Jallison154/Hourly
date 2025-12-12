@@ -31,7 +31,9 @@ print_info() {
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then 
-    print_error "Please do not run this script as root"
+    print_error "This script should not be run as root"
+    print_info "Please run as a regular user. The script will prompt for sudo when needed."
+    print_info "If you need to run as root, use: sudo -u \$SUDO_USER $0"
     exit 1
 fi
 
