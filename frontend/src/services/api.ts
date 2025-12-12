@@ -14,6 +14,18 @@ const getApiUrl = () => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
     const protocol = window.location.protocol
+    const port = window.location.port
+    
+    // In development mode (Vite dev server), use relative URLs so the proxy works
+    // Check if we're in dev mode by checking if we're on port 5173 (Vite default)
+    const isDevMode = port === '5173' || import.meta.env.DEV
+    
+    // If accessing from localhost in dev mode, use relative URL for proxy
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && isDevMode) {
+      const relativeUrl = '/api'
+      console.log('Using relative API URL for dev proxy:', relativeUrl)
+      return relativeUrl
+    }
     
     // If accessing from a mobile device or remote IP, use the hostname (server IP)
     // Always use port 5000 for the backend API
@@ -26,9 +38,9 @@ const getApiUrl = () => {
     }
   }
   
-  // Default to localhost for development
-  const defaultUrl = 'http://localhost:5000/api'
-  console.log('Using default API URL:', defaultUrl)
+  // Default to relative URL for development (uses Vite proxy)
+  const defaultUrl = '/api'
+  console.log('Using default relative API URL (dev proxy):', defaultUrl)
   return defaultUrl
 }
 
