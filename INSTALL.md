@@ -10,28 +10,19 @@ cd Hourly && chmod +x install.sh && ./install.sh
 
 ## Full One-Liner (if you have git)
 
-**Important:** Run as a regular user (not root). The script will prompt for sudo when needed.
+The script can be run as root or as a regular user. If run as root, it will show a 3-second warning.
 
+**As regular user:**
 ```bash
 git clone https://github.com/Jallison154/Hourly.git && cd Hourly && chmod +x install.sh && ./install.sh
 ```
 
-Or as a true one-liner:
-
+**As root:**
 ```bash
-git clone https://github.com/Jallison154/Hourly.git Hourly && cd Hourly && chmod +x install.sh && ./install.sh
+git clone https://github.com/Jallison154/Hourly.git && cd Hourly && chmod +x install.sh && ./install.sh
 ```
 
-**If you're already root**, switch to a regular user first:
-```bash
-su - yourusername
-# Then run the install command
-```
-
-Or if you must stay as root, run as a different user:
-```bash
-git clone https://github.com/Jallison154/Hourly.git Hourly && cd Hourly && chmod +x install.sh && sudo -u $SUDO_USER ./install.sh
-```
+**Note:** If running as root, all files will be owned by root. The script will show a 3-second warning before proceeding.
 
 ## Manual Steps (if you prefer)
 

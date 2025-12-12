@@ -31,10 +31,12 @@ print_info() {
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then 
-    print_error "This script should not be run as root"
-    print_info "Please run as a regular user. The script will prompt for sudo when needed."
-    print_info "If you need to run as root, use: sudo -u \$SUDO_USER $0"
-    exit 1
+    print_info "Running as root - files will be owned by root"
+    print_info "Press Ctrl+C to cancel, or wait 3 seconds to continue..."
+    sleep 3
+    SUDO_CMD=""  # No need for sudo when running as root
+else
+    SUDO_CMD="sudo"  # Use sudo when running as regular user
 fi
 
 # Get the directory where the script is located
@@ -46,7 +48,7 @@ echo ""
 
 # Step 1: Update system packages
 print_info "Updating system packages..."
-sudo apt-get update -qq
+$SUDO_CMD apt-get update -qq
 print_success "System packages updated"
 echo ""
 
@@ -58,14 +60,14 @@ if command -v node &> /dev/null; then
         print_success "Node.js $(node -v) is already installed"
     else
         print_info "Node.js version is too old. Installing Node.js 20.x..."
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        sudo apt-get install -y nodejs
+        curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO_CMD -E bash -
+        $SUDO_CMD apt-get install -y nodejs
         print_success "Node.js $(node -v) installed"
     fi
 else
     print_info "Installing Node.js 20.x..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO_CMD -E bash -
+    $SUDO_CMD apt-get install -y nodejs
     print_success "Node.js $(node -v) installed"
 fi
 echo ""
@@ -82,7 +84,7 @@ echo ""
 
 # Step 4: Install build tools (needed for some npm packages)
 print_info "Installing build tools..."
-sudo apt-get install -y build-essential python3
+$SUDO_CMD apt-get install -y build-essential python3
 print_success "Build tools installed"
 echo ""
 
@@ -163,14 +165,20 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_info "Creating systemd service files..."
     
     # Backend service
-    sudo tee /etc/systemd/system/hourly-backend.service > /dev/null << EOF
+    if [ "$EUID" -eq 0 ]; then
+        SERVICE_USER="root"
+    else
+        SERVICE_USER="$USER"
+    fi
+    
+    $SUDO_CMD tee /etc/systemd/system/hourly-backend.service > /dev/null << EOF
 [Unit]
 Description=Hourly Backend API
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=$SERVICE_USER
 WorkingDirectory=$SCRIPT_DIR/backend
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/node dist/index.js
@@ -184,7 +192,7 @@ EOF
     # Frontend service (if using a production server like nginx, this would be different)
     print_info "Note: Frontend is typically served via nginx or similar. Service file not created."
     
-    sudo systemctl daemon-reload
+    $SUDO_CMD systemctl daemon-reload
     print_success "Systemd service files created"
     print_info "To start the backend service: sudo systemctl start hourly-backend"
     print_info "To enable on boot: sudo systemctl enable hourly-backend"
