@@ -1,0 +1,27 @@
+<svg width="64" height="64" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#3b82f6" opacity="0.1"/>
+  
+  <!-- Clock face circle -->
+  <circle cx="100" cy="100" r="70" fill="white" stroke="#3b82f6" stroke-width="4"/>
+  
+  <!-- Hour markers -->
+  <line x1="100" y1="40" x2="100" y2="50" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="100" y1="150" x2="100" y2="160" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="40" y1="100" x2="50" y2="100" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="150" y1="100" x2="160" y2="100" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Clock hands forming "H" -->
+  <!-- Left vertical bar of H -->
+  <rect x="70" y="75" width="12" height="50" rx="6" fill="#3b82f6"/>
+  
+  <!-- Right vertical bar of H -->
+  <rect x="118" y="75" width="12" height="50" rx="6" fill="#3b82f6"/>
+  
+  <!-- Horizontal bar of H -->
+  <rect x="70" y="96" width="60" height="12" rx="6" fill="#3b82f6"/>
+  
+  <!-- Clock center dot -->
+  <circle cx="100" cy="100" r="6" fill="#3b82f6"/>
+</svg>
+

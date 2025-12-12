@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String       @id @default(cuid())
+  email               String       @unique
+  password            String
+  name                String
+  hourlyRate          Float        @default(0)
+  overtimeRate        Float        @default(1.5)
+  timeRoundingInterval Int         @default(5)
+  profileImage        String?
+  payPeriodType       String       @default("monthly") // "weekly" or "monthly"
+  payPeriodEndDay     Int          @default(10) // Day of month for monthly pay period end
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  
+  timeEntries TimeEntry[]
+  payPeriods  PayPeriod[]
+}
+
+model TimeEntry {
+  id              String    @id @default(cuid())
+  userId          String
+  clockIn         DateTime
+  clockOut        DateTime?
+  totalBreakMinutes Int     @default(0)
+  notes           String?
+  isManualEntry   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  breaks          Break[]
+  
+  @@index([userId])
+  @@index([clockIn])
+}
+
+model Break {
+  id          String     @id @default(cuid())
+  timeEntryId String
+  breakType   String     // "lunch", "rest", "other"
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?       // in minutes, calculated if endTime is set
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  timeEntry   TimeEntry  @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  
+  @@index([timeEntryId])
+}
+
+model PayPeriod {
+  id          String   @id @default(cuid())
+  userId      String
+  startDate   DateTime
+  endDate     DateTime
+  totalHours  Float    @default(0)
+  grossPay    Float    @default(0)
+  netPay      Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, startDate, endDate])
+  @@index([userId])
+}
+
