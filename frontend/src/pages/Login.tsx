@@ -17,10 +17,16 @@ export default function Login() {
     setLoading(true)
 
     try {
+      console.log('Attempting login with email:', email)
       await login(email, password)
+      console.log('Login successful')
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed')
+      console.error('Login error:', err)
+      console.error('Error response:', err.response?.data)
+      console.error('Error status:', err.response?.status)
+      const errorMessage = err.response?.data?.error || err.message || 'Login failed'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
