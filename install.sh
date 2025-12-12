@@ -60,10 +60,17 @@ if [ -d ".git" ]; then
     echo ""
 fi
 
-# Step 1: Update system packages
+# Step 1: Update system packages and install curl
 print_info "Updating system packages..."
 $SUDO_CMD apt-get update -qq
 print_success "System packages updated"
+
+# Install curl if not present (needed for Node.js installation)
+if ! command -v curl &> /dev/null; then
+    print_info "Installing curl..."
+    $SUDO_CMD apt-get install -y curl
+    print_success "curl installed"
+fi
 echo ""
 
 # Step 2: Install Node.js 18+ (using NodeSource repository)
@@ -74,14 +81,24 @@ if command -v node &> /dev/null; then
         print_success "Node.js $(node -v) is already installed"
     else
         print_info "Node.js version is too old. Installing Node.js 20.x..."
-        curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO_CMD -E bash -
-        $SUDO_CMD apt-get install -y nodejs
+        if [ "$EUID" -eq 0 ]; then
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt-get install -y nodejs
+        else
+            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+        fi
         print_success "Node.js $(node -v) installed"
     fi
 else
     print_info "Installing Node.js 20.x..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO_CMD -E bash -
-    $SUDO_CMD apt-get install -y nodejs
+    if [ "$EUID" -eq 0 ]; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+    else
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    fi
     print_success "Node.js $(node -v) installed"
 fi
 echo ""
