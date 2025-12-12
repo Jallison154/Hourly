@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { formatTime } from '../utils/date'
 import type { TimeEntry, User } from '../types'
 
 interface ActiveTimerProps {

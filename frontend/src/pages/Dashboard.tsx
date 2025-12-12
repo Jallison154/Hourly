@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { metricsAPI } from '../services/api'
 import { formatCurrency, formatHours } from '../utils/date'
 import type { Metrics } from '../types'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)

@@ -5,7 +5,7 @@ import Dialog from './Dialog'
 import { useDialog } from '../hooks/useDialog'
 import { timeEntriesAPI } from '../services/api'
 import { formatTime } from '../utils/date'
-import type { Break, TimeEntry } from '../types'
+import type { TimeEntry } from '../types'
 
 interface BreakManagerProps {
   entry: TimeEntry

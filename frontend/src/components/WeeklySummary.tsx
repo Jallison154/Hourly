@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { timeEntriesAPI } from '../services/api'
 import { formatHours } from '../utils/date'
-import type { TimeEntry } from '../types'
 
 interface WeeklySummaryData {
   hoursWorked: number
@@ -27,7 +26,6 @@ export default function WeeklySummary() {
       // Get current week (Monday to Sunday)
       const now = new Date()
       const dayOfWeek = now.getDay()
-      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Monday
       const monday = new Date(now)
       monday.setDate(now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1))
       monday.setHours(0, 0, 0, 0)

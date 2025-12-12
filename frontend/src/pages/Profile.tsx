@@ -4,8 +4,6 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
-import { userAPI } from '../services/api'
-import { formatCurrency } from '../utils/date'
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuth()

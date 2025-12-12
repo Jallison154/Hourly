@@ -21,7 +21,7 @@ export default function Import() {
   const [clearEndDate, setClearEndDate] = useState('')
   const [clearing, setClearing] = useState(false)
   const [clearResult, setClearResult] = useState<{ deletedCount: number } | null>(null)
-  const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
+  const { dialog, showConfirm, closeDialog } = useDialog()
 
   // Set default dates to last year
   useEffect(() => {
