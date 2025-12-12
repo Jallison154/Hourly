@@ -23,12 +23,28 @@ A Progressive Web App for time tracking with clock in/out functionality, timeshe
 
 ## Setup
 
+### Quick Install (Ubuntu 22.04)
+
+**One-liner install:**
+```bash
+git clone https://github.com/Jallison154/Hourly.git && cd Hourly && chmod +x install.sh && ./install.sh
+```
+
+The install script will automatically:
+- Install Node.js 20.x
+- Install all dependencies
+- Set up the database
+- Configure environment variables
+- Run migrations
+
+See [INSTALL.md](INSTALL.md) for more details.
+
 ### Prerequisites
 
 - Node.js 18+ and npm
-- PostgreSQL database
+- PostgreSQL database (or SQLite for development)
 
-### Installation
+### Manual Installation
 
 1. Install frontend dependencies:
 ```bash

@@ -11,7 +11,13 @@ cd Hourly && chmod +x install.sh && ./install.sh
 ## Full One-Liner (if you have git)
 
 ```bash
-git clone <your-repo-url> Hourly && cd Hourly && chmod +x install.sh && ./install.sh
+git clone https://github.com/Jallison154/Hourly.git && cd Hourly && chmod +x install.sh && ./install.sh
+```
+
+Or as a true one-liner:
+
+```bash
+git clone https://github.com/Jallison154/Hourly.git Hourly && cd Hourly && chmod +x install.sh && ./install.sh
 ```
 
 ## Manual Steps (if you prefer)
