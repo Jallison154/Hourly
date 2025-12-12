@@ -30,10 +30,19 @@ const getApiUrl = () => {
     // If accessing from a mobile device or remote IP, use the hostname (server IP)
     // Always use port 5000 for the backend API
     if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '') {
-      // Use http for local network IPs (192.168.x.x, 10.x.x.x, etc.)
-      const apiProtocol = hostname.match(/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/) ? 'http' : protocol.replace(':', '')
+      // Always use http for local network IPs (Safari requires explicit protocol)
+      // Match common private IP ranges
+      const isPrivateIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(hostname)
+      const apiProtocol = isPrivateIP ? 'http' : (protocol === 'https:' ? 'https' : 'http')
       const apiUrl = `${apiProtocol}://${hostname}:5000/api`
-      console.log('Detected remote access, using API URL:', apiUrl)
+      console.log('Detected remote access:', {
+        hostname,
+        port,
+        isDevMode,
+        isPrivateIP,
+        apiProtocol,
+        apiUrl
+      })
       return apiUrl
     }
   }
@@ -106,7 +115,15 @@ export const authAPI = {
   
   login: async (email: string, password: string) => {
     try {
-      console.log('Login request to:', `${api.defaults.baseURL}/auth/login`)
+      const fullUrl = `${api.defaults.baseURL}/auth/login`
+      console.log('Login request details:', {
+        baseURL: api.defaults.baseURL,
+        endpoint: '/auth/login',
+        fullUrl,
+        hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+        origin: typeof window !== 'undefined' ? window.location.origin : 'N/A'
+      })
+      
       const { data } = await api.post('/auth/login', { email, password })
       if (data.token) {
         localStorage.setItem('token', data.token)
@@ -114,12 +131,25 @@ export const authAPI = {
       }
       return data
     } catch (error: any) {
-      console.error('Login API error:', error)
-      console.error('Request URL:', error.config?.url)
-      console.error('Request baseURL:', error.config?.baseURL)
-      console.error('Full URL:', error.config?.baseURL + error.config?.url)
-      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        throw new Error(`Cannot connect to server. Please check that the backend is running at ${api.defaults.baseURL}`)
+      console.error('Login API error details:', {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          method: error.config?.method,
+          headers: error.config?.headers
+        },
+        fullUrl: error.config?.baseURL + error.config?.url
+      })
+      
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
+        const errorMsg = `Cannot connect to server at ${api.defaults.baseURL}. ` +
+          `Please check: 1) Backend is running, 2) You're on the same network, 3) Firewall allows port 5000`
+        throw new Error(errorMsg)
       }
       throw error
     }

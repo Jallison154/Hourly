@@ -49,7 +49,18 @@ export default function Timesheet() {
     const checkClockStatus = async () => {
       try {
         const status = await timeEntriesAPI.getStatus()
+        const wasClockedIn = isClockedIn
         setIsClockedIn(status.isClockedIn)
+        
+        // If we just clocked in and are viewing current period, refresh immediately
+        if (status.isClockedIn && !wasClockedIn && selectedPeriod && payPeriods.length > 0) {
+          const isCurrentPeriod = payPeriods[0] && 
+            selectedPeriod.start === payPeriods[0].start && 
+            selectedPeriod.end === payPeriods[0].end
+          if (isCurrentPeriod) {
+            loadTimesheet(selectedPeriod.start, selectedPeriod.end, true)
+          }
+        }
       } catch (error) {
         console.error('Failed to check clock status:', error)
       }
@@ -58,11 +69,12 @@ export default function Timesheet() {
     // Check immediately
     checkClockStatus()
 
-    // Check every 5 seconds
-    const interval = setInterval(checkClockStatus, 5000)
+    // Check every 3 seconds to detect clock in/out changes quickly
+    const interval = setInterval(checkClockStatus, 3000)
 
     return () => clearInterval(interval)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClockedIn, selectedPeriod, payPeriods])
 
   // Auto-refresh timesheet when clocked in and viewing current period
   useEffect(() => {
@@ -79,17 +91,20 @@ export default function Timesheet() {
       return
     }
 
-    // Refresh timesheet every 5 seconds when clocked in
+    // Refresh timesheet every 2 seconds when clocked in (silent refresh - no loading state)
+    // This allows you to see your pay increase in real-time
     const refreshInterval = setInterval(() => {
-      loadTimesheet(selectedPeriod.start, selectedPeriod.end)
-    }, 5000)
+      loadTimesheet(selectedPeriod.start, selectedPeriod.end, true) // silent = true to avoid loading state
+    }, 2000)
 
     return () => clearInterval(refreshInterval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClockedIn, selectedPeriod, payPeriods])
+  }, [isClockedIn, selectedPeriod?.start, selectedPeriod?.end, payPeriods.length])
 
-  const loadTimesheet = async (startDate?: string, endDate?: string) => {
-    setLoading(true)
+  const loadTimesheet = async (startDate?: string, endDate?: string, silent = false) => {
+    if (!silent) {
+      setLoading(true)
+    }
     try {
       const data = await timesheetAPI.getTimesheet(startDate, endDate)
       setTimesheet(data)
@@ -98,7 +113,9 @@ export default function Timesheet() {
       console.error('Error details:', error.response?.data || error.message)
       // Don't set loading to false on error so user sees the error state
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }
 
