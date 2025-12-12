@@ -46,6 +46,20 @@ cd "$SCRIPT_DIR"
 print_info "Installing Hourly in: $SCRIPT_DIR"
 echo ""
 
+# Check if this is a git repository and update if needed
+if [ -d ".git" ]; then
+    print_info "Detected git repository, checking for updates..."
+    if git diff --quiet && git diff --staged --quiet; then
+        print_info "Pulling latest changes..."
+        git pull || print_info "Could not pull changes (may need manual update)"
+        print_success "Repository updated"
+    else
+        print_info "You have uncommitted changes. Skipping git pull."
+        print_info "To update manually: git pull"
+    fi
+    echo ""
+fi
+
 # Step 1: Update system packages
 print_info "Updating system packages..."
 $SUDO_CMD apt-get update -qq
@@ -88,16 +102,23 @@ $SUDO_CMD apt-get install -y build-essential python3
 print_success "Build tools installed"
 echo ""
 
-# Step 5: Install backend dependencies
-print_info "Installing backend dependencies..."
+# Step 5: Install/Update backend dependencies
+print_info "Installing/updating backend dependencies..."
 cd backend
 if [ ! -f "package.json" ]; then
     print_error "package.json not found in backend directory"
     exit 1
 fi
 
-npm install
-print_success "Backend dependencies installed"
+# Check if node_modules exists (update) or not (fresh install)
+if [ -d "node_modules" ]; then
+    print_info "Updating existing backend dependencies..."
+    npm update
+else
+    print_info "Installing backend dependencies..."
+    npm install
+fi
+print_success "Backend dependencies installed/updated"
 echo ""
 
 # Step 6: Set up backend environment variables
@@ -130,23 +151,49 @@ npm run prisma:generate
 print_success "Prisma client generated"
 
 print_info "Running database migrations..."
-npm run prisma:migrate
+# Check if database exists
+if [ -f "prisma/dev.db" ]; then
+    print_info "Database exists, applying migrations..."
+    npm run prisma:migrate deploy || npm run prisma:migrate
+else
+    print_info "Creating new database..."
+    npm run prisma:migrate
+fi
 print_success "Database migrations completed"
 echo ""
 
-# Step 8: Install frontend dependencies
-print_info "Installing frontend dependencies..."
+# Step 7.5: Build backend for production (if systemd service will be used)
+read -p "Do you want to build the backend for production? (needed for systemd service) (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    print_info "Building backend..."
+    npm run build
+    print_success "Backend built successfully"
+else
+    print_info "Skipping backend build (you can build later with 'npm run build')"
+fi
+echo ""
+
+# Step 9: Install/Update frontend dependencies
+print_info "Installing/updating frontend dependencies..."
 cd ../frontend
 if [ ! -f "package.json" ]; then
     print_error "package.json not found in frontend directory"
     exit 1
 fi
 
-npm install
-print_success "Frontend dependencies installed"
+# Check if node_modules exists (update) or not (fresh install)
+if [ -d "node_modules" ]; then
+    print_info "Updating existing frontend dependencies..."
+    npm update
+else
+    print_info "Installing frontend dependencies..."
+    npm install
+fi
+print_success "Frontend dependencies installed/updated"
 echo ""
 
-# Step 9: Build frontend (optional, for production)
+# Step 10: Build frontend (optional, for production)
 read -p "Do you want to build the frontend for production? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -158,7 +205,7 @@ else
 fi
 echo ""
 
-# Step 10: Create systemd service files (optional)
+# Step 11: Create systemd service files (optional)
 read -p "Do you want to create systemd service files for running as a service? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -194,8 +241,27 @@ EOF
     
     $SUDO_CMD systemctl daemon-reload
     print_success "Systemd service files created"
-    print_info "To start the backend service: sudo systemctl start hourly-backend"
-    print_info "To enable on boot: sudo systemctl enable hourly-backend"
+    
+    # Ask if user wants to start and enable the service
+    read -p "Do you want to start and enable the backend service now? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Starting backend service..."
+        $SUDO_CMD systemctl start hourly-backend
+        $SUDO_CMD systemctl enable hourly-backend
+        print_success "Backend service started and enabled on boot"
+        
+        # Check if service is running
+        sleep 2
+        if $SUDO_CMD systemctl is-active --quiet hourly-backend; then
+            print_success "Backend service is running"
+        else
+            print_error "Backend service failed to start. Check logs with: sudo systemctl status hourly-backend"
+        fi
+    else
+        print_info "To start the backend service manually: $SUDO_CMD systemctl start hourly-backend"
+        print_info "To enable on boot: $SUDO_CMD systemctl enable hourly-backend"
+    fi
 else
     print_info "Skipping systemd service creation"
 fi
