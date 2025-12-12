@@ -135,3 +135,4 @@ If auto-detection still doesn't work, manually set it:
    - If it shows `localhost`, the detection isn't working
    - Use manual `.env` override
 
+
