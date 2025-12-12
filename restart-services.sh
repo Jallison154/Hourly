@@ -65,3 +65,4 @@ echo "  Frontend: http://192.168.10.65:5173"
 echo "  Backend: http://192.168.10.65:5000"
 echo ""
 
+
