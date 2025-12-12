@@ -16,15 +16,20 @@ const getApiUrl = () => {
     const protocol = window.location.protocol
     const port = window.location.port
     
-    // In development mode (Vite dev server), use relative URLs so the proxy works
-    // Check if we're in dev mode by checking if we're on port 5173 (Vite default)
-    const isDevMode = port === '5173' || import.meta.env.DEV
-    
-    // If accessing from localhost in dev mode, use relative URL for proxy
-    if ((hostname === 'localhost' || hostname === '127.0.0.1') && isDevMode) {
-      const relativeUrl = '/api'
-      console.log('Using relative API URL for dev proxy:', relativeUrl)
-      return relativeUrl
+    // If accessing from localhost
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      // In dev mode (npm run dev), Vite proxy handles /api -> localhost:5000
+      if (import.meta.env.DEV) {
+        const relativeUrl = '/api'
+        console.log('Using relative API URL for dev proxy:', relativeUrl)
+        return relativeUrl
+      }
+      
+      // In preview mode (built files), vite preview doesn't have a proxy
+      // So we need to use the full localhost:5000 URL
+      const apiUrl = 'http://localhost:5000/api'
+      console.log('Using localhost API URL for preview mode (no proxy):', apiUrl)
+      return apiUrl
     }
     
     // If accessing from a mobile device or remote IP, use the hostname (server IP)
@@ -47,9 +52,10 @@ const getApiUrl = () => {
     }
   }
   
-  // Default to relative URL for development (uses Vite proxy)
-  const defaultUrl = '/api'
-  console.log('Using default relative API URL (dev proxy):', defaultUrl)
+  // Default fallback: use localhost:5000 for local development/preview
+  // This handles cases where we can't detect the environment properly
+  const defaultUrl = 'http://localhost:5000/api'
+  console.log('Using default API URL (fallback):', defaultUrl)
   return defaultUrl
 }
 

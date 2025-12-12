@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { timesheetAPI, timeEntriesAPI } from '../services/api'
 import { formatDate, formatTime, formatHours, formatCurrency } from '../utils/date'
@@ -16,6 +16,8 @@ export default function Timesheet() {
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
   const [isClockedIn, setIsClockedIn] = useState(false)
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
+  // Use ref to track previous clock status for transition detection
+  const prevClockedInRef = useRef<boolean>(false)
 
   useEffect(() => {
     const initialize = async () => {
@@ -49,11 +51,15 @@ export default function Timesheet() {
     const checkClockStatus = async () => {
       try {
         const status = await timeEntriesAPI.getStatus()
-        const wasClockedIn = isClockedIn
-        setIsClockedIn(status.isClockedIn)
+        const wasClockedIn = prevClockedInRef.current
+        const isNowClockedIn = status.isClockedIn
+        
+        // Update ref before state to capture transition
+        prevClockedInRef.current = isNowClockedIn
+        setIsClockedIn(isNowClockedIn)
         
         // If we just clocked in and are viewing current period, refresh immediately
-        if (status.isClockedIn && !wasClockedIn && selectedPeriod && payPeriods.length > 0) {
+        if (isNowClockedIn && !wasClockedIn && selectedPeriod && payPeriods.length > 0) {
           const isCurrentPeriod = payPeriods[0] && 
             selectedPeriod.start === payPeriods[0].start && 
             selectedPeriod.end === payPeriods[0].end
@@ -74,7 +80,7 @@ export default function Timesheet() {
 
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClockedIn, selectedPeriod, payPeriods])
+  }, [selectedPeriod, payPeriods])
 
   // Auto-refresh timesheet when clocked in and viewing current period
   useEffect(() => {
@@ -83,9 +89,10 @@ export default function Timesheet() {
     }
 
     // Only auto-refresh if viewing the current pay period (first period)
-    const isCurrentPeriod = payPeriods[0] && 
-      selectedPeriod.start === payPeriods[0].start && 
-      selectedPeriod.end === payPeriods[0].end
+    const currentPeriod = payPeriods[0]
+    const isCurrentPeriod = currentPeriod && 
+      selectedPeriod.start === currentPeriod.start && 
+      selectedPeriod.end === currentPeriod.end
 
     if (!isCurrentPeriod) {
       return
@@ -99,7 +106,7 @@ export default function Timesheet() {
 
     return () => clearInterval(refreshInterval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClockedIn, selectedPeriod?.start, selectedPeriod?.end, payPeriods.length])
+  }, [isClockedIn, selectedPeriod?.start, selectedPeriod?.end, payPeriods])
 
   const loadTimesheet = async (startDate?: string, endDate?: string, silent = false) => {
     if (!silent) {
