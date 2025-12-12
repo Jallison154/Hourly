@@ -25,10 +25,17 @@ A Progressive Web App for time tracking with clock in/out functionality, timeshe
 
 ### Quick Install (Ubuntu 22.04)
 
-**One-liner install:**
+**First time installation (one-liner):**
 ```bash
 git clone https://github.com/Jallison154/Hourly.git && cd Hourly && chmod +x install.sh && ./install.sh
 ```
+
+**Updating existing installation:**
+```bash
+cd Hourly && ./install.sh
+```
+
+**⚠️ Important:** Only run `git clone` once! If you need to update, just run `./install.sh` from within the Hourly directory. Running `git clone` multiple times will create nested directories.
 
 The install script will automatically:
 - Install Node.js 20.x

@@ -43,6 +43,27 @@ fi
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# Check for nested Hourly directories (common mistake when running git clone multiple times)
+CURRENT_PATH="$SCRIPT_DIR"
+HOURLY_COUNT=$(echo "$CURRENT_PATH" | tr '/' '\n' | grep -c "Hourly" || echo "0")
+if [ "$HOURLY_COUNT" -gt 2 ]; then
+    print_error "Warning: Detected nested Hourly directories in path!"
+    print_info "Current path: $CURRENT_PATH"
+    print_info "This usually happens when running 'git clone' multiple times."
+    print_info ""
+    print_info "To fix this:"
+    print_info "1. Navigate to the root Hourly directory: cd ~/Hourly"
+    print_info "2. Remove nested directories if needed"
+    print_info "3. Run: ./install.sh"
+    print_info ""
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+    echo ""
+fi
+
 print_info "Installing Hourly in: $SCRIPT_DIR"
 echo ""
 
@@ -51,12 +72,20 @@ if [ -d ".git" ]; then
     print_info "Detected git repository, checking for updates..."
     if git diff --quiet && git diff --staged --quiet; then
         print_info "Pulling latest changes..."
-        git pull || print_info "Could not pull changes (may need manual update)"
+        # Fetch and merge instead of pull to avoid issues
+        git fetch origin || print_info "Could not fetch changes"
+        git merge origin/$(git branch --show-current) 2>/dev/null || print_info "Could not merge changes (may need manual update)"
         print_success "Repository updated"
     else
         print_info "You have uncommitted changes. Skipping git pull."
         print_info "To update manually: git pull"
     fi
+    echo ""
+elif [ -d "../.git" ] && [ "$(basename "$(cd .. && pwd)")" = "Hourly" ]; then
+    # If we're in a nested directory, warn the user
+    print_error "Warning: Detected nested Hourly directory structure!"
+    print_info "You may be in a nested directory. Current path: $(pwd)"
+    print_info "Consider running the script from the root Hourly directory"
     echo ""
 fi
 
@@ -179,16 +208,10 @@ fi
 print_success "Database migrations completed"
 echo ""
 
-# Step 7.5: Build backend for production (if systemd service will be used)
-read -p "Do you want to build the backend for production? (needed for systemd service) (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_info "Building backend..."
-    npm run build
-    print_success "Backend built successfully"
-else
-    print_info "Skipping backend build (you can build later with 'npm run build')"
-fi
+# Step 7.5: Build backend for production (required for systemd service)
+print_info "Building backend for production..."
+npm run build
+print_success "Backend built successfully"
 echo ""
 
 # Step 9: Install/Update frontend dependencies
@@ -210,32 +233,23 @@ fi
 print_success "Frontend dependencies installed/updated"
 echo ""
 
-# Step 10: Build frontend (optional, for production)
-read -p "Do you want to build the frontend for production? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_info "Building frontend..."
-    npm run build
-    print_success "Frontend built successfully"
-else
-    print_info "Skipping frontend build (you can build later with 'npm run build')"
-fi
+# Step 10: Build frontend for production (required for systemd service)
+print_info "Building frontend for production..."
+npm run build
+print_success "Frontend built successfully"
 echo ""
 
-# Step 11: Create systemd service files (optional)
-read -p "Do you want to create systemd service files for running as a service? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_info "Creating systemd service files..."
-    
-    # Backend service
-    if [ "$EUID" -eq 0 ]; then
-        SERVICE_USER="root"
-    else
-        SERVICE_USER="$USER"
-    fi
-    
-    $SUDO_CMD tee /etc/systemd/system/hourly-backend.service > /dev/null << EOF
+# Step 11: Create and enable systemd service files
+print_info "Creating systemd service files..."
+
+# Backend service
+if [ "$EUID" -eq 0 ]; then
+    SERVICE_USER="root"
+else
+    SERVICE_USER="$USER"
+fi
+
+$SUDO_CMD tee /etc/systemd/system/hourly-backend.service > /dev/null << EOF
 [Unit]
 Description=Hourly Backend API
 After=network.target
@@ -253,35 +267,58 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-    # Frontend service (if using a production server like nginx, this would be different)
-    print_info "Note: Frontend is typically served via nginx or similar. Service file not created."
+# Frontend service - using vite preview to serve the built frontend
+$SUDO_CMD tee /etc/systemd/system/hourly-frontend.service > /dev/null << EOF
+[Unit]
+Description=Hourly Frontend
+After=network.target hourly-backend.service
+Requires=hourly-backend.service
+
+[Service]
+Type=simple
+User=$SERVICE_USER
+WorkingDirectory=$SCRIPT_DIR/frontend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npx vite preview --host 0.0.0.0 --port 5173
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
     
-    $SUDO_CMD systemctl daemon-reload
-    print_success "Systemd service files created"
-    
-    # Ask if user wants to start and enable the service
-    read -p "Do you want to start and enable the backend service now? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Starting backend service..."
-        $SUDO_CMD systemctl start hourly-backend
-        $SUDO_CMD systemctl enable hourly-backend
-        print_success "Backend service started and enabled on boot"
-        
-        # Check if service is running
-        sleep 2
-        if $SUDO_CMD systemctl is-active --quiet hourly-backend; then
-            print_success "Backend service is running"
-        else
-            print_error "Backend service failed to start. Check logs with: sudo systemctl status hourly-backend"
-        fi
-    else
-        print_info "To start the backend service manually: $SUDO_CMD systemctl start hourly-backend"
-        print_info "To enable on boot: $SUDO_CMD systemctl enable hourly-backend"
-    fi
+$SUDO_CMD systemctl daemon-reload
+print_success "Systemd service files created"
+
+# Start and enable both services
+print_info "Starting and enabling services..."
+
+# Backend service
+$SUDO_CMD systemctl enable hourly-backend
+$SUDO_CMD systemctl start hourly-backend
+sleep 2
+
+if $SUDO_CMD systemctl is-active --quiet hourly-backend; then
+    print_success "Backend service started and enabled on boot"
 else
-    print_info "Skipping systemd service creation"
+    print_error "Backend service failed to start. Check logs with: $SUDO_CMD systemctl status hourly-backend"
 fi
+
+# Frontend service
+$SUDO_CMD systemctl enable hourly-frontend
+$SUDO_CMD systemctl start hourly-frontend
+sleep 2
+
+if $SUDO_CMD systemctl is-active --quiet hourly-frontend; then
+    print_success "Frontend service started and enabled on boot"
+else
+    print_error "Frontend service failed to start. Check logs with: $SUDO_CMD systemctl status hourly-frontend"
+fi
+
+echo ""
+print_info "Services will automatically start on system reboot"
+print_info "Backend API: http://localhost:5000"
+print_info "Frontend: http://localhost:5173"
 echo ""
 
 # Summary
@@ -291,23 +328,19 @@ echo "=========================================="
 echo ""
 print_success "All dependencies installed successfully"
 echo ""
-echo "Next steps:"
+echo "Services are running and will start automatically on reboot!"
 echo ""
-echo "1. Start the development servers:"
-echo "   Terminal 1 (Backend):"
-echo "     cd $SCRIPT_DIR/backend"
-echo "     npm run dev"
+echo "Service Management:"
+echo "   Check status: $SUDO_CMD systemctl status hourly-backend hourly-frontend"
+echo "   Stop services: $SUDO_CMD systemctl stop hourly-backend hourly-frontend"
+echo "   Start services: $SUDO_CMD systemctl start hourly-backend hourly-frontend"
+echo "   Restart services: $SUDO_CMD systemctl restart hourly-backend hourly-frontend"
+echo "   View logs: $SUDO_CMD journalctl -u hourly-backend -u hourly-frontend -f"
 echo ""
-echo "   Terminal 2 (Frontend):"
-echo "     cd $SCRIPT_DIR/frontend"
-echo "     npm run dev"
-echo ""
-echo "2. Access the application:"
-echo "   Frontend: http://localhost:5173 (or the port Vite assigns)"
+echo "Access the application:"
+echo "   Frontend: http://localhost:5173"
 echo "   Backend API: http://localhost:5000"
 echo ""
-echo "3. Create your first user account through the registration page"
-echo ""
-print_info "For production deployment, build the frontend and configure a reverse proxy (nginx)"
+echo "Create your first user account through the registration page"
 echo ""
 

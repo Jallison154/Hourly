@@ -10,19 +10,19 @@ cd Hourly && chmod +x install.sh && ./install.sh
 
 ## Full One-Liner (if you have git)
 
-The script can be run as root or as a regular user. If run as root, it will show a 3-second warning.
+**Important:** Only run this once! If you need to update, just run `./install.sh` from within the Hourly directory.
 
-**As regular user:**
+**First time installation:**
 ```bash
 git clone https://github.com/Jallison154/Hourly.git && cd Hourly && chmod +x install.sh && ./install.sh
 ```
 
-**As root:**
+**Updating existing installation:**
 ```bash
-git clone https://github.com/Jallison154/Hourly.git && cd Hourly && chmod +x install.sh && ./install.sh
+cd Hourly && ./install.sh
 ```
 
-**Note:** If running as root, all files will be owned by root. The script will show a 3-second warning before proceeding.
+**Note:** The script will automatically detect if it's a git repository and pull updates. Don't run the `git clone` command multiple times as it will create nested directories.
 
 ## Manual Steps (if you prefer)
 
