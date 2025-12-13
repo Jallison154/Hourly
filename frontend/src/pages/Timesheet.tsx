@@ -5,8 +5,9 @@ import { formatDate, formatTime, formatHours, formatCurrency } from '../utils/da
 import { formatTimesheetAsText } from '../utils/timesheetFormatter'
 import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
+import TimePicker from '../components/TimePicker'
 import type { TimesheetData } from '../types'
-import { TrashIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null)
@@ -15,6 +16,7 @@ export default function Timesheet() {
   const [payPeriods, setPayPeriods] = useState<Array<{ start: string; end: string }>>([])
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
   const [isClockedIn, setIsClockedIn] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<{ id: string; clockIn: string; clockOut: string | null; notes?: string | null } | null>(null)
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
   // Use ref to track previous clock status for transition detection
   const prevClockedInRef = useRef<boolean>(false)
@@ -123,6 +125,29 @@ export default function Timesheet() {
       if (!silent) {
         setLoading(false)
       }
+    }
+  }
+
+  const handleEditEntry = (entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null }) => {
+    setEditingEntry(entry)
+  }
+
+  const handleSaveEdit = async (updates: { clockIn: string; clockOut: string | null; notes?: string | null }) => {
+    if (!editingEntry) return
+
+    try {
+      await timeEntriesAPI.updateEntry(editingEntry.id, {
+        clockIn: updates.clockIn,
+        clockOut: updates.clockOut,
+        notes: updates.notes || null
+      })
+      setEditingEntry(null)
+      // Reload the timesheet for the current period
+      if (selectedPeriod) {
+        await loadTimesheet(selectedPeriod.start, selectedPeriod.end)
+      }
+    } catch (error: any) {
+      await showAlert('Error', error.response?.data?.error || 'Failed to update entry')
     }
   }
 
@@ -331,13 +356,27 @@ export default function Timesheet() {
                           )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleDeleteEntry(entry.id)}
-                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
-                            title="Delete entry"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleEditEntry({
+                                id: entry.id,
+                                clockIn: entry.clockIn,
+                                clockOut: entry.clockOut,
+                                notes: entry.notes || null
+                              })}
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                              title="Edit entry"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEntry(entry.id)}
+                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
+                              title="Delete entry"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -431,6 +470,26 @@ export default function Timesheet() {
           </motion.div>
       </motion.div>
 
+      {/* Edit Entry Modal */}
+      {editingEntry && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
+          >
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Edit Time Entry
+            </h2>
+            <EditEntryForm
+              entry={editingEntry}
+              onSave={handleSaveEdit}
+              onCancel={() => setEditingEntry(null)}
+            />
+          </motion.div>
+        </div>
+      )}
+
       {/* Dialog */}
       <Dialog
         open={dialog.open}
@@ -444,6 +503,125 @@ export default function Timesheet() {
         onCancel={dialog.onCancel}
       />
     </div>
+  )
+}
+
+// Edit Entry Form Component
+function EditEntryForm({ 
+  entry, 
+  onSave, 
+  onCancel 
+}: { 
+  entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null }
+  onSave: (updates: { clockIn: string; clockOut: string | null; notes?: string | null }) => void
+  onCancel: () => void
+}) {
+  const [clockIn, setClockIn] = useState(() => new Date(entry.clockIn))
+  const [clockOut, setClockOut] = useState(() => {
+    if (entry.clockOut) {
+      return new Date(entry.clockOut)
+    }
+    // Default to 1 hour after clock in if no clock out
+    const defaultOut = new Date(entry.clockIn)
+    defaultOut.setHours(defaultOut.getHours() + 1)
+    return defaultOut
+  })
+  const [hasClockOut, setHasClockOut] = useState(!!entry.clockOut)
+  const [notes, setNotes] = useState(entry.notes || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSaving(true)
+
+    try {
+      // Validate clock out is after clock in
+      if (hasClockOut && clockOut <= clockIn) {
+        setError('Clock out time must be after clock in time')
+        setSaving(false)
+        return
+      }
+
+      await onSave({
+        clockIn: clockIn.toISOString(),
+        clockOut: hasClockOut ? clockOut.toISOString() : null,
+        notes: notes || null
+      })
+    } catch (error) {
+      console.error('Error saving entry:', error)
+      setError('Failed to save entry')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 rounded">
+          {error}
+        </div>
+      )}
+
+      <TimePicker
+        value={clockIn}
+        onChange={setClockIn}
+        label="Clock In"
+      />
+
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="hasClockOut"
+          checked={hasClockOut}
+          onChange={(e) => setHasClockOut(e.target.checked)}
+          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+        />
+        <label htmlFor="hasClockOut" className="text-sm text-gray-700 dark:text-gray-300">
+          Has clock out time
+        </label>
+      </div>
+
+      {hasClockOut && (
+        <TimePicker
+          value={clockOut}
+          onChange={setClockOut}
+          label="Clock Out"
+        />
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Notes (optional)
+        </label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          placeholder="Add any notes about this entry..."
+        />
+      </div>
+
+      <div className="flex gap-3 pt-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
   )
 }
 
