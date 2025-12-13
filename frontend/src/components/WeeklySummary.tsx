@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { timeEntriesAPI } from '../services/api'
+import { useAuth } from '../hooks/useAuth'
 import { formatHours } from '../utils/date'
 
 interface WeeklySummaryData {
@@ -11,15 +12,106 @@ interface WeeklySummaryData {
   consecutiveDays: number
 }
 
+// Calculate current pay period
+function getCurrentPayPeriod(
+  date: Date = new Date(),
+  payPeriodType: string = 'monthly',
+  payPeriodEndDay: number = 10
+): { start: Date; end: Date } {
+  if (payPeriodType === 'weekly') {
+    // Weekly: Sunday to Saturday (7 days)
+    const dayOfWeek = date.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const daysToSunday = dayOfWeek === 0 ? 0 : dayOfWeek
+    const sunday = new Date(date)
+    sunday.setDate(date.getDate() - daysToSunday)
+    sunday.setHours(0, 0, 0, 0)
+    
+    const saturday = new Date(sunday)
+    saturday.setDate(sunday.getDate() + 6)
+    saturday.setHours(23, 59, 59, 999)
+    
+    return { start: sunday, end: saturday }
+  } else {
+    // Monthly: (endDay+1) to endDay of next month
+    const day = date.getDate()
+    const month = date.getMonth()
+    const year = date.getFullYear()
+    
+    if (day >= payPeriodEndDay + 1) {
+      // Current month's (endDay+1) to next month's endDay
+      return {
+        start: new Date(year, month, payPeriodEndDay + 1),
+        end: new Date(year, month + 1, payPeriodEndDay, 23, 59, 59, 999)
+      }
+    } else {
+      // Previous month's (endDay+1) to current month's endDay
+      return {
+        start: new Date(year, month - 1, payPeriodEndDay + 1),
+        end: new Date(year, month, payPeriodEndDay, 23, 59, 59, 999)
+      }
+    }
+  }
+}
+
+// Calculate next pay period
+function getNextPayPeriod(
+  currentPeriod: { start: Date; end: Date },
+  payPeriodType: string = 'monthly',
+  payPeriodEndDay: number = 10
+): { start: Date; end: Date } {
+  if (payPeriodType === 'weekly') {
+    // Next week: 7 days after current period
+    const nextStart = new Date(currentPeriod.end)
+    nextStart.setDate(nextStart.getDate() + 1)
+    nextStart.setHours(0, 0, 0, 0)
+    
+    const nextEnd = new Date(nextStart)
+    nextEnd.setDate(nextStart.getDate() + 6)
+    nextEnd.setHours(23, 59, 59, 999)
+    
+    return { start: nextStart, end: nextEnd }
+  } else {
+    // Next month: start from day after current period end
+    const nextStart = new Date(currentPeriod.end)
+    nextStart.setDate(nextStart.getDate() + 1)
+    nextStart.setHours(0, 0, 0, 0)
+    
+    // End is endDay of the month after nextStart's month
+    const nextEnd = new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, payPeriodEndDay, 23, 59, 59, 999)
+    
+    return { start: nextStart, end: nextEnd }
+  }
+}
+
 export default function WeeklySummary() {
+  const { user } = useAuth()
   const [summary, setSummary] = useState<WeeklySummaryData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [daysUntilNextPayPeriod, setDaysUntilNextPayPeriod] = useState<number | null>(null)
 
   useEffect(() => {
     loadWeeklySummary()
     const interval = setInterval(loadWeeklySummary, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
   }, [])
+
+  // Calculate days until next pay period
+  useEffect(() => {
+    if (!user) return
+    
+    const now = new Date()
+    const payPeriodType = user.payPeriodType || 'monthly'
+    const payPeriodEndDay = user.payPeriodEndDay || 10
+    
+    const currentPeriod = getCurrentPayPeriod(now, payPeriodType, payPeriodEndDay)
+    const nextPeriod = getNextPayPeriod(currentPeriod, payPeriodType, payPeriodEndDay)
+    
+    // Calculate days until end of next pay period
+    const msUntilEnd = nextPeriod.end.getTime() - now.getTime()
+    const daysUntil = Math.ceil(msUntilEnd / (1000 * 60 * 60 * 24))
+    
+    setDaysUntilNextPayPeriod(daysUntil)
+  }, [user])
 
   const loadWeeklySummary = async () => {
     try {
@@ -225,6 +317,16 @@ export default function WeeklySummary() {
           </div>
         </div>
       </div>
+      {daysUntilNextPayPeriod !== null && (
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="text-center">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Days Until Next Pay Period Ends</div>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {daysUntilNextPayPeriod} {daysUntilNextPayPeriod === 1 ? 'day' : 'days'}
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   )
 }

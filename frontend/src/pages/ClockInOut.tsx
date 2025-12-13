@@ -101,24 +101,6 @@ export default function ClockInOut() {
     return () => clearInterval(interval)
   }, [])
 
-  // Calculate days until next pay period
-  useEffect(() => {
-    if (!user) return
-    
-    const now = new Date()
-    const payPeriodType = user.payPeriodType || 'monthly'
-    const payPeriodEndDay = user.payPeriodEndDay || 10
-    
-    const currentPeriod = getCurrentPayPeriod(now, payPeriodType, payPeriodEndDay)
-    const nextPeriod = getNextPayPeriod(currentPeriod, payPeriodType, payPeriodEndDay)
-    
-    // Calculate days until end of next pay period
-    const msUntilEnd = nextPeriod.end.getTime() - now.getTime()
-    const daysUntil = Math.ceil(msUntilEnd / (1000 * 60 * 60 * 24))
-    
-    setDaysUntilNextPayPeriod(daysUntil)
-  }, [user])
-
   const loadStatus = async () => {
     try {
       const data = await timeEntriesAPI.getStatus()
@@ -189,26 +171,14 @@ export default function ClockInOut() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 sm:pb-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Days Until Next Pay Period */}
-        {daysUntilNextPayPeriod !== null && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                  Days until next pay period ends
-                </p>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">
-                  {daysUntilNextPayPeriod} {daysUntilNextPayPeriod === 1 ? 'day' : 'days'}
-                </p>
-              </div>
-              <div className="text-4xl">📅</div>
-            </div>
-          </motion.div>
-        )}
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-center mb-6"
+        >
+          <img src="/logo-icon.svg" alt="Hourly" className="w-12 h-12 sm:w-16 sm:h-16" />
+        </motion.div>
 
         {/* Weekly Summary */}
         <WeeklySummary />
