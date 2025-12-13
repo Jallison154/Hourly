@@ -26,7 +26,7 @@ export default function Login() {
       }
       navigate('/')
     } catch (err: unknown) {
-      const axiosError = err as { userMessage?: string; response?: { data?: { error?: string } }; message?: string; code?: string }
+      const axiosError = err as { userMessage?: string; response?: { data?: { error?: string }; status?: number }; message?: string; code?: string }
       console.error('Login error:', err)
       console.error('Error response:', axiosError.response?.data)
       console.error('Error status:', axiosError.response?.status)

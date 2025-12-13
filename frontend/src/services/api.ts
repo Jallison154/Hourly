@@ -157,7 +157,7 @@ export const authAPI = {
             method: axiosError.config?.method,
             headers: axiosError.config?.headers
           },
-          fullUrl: axiosError.config?.baseURL + axiosError.config?.url
+          fullUrl: (axiosError.config?.baseURL || '') + (axiosError.config?.url || '')
         })
       }
       
