@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { HomeIcon, ClockIcon, DocumentTextIcon, CalculatorIcon } from '@heroicons/react/24/outline'
-import { HomeIcon as HomeIconSolid, ClockIcon as ClockIconSolid, DocumentTextIcon as DocumentTextIconSolid, CalculatorIcon as CalculatorIconSolid } from '@heroicons/react/24/solid'
+import { HomeIcon, ClockIcon, DocumentTextIcon, CalculatorIcon, UserIcon } from '@heroicons/react/24/outline'
+import { HomeIcon as HomeIconSolid, ClockIcon as ClockIconSolid, DocumentTextIcon as DocumentTextIconSolid, CalculatorIcon as CalculatorIconSolid, UserIcon as UserIconSolid } from '@heroicons/react/24/solid'
 
 export default function MobileBottomNav() {
   const location = useLocation()
@@ -10,7 +10,8 @@ export default function MobileBottomNav() {
     { path: '/', label: 'Clock', icon: ClockIcon, iconSolid: ClockIconSolid },
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
     { path: '/timesheet', label: 'Timesheet', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
-    { path: '/profile', label: 'Profile', icon: CalculatorIcon, iconSolid: CalculatorIconSolid },
+    { path: '/calculator', label: 'Paycheck', icon: CalculatorIcon, iconSolid: CalculatorIconSolid },
+    { path: '/profile', label: 'Profile', icon: UserIcon, iconSolid: UserIconSolid },
   ]
 
   const isActive = (path: string) => {

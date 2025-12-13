@@ -39,7 +39,7 @@ export default function Navigation() {
     { path: '/', label: 'Clock', icon: '⏰' },
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/timesheet', label: 'Timesheet', icon: '📋' },
-    { path: '/calculator', label: 'Calculator', icon: '💰' }
+    { path: '/calculator', label: 'Paycheck', icon: '💰' }
   ]
 
   return (
