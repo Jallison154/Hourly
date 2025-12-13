@@ -37,16 +37,18 @@ function getCurrentPayPeriod(
     const month = date.getMonth()
     const year = date.getFullYear()
     
-    if (day >= payPeriodEndDay + 1) {
-      // Current month's (endDay+1) to next month's endDay
+    if (day > payPeriodEndDay) {
+      // We're past the endDay, so current period is: this month's (endDay+1) to next month's endDay
+      // Example: If today is Dec 15 and endDay is 10, period is Dec 11 to Jan 10
       return {
-        start: new Date(year, month, payPeriodEndDay + 1),
+        start: new Date(year, month, payPeriodEndDay + 1, 0, 0, 0, 0),
         end: new Date(year, month + 1, payPeriodEndDay, 23, 59, 59, 999)
       }
     } else {
-      // Previous month's (endDay+1) to current month's endDay
+      // We're on or before the endDay, so current period is: previous month's (endDay+1) to this month's endDay
+      // Example: If today is Dec 10 and endDay is 10, period is Nov 11 to Dec 10
       return {
-        start: new Date(year, month - 1, payPeriodEndDay + 1),
+        start: new Date(year, month - 1, payPeriodEndDay + 1, 0, 0, 0, 0),
         end: new Date(year, month, payPeriodEndDay, 23, 59, 59, 999)
       }
     }
