@@ -79,9 +79,19 @@ echo ""
 
 echo "→ Rebuilding frontend..."
 cd ../frontend
-rm -rf dist .vite 2>/dev/null || true
+rm -rf dist .vite node_modules/.vite 2>/dev/null || true
+# Clear npm cache for good measure
+npm cache clean --force 2>/dev/null || true
 npm run build
 echo "✓ Frontend rebuilt"
+echo ""
+
+# Verify the build contains the Add Entry button
+if grep -q "Add Entry" dist/index.html 2>/dev/null || grep -q "Add Entry" dist/assets/*.js 2>/dev/null; then
+    echo "✓ Verified: Add Entry button is in the build"
+else
+    echo "⚠ Warning: Could not verify Add Entry button in build (may still be there)"
+fi
 echo ""
 
 echo "→ Restarting services..."
