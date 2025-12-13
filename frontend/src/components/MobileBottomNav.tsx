@@ -39,13 +39,13 @@ export default function MobileBottomNav() {
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl ${
+                  className={`w-16 h-16 rounded-full flex items-center justify-center shadow-xl ${
                     active 
                       ? 'bg-blue-600 text-white' 
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}
                 >
-                  <Icon className="w-10 h-10" />
+                  <Icon className="w-8 h-8" />
                 </motion.div>
               ) : (
                 <>
