@@ -11,6 +11,78 @@ import { useDialog } from '../hooks/useDialog'
 import { formatDateTime } from '../utils/date'
 import type { TimeEntry } from '../types'
 
+// Calculate current pay period
+function getCurrentPayPeriod(
+  date: Date = new Date(),
+  payPeriodType: string = 'monthly',
+  payPeriodEndDay: number = 10
+): { start: Date; end: Date } {
+  if (payPeriodType === 'weekly') {
+    // Weekly: Sunday to Saturday (7 days)
+    const dayOfWeek = date.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const daysToSunday = dayOfWeek === 0 ? 0 : dayOfWeek
+    const sunday = new Date(date)
+    sunday.setDate(date.getDate() - daysToSunday)
+    sunday.setHours(0, 0, 0, 0)
+    
+    const saturday = new Date(sunday)
+    saturday.setDate(sunday.getDate() + 6)
+    saturday.setHours(23, 59, 59, 999)
+    
+    return { start: sunday, end: saturday }
+  } else {
+    // Monthly: (endDay+1) to endDay of next month
+    const day = date.getDate()
+    const month = date.getMonth()
+    const year = date.getFullYear()
+    
+    if (day >= payPeriodEndDay + 1) {
+      // Current month's (endDay+1) to next month's endDay
+      return {
+        start: new Date(year, month, payPeriodEndDay + 1),
+        end: new Date(year, month + 1, payPeriodEndDay, 23, 59, 59, 999)
+      }
+    } else {
+      // Previous month's (endDay+1) to current month's endDay
+      return {
+        start: new Date(year, month - 1, payPeriodEndDay + 1),
+        end: new Date(year, month, payPeriodEndDay, 23, 59, 59, 999)
+      }
+    }
+  }
+}
+
+// Calculate next pay period
+function getNextPayPeriod(
+  currentPeriod: { start: Date; end: Date },
+  payPeriodType: string = 'monthly',
+  payPeriodEndDay: number = 10
+): { start: Date; end: Date } {
+  if (payPeriodType === 'weekly') {
+    // Next week: 7 days after current period
+    const nextStart = new Date(currentPeriod.end)
+    nextStart.setDate(nextStart.getDate() + 1)
+    nextStart.setHours(0, 0, 0, 0)
+    
+    const nextEnd = new Date(nextStart)
+    nextEnd.setDate(nextStart.getDate() + 6)
+    nextEnd.setHours(23, 59, 59, 999)
+    
+    return { start: nextStart, end: nextEnd }
+  } else {
+    // Next month: start from day after current period end
+    const nextStart = new Date(currentPeriod.end)
+    nextStart.setDate(nextStart.getDate() + 1)
+    nextStart.setHours(0, 0, 0, 0)
+    
+    // End is endDay of the month after nextStart's month
+    // If nextStart is on (endDay+1), then end is endDay of next month
+    const nextEnd = new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, payPeriodEndDay, 23, 59, 59, 999)
+    
+    return { start: nextStart, end: nextEnd }
+  }
+}
+
 export default function ClockInOut() {
   const { user } = useAuth()
   const [status, setStatus] = useState<{ isClockedIn: boolean; entry: TimeEntry | null } | null>(null)
@@ -20,6 +92,7 @@ export default function ClockInOut() {
   const [clockInTime, setClockInTime] = useState(new Date())
   const [clockOutTime, setClockOutTime] = useState(new Date())
   const [useCustomTime, setUseCustomTime] = useState(false)
+  const [daysUntilNextPayPeriod, setDaysUntilNextPayPeriod] = useState<number | null>(null)
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
 
   useEffect(() => {
@@ -27,6 +100,24 @@ export default function ClockInOut() {
     const interval = setInterval(loadStatus, 5000) // Refresh every 5 seconds for real-time updates
     return () => clearInterval(interval)
   }, [])
+
+  // Calculate days until next pay period
+  useEffect(() => {
+    if (!user) return
+    
+    const now = new Date()
+    const payPeriodType = user.payPeriodType || 'monthly'
+    const payPeriodEndDay = user.payPeriodEndDay || 10
+    
+    const currentPeriod = getCurrentPayPeriod(now, payPeriodType, payPeriodEndDay)
+    const nextPeriod = getNextPayPeriod(currentPeriod, payPeriodType, payPeriodEndDay)
+    
+    // Calculate days until end of next pay period
+    const msUntilEnd = nextPeriod.end.getTime() - now.getTime()
+    const daysUntil = Math.ceil(msUntilEnd / (1000 * 60 * 60 * 24))
+    
+    setDaysUntilNextPayPeriod(daysUntil)
+  }, [user])
 
   const loadStatus = async () => {
     try {
@@ -98,6 +189,27 @@ export default function ClockInOut() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 sm:pb-8">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {/* Days Until Next Pay Period */}
+        {daysUntilNextPayPeriod !== null && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                  Days until next pay period ends
+                </p>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">
+                  {daysUntilNextPayPeriod} {daysUntilNextPayPeriod === 1 ? 'day' : 'days'}
+                </p>
+              </div>
+              <div className="text-4xl">📅</div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Weekly Summary */}
         <WeeklySummary />
 
