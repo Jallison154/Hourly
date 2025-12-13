@@ -23,7 +23,7 @@ export default function MobileBottomNav() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 sm:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="flex justify-around items-end h-16 pb-1">
+      <div className="flex justify-around items-end h-10 pb-1">
         {navItems.map((item) => {
           const active = isActive(item.path)
           const Icon = active ? item.iconSolid : item.icon
@@ -33,19 +33,19 @@ export default function MobileBottomNav() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-1' : 'flex-1'}`}
+              className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-[1.5] -mt-6' : 'flex-1'}`}
             >
               {isOversized ? (
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${
+                  className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl ${
                     active 
                       ? 'bg-blue-600 text-white' 
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}
                 >
-                  <Icon className="w-6 h-6" />
+                  <Icon className="w-10 h-10" />
                 </motion.div>
               ) : (
                 <>
