@@ -97,14 +97,14 @@ export default function ClockInOut() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 sm:pb-8">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 sm:py-6">
         {/* Logo */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center mb-6"
+          className="flex items-center justify-center mb-3"
         >
-          <img src="/logo-icon.svg" alt="Hourly" className="w-12 h-12 sm:w-16 sm:h-16" />
+          <img src="/logo-icon.svg" alt="Hourly" className="w-10 h-10 sm:w-12 sm:h-12" />
         </motion.div>
 
         {/* Weekly Summary */}
@@ -133,13 +133,13 @@ export default function ClockInOut() {
               </div>
 
               {/* Custom Time Toggle */}
-              <div className="mb-4">
+              <div className="mb-3">
                 <button
                   onClick={() => {
                     setShowTimePicker(!showTimePicker)
                     setUseCustomTime(!showTimePicker)
                   }}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   {showTimePicker ? 'Use current time' : 'Set custom time'}
                 </button>
@@ -151,7 +151,7 @@ export default function ClockInOut() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mb-6"
+                    className="mb-4"
                   >
                     <TimePicker
                       value={clockInTime}
@@ -167,7 +167,7 @@ export default function ClockInOut() {
                 onClick={handleClockIn}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-6 px-8 rounded-xl text-xl sm:text-2xl shadow-lg transition-colors"
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
               >
                 Clock In
               </motion.button>

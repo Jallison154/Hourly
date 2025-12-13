@@ -278,55 +278,53 @@ export default function WeeklySummary() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 mb-6"
+      className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 mb-4"
     >
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
         This Week
       </h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Hours Worked</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Hours Worked</div>
+          <div className="text-xl font-bold text-gray-900 dark:text-white">
             {formatHours(summary.hoursWorked)}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Overtime</div>
-          <div className={`text-2xl font-bold ${summary.overtimeHours > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}>
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Overtime</div>
+          <div className={`text-xl font-bold ${summary.overtimeHours > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'}`}>
             {formatHours(summary.overtimeHours)}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Hours Left</div>
-          <div className={`text-2xl font-bold ${summary.hoursLeft <= 5 && summary.hoursLeft > 0 ? 'text-yellow-600 dark:text-yellow-400' : summary.hoursLeft === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Hours Left</div>
+          <div className={`text-xl font-bold ${summary.hoursLeft <= 5 && summary.hoursLeft > 0 ? 'text-yellow-600 dark:text-yellow-400' : summary.hoursLeft === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
             {formatHours(summary.hoursLeft)}
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
         <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Days Worked This Week</div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Days Worked</div>
+          <div className="text-xl font-bold text-gray-900 dark:text-white">
             {summary.daysWorked}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Days in a Row</div>
-          <div className={`text-2xl font-bold ${summary.consecutiveDays >= 5 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
+          <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Days in a Row</div>
+          <div className={`text-xl font-bold ${summary.consecutiveDays >= 5 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
             {summary.consecutiveDays}
           </div>
         </div>
-      </div>
-      {daysUntilNextPayPeriod !== null && (
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        {daysUntilNextPayPeriod !== null && (
           <div className="text-center">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Days Until Next Pay Period Ends</div>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {daysUntilNextPayPeriod} {daysUntilNextPayPeriod === 1 ? 'day' : 'days'}
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Days Until Pay Period</div>
+            <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+              {daysUntilNextPayPeriod}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </motion.div>
   )
 }
