@@ -38,7 +38,7 @@ export default function MobileBottomNav() {
               {active && !isOversized && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute top-8 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
+                  className="absolute top-14 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
                   initial={false}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
