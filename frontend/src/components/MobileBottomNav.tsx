@@ -33,19 +33,19 @@ export default function MobileBottomNav() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-[1.5] -mt-8' : 'flex-1'}`}
+              className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-1' : 'flex-1'}`}
             >
               {isOversized ? (
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center shadow-xl ${
+                  className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${
                     active 
                       ? 'bg-blue-600 text-white' 
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}
                 >
-                  <Icon className="w-8 h-8" />
+                  <Icon className="w-6 h-6" />
                 </motion.div>
               ) : (
                 <>
