@@ -187,6 +187,7 @@ async function getTimesheetData(
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
       select: {
+        name: true,
         hourlyRate: true,
         overtimeRate: true,
         paycheckAdjustment: true,

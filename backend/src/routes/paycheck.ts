@@ -27,7 +27,9 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         overtimeRate: true,
         paycheckAdjustment: true,
         state: true,
-        stateTaxRate: true
+        stateTaxRate: true,
+        payPeriodType: true,
+        payPeriodEndDay: true
       }
     })
     
