@@ -43,6 +43,7 @@ function AppRoutes() {
       <Route path="/clock" element={<ProtectedRoute><ClockInOut /></ProtectedRoute>} />
       <Route path="/timesheet" element={<ProtectedRoute><Timesheet /></ProtectedRoute>} />
       <Route path="/calculator" element={<ProtectedRoute><PaycheckCalculator /></ProtectedRoute>} />
+      <Route path="/paycheck" element={<ProtectedRoute><PaycheckCalculator /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/import" element={<ProtectedRoute><Import /></ProtectedRoute>} />
     </Routes>
