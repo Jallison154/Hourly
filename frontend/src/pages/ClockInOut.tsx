@@ -96,15 +96,15 @@ export default function ClockInOut() {
   const currentEntry = status?.entry
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 sm:py-6">
-        {/* Logo */}
+    <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 sm:py-6 h-full overflow-y-auto">
+        {/* Logo - Hidden on desktop */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center mb-3"
+          className="flex items-center justify-center mb-3 sm:hidden"
         >
-          <img src="/logo-icon.svg" alt="Hourly" className="w-10 h-10 sm:w-12 sm:h-12" />
+          <img src="/logo-icon.svg" alt="Hourly" className="w-10 h-10" />
         </motion.div>
 
         {/* Weekly Summary */}
