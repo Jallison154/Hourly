@@ -38,8 +38,9 @@ export default function ManualEntryForm({ onSuccess, entry }: ManualEntryFormPro
         })
       }
       onSuccess()
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save entry')
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      setError(axiosError.response?.data?.error || 'Failed to save entry')
     } finally {
       setLoading(false)
     }

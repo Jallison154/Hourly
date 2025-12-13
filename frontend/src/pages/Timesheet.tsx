@@ -118,11 +118,12 @@ export default function Timesheet() {
     try {
       const data = await timesheetAPI.getTimesheet(startDate, endDate)
       setTimesheet(data)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string }
       console.error('Failed to load timesheet:', error)
-      console.error('Error details:', error.response?.data || error.message)
+      console.error('Error details:', axiosError.response?.data || axiosError.message)
       // Show error to user
-      showAlert('Failed to load timesheet', error.response?.data?.message || error.message || 'An error occurred')
+      showAlert('Failed to load timesheet', axiosError.response?.data?.message || axiosError.message || 'An error occurred')
     } finally {
       if (!silent) {
         setLoading(false)
@@ -175,8 +176,9 @@ export default function Timesheet() {
       if (selectedPeriod) {
         await loadTimesheet(selectedPeriod.start, selectedPeriod.end)
       }
-    } catch (error: any) {
-      await showAlert('Error', error.response?.data?.error || 'Failed to save entry')
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to save entry')
     }
   }
 
@@ -196,8 +198,9 @@ export default function Timesheet() {
       if (selectedPeriod) {
         await loadTimesheet(selectedPeriod.start, selectedPeriod.end)
       }
-    } catch (error: any) {
-      await showAlert('Error', error.response?.data?.error || 'Failed to delete entry')
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to delete entry')
     }
   }
 

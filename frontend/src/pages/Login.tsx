@@ -17,20 +17,25 @@ export default function Login() {
     setLoading(true)
 
     try {
-      console.log('Attempting login with email:', email)
+      if (import.meta.env.DEV) {
+        console.log('Attempting login with email:', email)
+      }
       await login(email, password)
-      console.log('Login successful')
+      if (import.meta.env.DEV) {
+        console.log('Login successful')
+      }
       navigate('/')
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const axiosError = err as { userMessage?: string; response?: { data?: { error?: string } }; message?: string; code?: string }
       console.error('Login error:', err)
-      console.error('Error response:', err.response?.data)
-      console.error('Error status:', err.response?.status)
-      console.error('Error code:', err.code)
+      console.error('Error response:', axiosError.response?.data)
+      console.error('Error status:', axiosError.response?.status)
+      console.error('Error code:', axiosError.code)
       
       // Use user-friendly error message if available, otherwise fall back to response error
-      const errorMessage = err.userMessage || 
-                          err.response?.data?.error || 
-                          err.message || 
+      const errorMessage = axiosError.userMessage || 
+                          axiosError.response?.data?.error || 
+                          axiosError.message || 
                           'Login failed. Please check your connection and try again.'
       setError(errorMessage)
     } finally {

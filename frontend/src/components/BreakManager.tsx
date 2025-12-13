@@ -38,8 +38,9 @@ export default function BreakManager({ entry, onUpdate }: BreakManagerProps) {
       setShowAddBreak(false)
       setNotes('')
       onUpdate()
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add break')
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      setError(axiosError.response?.data?.error || 'Failed to add break')
     } finally {
       setLoading(false)
     }
@@ -52,8 +53,9 @@ export default function BreakManager({ entry, onUpdate }: BreakManagerProps) {
     try {
       await timeEntriesAPI.deleteBreak(breakId)
       onUpdate()
-    } catch (err: any) {
-      await showAlert('Error', err.response?.data?.error || 'Failed to delete break')
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to delete break')
     }
   }
 

@@ -67,8 +67,9 @@ export default function Import() {
       })
       
       setResult(data)
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to import data')
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      setError(axiosError.response?.data?.error || 'Failed to import data')
     } finally {
       setLoading(false)
     }
@@ -99,8 +100,9 @@ export default function Import() {
       // Clear the date fields after successful deletion
       setClearStartDate('')
       setClearEndDate('')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to clear data')
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      setError(axiosError.response?.data?.error || 'Failed to clear data')
     } finally {
       setClearing(false)
     }

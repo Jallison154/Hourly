@@ -4,9 +4,11 @@ import type { User, TimeEntry, Break, PayCalculation, TimesheetData, Metrics, Pa
 // Auto-detect API URL for mobile access
 // If VITE_API_URL is set, use it. Otherwise, try to detect the server IP
 const getApiUrl = () => {
+  const isDev = import.meta.env.DEV
+  
   // Check for explicit API URL in environment variable
   if (import.meta.env.VITE_API_URL) {
-    console.log('Using VITE_API_URL:', import.meta.env.VITE_API_URL)
+    if (isDev) console.log('Using VITE_API_URL:', import.meta.env.VITE_API_URL)
     return import.meta.env.VITE_API_URL
   }
   
@@ -14,21 +16,20 @@ const getApiUrl = () => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
     const protocol = window.location.protocol
-    const port = window.location.port
     
     // If accessing from localhost
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       // In dev mode (npm run dev), Vite proxy handles /api -> localhost:5000
-      if (import.meta.env.DEV) {
+      if (isDev) {
         const relativeUrl = '/api'
-        console.log('Using relative API URL for dev proxy:', relativeUrl)
+        if (isDev) console.log('Using relative API URL for dev proxy:', relativeUrl)
         return relativeUrl
       }
       
       // In preview mode (built files), vite preview doesn't have a proxy
       // So we need to use the full localhost:5000 URL
       const apiUrl = 'http://localhost:5000/api'
-      console.log('Using localhost API URL for preview mode (no proxy):', apiUrl)
+      if (isDev) console.log('Using localhost API URL for preview mode (no proxy):', apiUrl)
       return apiUrl
     }
     
@@ -40,13 +41,7 @@ const getApiUrl = () => {
       const isPrivateIP = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(hostname)
       const apiProtocol = isPrivateIP ? 'http' : (protocol === 'https:' ? 'https' : 'http')
       const apiUrl = `${apiProtocol}://${hostname}:5000/api`
-      console.log('Detected remote access:', {
-        hostname,
-        port,
-        isPrivateIP,
-        apiProtocol,
-        apiUrl
-      })
+      if (isDev) console.log('Detected remote access:', { hostname, isPrivateIP, apiProtocol, apiUrl })
       return apiUrl
     }
   }
@@ -54,12 +49,12 @@ const getApiUrl = () => {
   // Default fallback: use localhost:5000 for local development/preview
   // This handles cases where we can't detect the environment properly
   const defaultUrl = 'http://localhost:5000/api'
-  console.log('Using default API URL (fallback):', defaultUrl)
+  if (isDev) console.log('Using default API URL (fallback):', defaultUrl)
   return defaultUrl
 }
 
 const API_URL = getApiUrl()
-console.log('API URL configured:', API_URL)
+if (import.meta.env.DEV) console.log('API URL configured:', API_URL)
 
 const api = axios.create({
   baseURL: API_URL,
@@ -74,26 +69,35 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
-  console.log('API Request:', config.method?.toUpperCase(), config.url, 'to', config.baseURL)
+  if (import.meta.env.DEV) {
+    console.log('API Request:', config.method?.toUpperCase(), config.url, 'to', config.baseURL)
+  }
   return config
 })
 
 // Add response interceptor for debugging
 api.interceptors.response.use(
   (response) => {
-    console.log('API Response:', response.status, response.config.url)
+    if (import.meta.env.DEV) {
+      console.log('API Response:', response.status, response.config.url)
+    }
     return response
   },
   (error) => {
-    console.error('API Error Details:')
-    console.error('  Status:', error.response?.status)
-    console.error('  Status Text:', error.response?.statusText)
-    console.error('  Data:', error.response?.data)
-    console.error('  URL:', error.config?.url)
-    console.error('  Base URL:', error.config?.baseURL)
-    console.error('  Full URL:', error.config?.baseURL + error.config?.url)
-    console.error('  Error Code:', error.code)
-    console.error('  Error Message:', error.message)
+    // Always log errors, but with less detail in production
+    if (import.meta.env.DEV) {
+      console.error('API Error Details:')
+      console.error('  Status:', error.response?.status)
+      console.error('  Status Text:', error.response?.statusText)
+      console.error('  Data:', error.response?.data)
+      console.error('  URL:', error.config?.url)
+      console.error('  Base URL:', error.config?.baseURL)
+      console.error('  Full URL:', error.config?.baseURL + error.config?.url)
+      console.error('  Error Code:', error.code)
+      console.error('  Error Message:', error.message)
+    } else {
+      console.error('API Error:', error.response?.status || error.code, error.config?.url)
+    }
     
     // Provide better error messages for common issues
     if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
@@ -120,38 +124,44 @@ export const authAPI = {
   
   login: async (email: string, password: string) => {
     try {
-      const fullUrl = `${api.defaults.baseURL}/auth/login`
-      console.log('Login request details:', {
-        baseURL: api.defaults.baseURL,
-        endpoint: '/auth/login',
-        fullUrl,
-        hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
-        origin: typeof window !== 'undefined' ? window.location.origin : 'N/A'
-      })
+      if (import.meta.env.DEV) {
+        const fullUrl = `${api.defaults.baseURL}/auth/login`
+        console.log('Login request details:', {
+          baseURL: api.defaults.baseURL,
+          endpoint: '/auth/login',
+          fullUrl,
+          hostname: typeof window !== 'undefined' ? window.location.hostname : 'N/A',
+          origin: typeof window !== 'undefined' ? window.location.origin : 'N/A'
+        })
+      }
       
       const { data } = await api.post('/auth/login', { email, password })
       if (data.token) {
         localStorage.setItem('token', data.token)
-        console.log('Login successful, token saved')
+        if (import.meta.env.DEV) console.log('Login successful, token saved')
       }
       return data
-    } catch (error: any) {
-      console.error('Login API error details:', {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        config: {
-          url: error.config?.url,
-          baseURL: error.config?.baseURL,
-          method: error.config?.method,
-          headers: error.config?.headers
-        },
-        fullUrl: error.config?.baseURL + error.config?.url
-      })
+    } catch (error: unknown) {
+      const axiosError = error as { code?: string; message?: string; response?: { status?: number; statusText?: string; data?: unknown }; config?: { url?: string; baseURL?: string; method?: string; headers?: unknown } }
       
-      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
+      if (import.meta.env.DEV) {
+        console.error('Login API error details:', {
+          message: axiosError.message,
+          code: axiosError.code,
+          status: axiosError.response?.status,
+          statusText: axiosError.response?.statusText,
+          data: axiosError.response?.data,
+          config: {
+            url: axiosError.config?.url,
+            baseURL: axiosError.config?.baseURL,
+            method: axiosError.config?.method,
+            headers: axiosError.config?.headers
+          },
+          fullUrl: axiosError.config?.baseURL + axiosError.config?.url
+        })
+      }
+      
+      if (axiosError.code === 'ERR_NETWORK' || axiosError.message?.includes('Network Error') || axiosError.message?.includes('Failed to fetch')) {
         const errorMsg = `Cannot connect to server at ${api.defaults.baseURL}. ` +
           `Please check: 1) Backend is running, 2) You're on the same network, 3) Firewall allows port 5000`
         throw new Error(errorMsg)
@@ -204,7 +214,7 @@ export const timeEntriesAPI = {
   },
   
   getEntries: async (startDate?: string, endDate?: string): Promise<TimeEntry[]> => {
-    const params: any = {}
+    const params: Record<string, string> = {}
     if (startDate) params.startDate = startDate
     if (endDate) params.endDate = endDate
     const { data } = await api.get('/time-entries', { params })
@@ -311,7 +321,7 @@ export const paycheckAPI = {
     payPeriod?: PayPeriod
     weeklyBreakdown?: Array<PayCalculation & { weekNumber: number; start: string; end: string }>
   }> => {
-    const queryParams: any = { ...params }
+    const queryParams: Record<string, string | number | undefined> = { ...params }
     if (startDate) queryParams.startDate = startDate
     if (endDate) queryParams.endDate = endDate
     const { data } = await api.get('/paycheck/estimate', { params: queryParams })

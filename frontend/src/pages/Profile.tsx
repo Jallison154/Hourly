@@ -63,8 +63,9 @@ export default function Profile() {
     try {
       await updateUser(formData)
       await showAlert('Success', 'Profile updated successfully!')
-    } catch (error: any) {
-      await showAlert('Error', error.response?.data?.error || 'Failed to update profile')
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to update profile')
     } finally {
       setLoading(false)
     }
@@ -456,8 +457,9 @@ export default function Profile() {
                       const { timeEntriesAPI } = await import('../services/api')
                       const result = await timeEntriesAPI.deleteAllEntries()
                       await showAlert('Success', `Successfully deleted ${result.deletedCount} time entries. You can now re-import your data.`)
-                    } catch (error: any) {
-                      await showAlert('Error', error.response?.data?.error || 'Failed to delete time entries')
+                    } catch (error: unknown) {
+                      const axiosError = error as { response?: { data?: { error?: string } } }
+                      await showAlert('Error', axiosError.response?.data?.error || 'Failed to delete time entries')
                     }
                   }
                 }}

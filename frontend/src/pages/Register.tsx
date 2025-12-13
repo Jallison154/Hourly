@@ -26,8 +26,9 @@ export default function Register() {
         hourlyRate ? parseFloat(hourlyRate) : undefined
       )
       navigate('/')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed')
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { error?: string } } }
+      setError(axiosError.response?.data?.error || 'Registration failed')
     } finally {
       setLoading(false)
     }

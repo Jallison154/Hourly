@@ -46,8 +46,9 @@ export default function ClockInOut() {
       await loadStatus()
       setUseCustomTime(false)
       setShowTimePicker(false)
-    } catch (error: any) {
-      await showAlert('Error', error.response?.data?.error || 'Failed to clock in')
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to clock in')
     }
   }
 
@@ -58,8 +59,9 @@ export default function ClockInOut() {
       await loadStatus()
       setUseCustomTime(false)
       setShowTimePicker(false)
-    } catch (error: any) {
-      await showAlert('Error', error.response?.data?.error || 'Failed to clock out')
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to clock out')
     }
   }
 
@@ -78,8 +80,9 @@ export default function ClockInOut() {
         await timeEntriesAPI.deleteEntry(currentEntry.id)
         await loadStatus()
         await showAlert('Success', 'Clock-in cancelled successfully')
-      } catch (error: any) {
-        await showAlert('Error', error.response?.data?.error || 'Failed to cancel clock-in')
+      } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { error?: string } } }
+        await showAlert('Error', axiosError.response?.data?.error || 'Failed to cancel clock-in')
       }
     }
   }

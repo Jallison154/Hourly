@@ -151,3 +151,4 @@ echo "  1. Hard refresh browser: Ctrl+Shift+R (or Cmd+Shift+R)"
 echo "  2. Clear browser cache"
 echo ""
 
+
