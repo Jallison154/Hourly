@@ -30,40 +30,46 @@ export default function MobileBottomNav() {
           const isOversized = item.oversized
           
           return (
-            <Link
+            <motion.div
               key={item.path}
-              to={item.path}
               className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-[1.5] -mt-6' : 'flex-1'}`}
+              whileTap={{ scale: 0.97, opacity: 0.8 }}
+              transition={{ duration: 0.1 }}
             >
-              {isOversized ? (
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl ${
-                    active 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  <Icon className="w-10 h-10" />
-                </motion.div>
-              ) : (
-                <>
-                  {active && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute -top-1 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
-                      initial={false}
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                  <Icon className={`w-6 h-6 ${active ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`} />
-                  <span className={`text-xs mt-1 ${active ? 'text-blue-600 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {item.label}
-                  </span>
-                </>
-              )}
-            </Link>
+              <Link
+                to={item.path}
+                className="flex flex-col items-center justify-center w-full h-full"
+              >
+                {isOversized ? (
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl ${
+                      active 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    <Icon className="w-10 h-10" />
+                  </motion.div>
+                ) : (
+                  <>
+                    {active && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute -top-1 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
+                        initial={false}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    <Icon className={`w-6 h-6 ${active ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`} />
+                    <span className={`text-xs mt-1 ${active ? 'text-blue-600 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {item.label}
+                    </span>
+                  </>
+                )}
+              </Link>
+            </motion.div>
           )
         })}
       </div>

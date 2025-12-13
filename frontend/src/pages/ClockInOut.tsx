@@ -137,15 +137,17 @@ export default function ClockInOut() {
 
               {/* Custom Time Toggle */}
               <div className="mb-3">
-                <button
+                <motion.button
                   onClick={() => {
                     setShowTimePicker(!showTimePicker)
                     setUseCustomTime(!showTimePicker)
                   }}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  whileTap={{ scale: 0.97, opacity: 0.7 }}
+                  transition={{ duration: 0.1 }}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
                 >
                   {showTimePicker ? 'Use current time' : 'Set custom time'}
-                </button>
+                </motion.button>
               </div>
 
               <AnimatePresence>
@@ -169,7 +171,8 @@ export default function ClockInOut() {
               <motion.button
                 onClick={handleClockIn}
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.97, opacity: 0.9 }}
+                transition={{ duration: 0.1 }}
                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
               >
                 Clock In
@@ -185,15 +188,17 @@ export default function ClockInOut() {
 
               {/* Custom Time Toggle */}
               <div className="mb-3">
-                <button
+                <motion.button
                   onClick={() => {
                     setShowTimePicker(!showTimePicker)
                     setUseCustomTime(!showTimePicker)
                   }}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  whileTap={{ scale: 0.97, opacity: 0.7 }}
+                  transition={{ duration: 0.1 }}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
                 >
                   {showTimePicker ? 'Use current time' : 'Set custom time'}
-                </button>
+                </motion.button>
               </div>
 
               <AnimatePresence>
@@ -217,7 +222,8 @@ export default function ClockInOut() {
               <motion.button
                 onClick={handleClockOut}
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.97, opacity: 0.9 }}
+                transition={{ duration: 0.1 }}
                 className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
               >
                 Clock Out
@@ -227,7 +233,8 @@ export default function ClockInOut() {
               <motion.button
                 onClick={handleCancelClockIn}
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.97, opacity: 0.9 }}
+                transition={{ duration: 0.1 }}
                 className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors"
               >
                 Cancel Clock In
@@ -250,7 +257,8 @@ export default function ClockInOut() {
             <motion.button
               onClick={() => setShowManualEntry(!showManualEntry)}
               whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileTap={{ scale: 0.97, opacity: 0.9 }}
+              transition={{ duration: 0.1 }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm sm:text-base transition-colors"
             >
               {showManualEntry ? 'Cancel' : 'Add Entry'}

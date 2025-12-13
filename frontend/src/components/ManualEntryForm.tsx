@@ -97,7 +97,8 @@ export default function ManualEntryForm({ onSuccess, entry }: ManualEntryFormPro
         type="submit"
         disabled={loading}
         whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        whileTap={{ scale: 0.97, opacity: 0.9 }}
+        transition={{ duration: 0.1 }}
         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Saving...' : entry ? 'Update Entry' : 'Create Entry'}

@@ -105,7 +105,8 @@ export default function Dialog({
                   <motion.button
                     onClick={handleCancel}
                     whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileTap={{ scale: 0.97, opacity: 0.9 }}
+                    transition={{ duration: 0.1 }}
                     className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors"
                   >
                     {cancelText}
@@ -114,7 +115,8 @@ export default function Dialog({
                 <motion.button
                   onClick={type === 'confirm' ? handleConfirm : onClose}
                   whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={{ scale: 0.97, opacity: 0.9 }}
+                  transition={{ duration: 0.1 }}
                   className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                     type === 'confirm'
                       ? 'bg-blue-600 hover:bg-blue-700 text-white'
