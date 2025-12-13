@@ -284,6 +284,8 @@ echo ""
 
 # Step 7.5: Build backend for production (required for systemd service)
 print_info "Building backend for production..."
+# Clean build to ensure no cached files
+rm -rf dist 2>/dev/null || true
 npm run build
 print_success "Backend built successfully"
 echo ""
@@ -309,6 +311,8 @@ echo ""
 
 # Step 10: Build frontend for production (required for systemd service)
 print_info "Building frontend for production..."
+# Clean build to ensure no cached files
+rm -rf dist .vite 2>/dev/null || true
 npm run build
 print_success "Frontend built successfully"
 echo ""
@@ -371,7 +375,14 @@ print_info "Starting and enabling services..."
 
 # Backend service
 $SUDO_CMD systemctl enable hourly-backend
-$SUDO_CMD systemctl start hourly-backend
+# Use restart instead of start to ensure it picks up new builds
+if $SUDO_CMD systemctl is-active --quiet hourly-backend 2>/dev/null; then
+    print_info "Backend service already running, restarting to pick up new build..."
+    $SUDO_CMD systemctl restart hourly-backend
+else
+    print_info "Starting backend service..."
+    $SUDO_CMD systemctl start hourly-backend
+fi
 sleep 2
 
 if $SUDO_CMD systemctl is-active --quiet hourly-backend; then
@@ -382,7 +393,14 @@ fi
 
 # Frontend service
 $SUDO_CMD systemctl enable hourly-frontend
-$SUDO_CMD systemctl start hourly-frontend
+# Use restart instead of start to ensure it picks up new builds
+if $SUDO_CMD systemctl is-active --quiet hourly-frontend 2>/dev/null; then
+    print_info "Frontend service already running, restarting to pick up new build..."
+    $SUDO_CMD systemctl restart hourly-frontend
+else
+    print_info "Starting frontend service..."
+    $SUDO_CMD systemctl start hourly-frontend
+fi
 sleep 2
 
 if $SUDO_CMD systemctl is-active --quiet hourly-frontend; then
