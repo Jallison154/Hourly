@@ -35,14 +35,6 @@ export default function MobileBottomNav() {
               to={item.path}
               className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-[1.5] -mt-8' : 'flex-1'}`}
             >
-              {active && !isOversized && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute top-10 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
-                  initial={false}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                />
-              )}
               {isOversized ? (
                 <motion.div
                   whileHover={{ scale: 1.05 }}
@@ -57,6 +49,14 @@ export default function MobileBottomNav() {
                 </motion.div>
               ) : (
                 <>
+                  {active && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute -top-1 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
+                      initial={false}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
+                  )}
                   <Icon className={`w-6 h-6 ${active ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`} />
                   <span className={`text-xs mt-1 ${active ? 'text-blue-600 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
                     {item.label}
