@@ -240,6 +240,11 @@ export const timeEntriesAPI = {
     await api.delete(`/time-entries/${id}`)
   },
   
+  deleteAllEntries: async (): Promise<{ message: string; deletedCount: number }> => {
+    const { data } = await api.delete('/time-entries/all')
+    return data
+  },
+  
   addBreak: async (entryId: string, breakData: {
     breakType: 'lunch' | 'rest' | 'other'
     startTime: string
@@ -297,18 +302,19 @@ export const timesheetAPI = {
 
 // Paycheck API
 export const paycheckAPI = {
-  getEstimate: async (params?: {
+  getEstimate: async (startDate?: string, endDate?: string, params?: {
     hours?: number
     hourlyRate?: number
-    startDate?: string
-    endDate?: string
   }): Promise<PayCalculation & {
     hourlyRate: number
     hours?: number
     payPeriod?: PayPeriod
     weeklyBreakdown?: Array<PayCalculation & { weekNumber: number; start: string; end: string }>
   }> => {
-    const { data } = await api.get('/paycheck/estimate', { params })
+    const queryParams: any = { ...params }
+    if (startDate) queryParams.startDate = startDate
+    if (endDate) queryParams.endDate = endDate
+    const { data } = await api.get('/paycheck/estimate', { params: queryParams })
     return data
   }
 }

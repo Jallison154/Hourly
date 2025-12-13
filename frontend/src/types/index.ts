@@ -8,6 +8,9 @@ export interface User {
   profileImage?: string | null
   payPeriodType?: 'weekly' | 'monthly'
   payPeriodEndDay?: number
+  paycheckAdjustment?: number
+  state?: string | null
+  stateTaxRate?: number | null
 }
 
 export interface TimeEntry {
@@ -45,6 +48,7 @@ export interface PayCalculation {
   stateTax: number
   fica: number
   netPay: number
+  stateTaxRate?: number // The state tax rate used for calculations (for display)
 }
 
 export interface PayPeriod {
@@ -70,6 +74,7 @@ export interface TimesheetData {
     end: string
     entries: Array<TimeEntry & { hours: number; breakHours: number }>
     totalHours: number
+    previousPayPeriodHours?: number // Hours from previous pay period in this week (for accurate overtime calculation)
     pay: PayCalculation
   }>
   totals: PayCalculation & { totalHours: number }

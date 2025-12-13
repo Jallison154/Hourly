@@ -69,7 +69,9 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         totalBreakMinutes: e.totalBreakMinutes
       })),
       user.hourlyRate || 0,
-      user.overtimeRate || 1.5
+      user.overtimeRate || 1.5,
+      user.state,
+      user.stateTaxRate
     )
     
     // Get average hours per day

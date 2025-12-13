@@ -21,6 +21,9 @@ model User {
   profileImage        String?
   payPeriodType       String       @default("monthly") // "weekly" or "monthly"
   payPeriodEndDay     Int          @default(10) // Day of month for monthly pay period end
+  paycheckAdjustment  Float        @default(0) // Adjustment amount to add/subtract from paycheck calculations
+  state                String?      // State for tax calculations (e.g., "MT", "CA")
+  stateTaxRate         Float?       // State tax rate as decimal (e.g., 0.059 for 5.9%). If null, uses default for state
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   

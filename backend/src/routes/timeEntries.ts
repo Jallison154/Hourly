@@ -208,24 +208,85 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     }
     
     // Check for overlapping entries
-    const overlapping = await prisma.timeEntry.findFirst({
-      where: {
-        userId: req.userId!,
-        OR: [
-          {
-            clockIn: { lte: clockOutDate || new Date() },
-            clockOut: { gte: clockInDate }
-          },
-          {
-            clockIn: { lte: clockOutDate || new Date() },
-            clockOut: null
-          }
-        ]
+    // Two time ranges [A_start, A_end] and [B_start, B_end] overlap if:
+    // A_start < B_end AND B_start < A_end
+    const newEntryStart = clockInDate
+    const newEntryEnd = clockOutDate || new Date()
+    
+    console.log('Checking for overlaps:', {
+      newEntry: {
+        start: newEntryStart.toISOString(),
+        end: newEntryEnd.toISOString(),
+        isPast: newEntryEnd < new Date()
       }
     })
     
+    // Get all entries that might overlap
+    // For past entries, only check entries that could actually overlap in time
+    // For future entries, check a wider window
+    const windowDays = newEntryEnd < new Date() ? 1 : 2 // Smaller window for past entries
+    const windowStart = new Date(newEntryStart.getTime() - windowDays * 24 * 60 * 60 * 1000)
+    const windowEnd = new Date(newEntryEnd.getTime() + windowDays * 24 * 60 * 60 * 1000)
+    
+    const potentialOverlaps = await prisma.timeEntry.findMany({
+      where: {
+        userId: req.userId!,
+        clockIn: {
+          gte: windowStart,
+          lte: windowEnd
+        }
+      }
+    })
+    
+    console.log(`Found ${potentialOverlaps.length} potential overlaps to check`)
+    
+    // Check each entry for actual overlap
+    const overlapping = potentialOverlaps.find(existing => {
+      const existingStart = existing.clockIn
+      // For open entries (no clock out), only consider them as overlapping if:
+      // - They started before the new entry ends, AND
+      // - The new entry is in the future (not in the past)
+      // For closed entries, use their actual clock out time
+      let existingEnd: Date
+      if (existing.clockOut) {
+        existingEnd = existing.clockOut
+      } else {
+        // Open entry - only overlaps if new entry is in the future
+        // If new entry is in the past, an open entry can't overlap with it
+        if (newEntryEnd <= new Date()) {
+          // New entry is in the past, open entry can't overlap
+          return false
+        }
+        // New entry is in the future, treat open entry as extending indefinitely
+        existingEnd = new Date()
+      }
+      
+      // Two ranges overlap if: start1 < end2 AND start2 < end1
+      const overlaps = existingStart < newEntryEnd && newEntryStart < existingEnd
+      
+      if (overlaps) {
+        console.log('Found overlap:', {
+          existing: {
+            start: existingStart.toISOString(),
+            end: existing.clockOut ? existing.clockOut.toISOString() : 'open (extends to now)'
+          },
+          newEntry: {
+            start: newEntryStart.toISOString(),
+            end: newEntryEnd.toISOString()
+          }
+        })
+      }
+      
+      return overlaps
+    })
+    
     if (overlapping) {
-      return res.status(400).json({ error: 'Time entry overlaps with existing entry' })
+      const overlapStart = overlapping.clockIn.toISOString()
+      const overlapEnd = overlapping.clockOut ? overlapping.clockOut.toISOString() : 'still open'
+      return res.status(400).json({ 
+        error: 'Time entry overlaps with existing entry',
+        details: `Overlaps with entry from ${overlapStart} to ${overlapEnd}`
+      })
     }
     
     const entry = await prisma.timeEntry.create({
@@ -255,7 +316,73 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const { startDate, endDate } = req.query
-    // Get user's pay period settings
+    
+    // If startDate and endDate are provided, use them directly (for weekly calculations, etc.)
+    // This allows fetching entries across pay period boundaries
+    if (startDate && endDate) {
+      const start = new Date(startDate as string)
+      const end = new Date(endDate as string)
+      
+      console.log('Fetching entries across pay period boundaries:', {
+        start: start.toISOString(),
+        end: end.toISOString(),
+        startLocal: start.toLocaleString(),
+        endLocal: end.toLocaleString(),
+        userId: req.userId
+      })
+      
+      // First, let's check what entries exist for this user (for debugging)
+      const allUserEntries = await prisma.timeEntry.findMany({
+        where: {
+          userId: req.userId!
+        },
+        select: {
+          id: true,
+          clockIn: true,
+          clockOut: true
+        },
+        orderBy: {
+          clockIn: 'desc'
+        },
+        take: 20 // Just get recent entries for debugging
+      })
+      
+      console.log(`User has ${allUserEntries.length} recent entries. Sample:`, allUserEntries.slice(0, 5).map(e => ({
+        id: e.id,
+        clockIn: e.clockIn.toISOString(),
+        clockOut: e.clockOut?.toISOString() || 'open'
+      })))
+      
+      const entries = await prisma.timeEntry.findMany({
+        where: {
+          userId: req.userId!,
+          clockIn: {
+            gte: start,
+            lte: end
+          }
+        },
+        include: {
+          breaks: true
+        },
+        orderBy: {
+          clockIn: 'desc'
+        }
+      })
+      
+      console.log(`Found ${entries.length} entries in date range ${start.toISOString()} to ${end.toISOString()}`)
+      if (entries.length > 0) {
+        console.log('Sample entries:', entries.slice(0, 3).map(e => ({
+          id: e.id,
+          clockIn: e.clockIn.toISOString(),
+          clockOut: e.clockOut?.toISOString() || 'open',
+          hours: e.clockOut ? ((e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60) - (e.totalBreakMinutes / 60)).toFixed(2) : 'N/A'
+        })))
+      }
+      
+      return res.json(entries)
+    }
+    
+    // If no dates provided, default to current pay period
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
       select: { payPeriodType: true, payPeriodEndDay: true }
@@ -266,8 +393,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       user?.payPeriodEndDay || 10
     )
     
-    const start = startDate ? new Date(startDate as string) : payPeriod.start
-    const end = endDate ? new Date(endDate as string) : payPeriod.end
+    const start = payPeriod.start
+    const end = payPeriod.end
     
     const entries = await prisma.timeEntry.findMany({
       where: {
@@ -288,6 +415,32 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     res.json(entries)
   } catch (error) {
     console.error('Get entries error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// Delete all time entries for the user
+// IMPORTANT: This must be defined BEFORE /:id route, otherwise "all" will be treated as an ID
+router.delete('/all', authenticate, async (req: AuthRequest, res) => {
+  try {
+    // Delete all entries for this user (breaks will be cascade deleted)
+    const result = await prisma.timeEntry.deleteMany({
+      where: {
+        userId: req.userId!
+      }
+    })
+
+    console.log(`Deleted all ${result.count} time entries for user ${req.userId}`)
+
+    // Return success even if no entries were found (count is 0)
+    res.json({ 
+      message: result.count === 0 
+        ? 'No time entries found to delete' 
+        : `Deleted all ${result.count} time entries`,
+      deletedCount: result.count
+    })
+  } catch (error) {
+    console.error('Delete all entries error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

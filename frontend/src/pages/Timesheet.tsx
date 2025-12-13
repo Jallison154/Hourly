@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { timesheetAPI, timeEntriesAPI } from '../services/api'
-import { formatDate, formatTime, formatHours, formatCurrency } from '../utils/date'
+import { formatDate, formatDateWithDay, formatTime, formatHours, formatCurrency } from '../utils/date'
 import { formatTimesheetAsText } from '../utils/timesheetFormatter'
 import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
 import TimePicker from '../components/TimePicker'
 import type { TimesheetData } from '../types'
-import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null)
@@ -17,6 +17,7 @@ export default function Timesheet() {
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
   const [isClockedIn, setIsClockedIn] = useState(false)
   const [editingEntry, setEditingEntry] = useState<{ id: string; clockIn: string; clockOut: string | null; notes?: string | null } | null>(null)
+  const [creatingEntry, setCreatingEntry] = useState(false)
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
   // Use ref to track previous clock status for transition detection
   const prevClockedInRef = useRef<boolean>(false)
@@ -132,22 +133,49 @@ export default function Timesheet() {
     setEditingEntry(entry)
   }
 
+  const handleCreateEntry = () => {
+    // Set default times for new entry (today, current time)
+    const now = new Date()
+    const defaultClockOut = new Date(now)
+    defaultClockOut.setHours(defaultClockOut.getHours() + 8) // Default 8 hour shift
+    
+    setCreatingEntry(true)
+    setEditingEntry({
+      id: 'new',
+      clockIn: now.toISOString(),
+      clockOut: defaultClockOut.toISOString(),
+      notes: null
+    })
+  }
+
   const handleSaveEdit = async (updates: { clockIn: string; clockOut: string | null; notes?: string | null }) => {
     if (!editingEntry) return
 
     try {
-      await timeEntriesAPI.updateEntry(editingEntry.id, {
-        clockIn: updates.clockIn,
-        clockOut: updates.clockOut,
-        notes: updates.notes || null
-      })
+      if (editingEntry.id === 'new') {
+        // Create new entry
+        await timeEntriesAPI.createEntry({
+          clockIn: updates.clockIn,
+          clockOut: updates.clockOut || undefined,
+          notes: updates.notes || undefined,
+          isManualEntry: true
+        })
+        setCreatingEntry(false)
+      } else {
+        // Update existing entry
+        await timeEntriesAPI.updateEntry(editingEntry.id, {
+          clockIn: updates.clockIn,
+          clockOut: updates.clockOut,
+          notes: updates.notes || null
+        })
+      }
       setEditingEntry(null)
       // Reload the timesheet for the current period
       if (selectedPeriod) {
         await loadTimesheet(selectedPeriod.start, selectedPeriod.end)
       }
     } catch (error: any) {
-      await showAlert('Error', error.response?.data?.error || 'Failed to update entry')
+      await showAlert('Error', error.response?.data?.error || 'Failed to save entry')
     }
   }
 
@@ -221,9 +249,11 @@ export default function Timesheet() {
 
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Timesheet
-            </h1>
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Timesheet
+              </h1>
+            </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -258,23 +288,35 @@ export default function Timesheet() {
               </div>
             </div>
           </div>
-          <motion.button
-            onClick={handleCopyToClipboard}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-colors flex items-center gap-2"
-          >
-            {copied ? (
-              <>
-                <span>✓ Copied!</span>
-              </>
-            ) : (
-              <>
-                <span>📋</span>
-                <span>Copy as Text</span>
-              </>
-            )}
-          </motion.button>
+          <div className="flex items-center gap-3">
+            <motion.button
+              onClick={handleCreateEntry}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span>Add Entry</span>
+            </motion.button>
+            <motion.button
+              onClick={handleCopyToClipboard}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-colors"
+            >
+              {copied ? (
+                <>
+                  <span>✓</span>
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <span>📋</span>
+                  <span>Copy as Text</span>
+                </>
+              )}
+            </motion.button>
+          </div>
         </div>
 
         {/* Weekly Breakdown */}
@@ -323,40 +365,77 @@ export default function Timesheet() {
                         Breaks
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Daily Pay
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {week.entries.map((entry) => (
-                      <tr key={entry.id}>
+                    {week.entries.map((entry, entryIndex) => {
+                      // Calculate cumulative hours up to this entry
+                      // Include hours from previous pay period entries in this week
+                      const previousHours = week.previousPayPeriodHours || 0
+                      const cumulativeHoursFromDisplayed = week.entries
+                        .slice(0, entryIndex + 1)
+                        .reduce((sum, e) => sum + (e.hours || 0), 0)
+                      const cumulativeHours = previousHours + cumulativeHoursFromDisplayed
+                      
+                      // Entry is in overtime if week total exceeds 40 AND cumulative hours exceed 40
+                      const isOvertime = week.totalHours > 40 && cumulativeHours > 40
+                      
+                      // Calculate how much of this entry is overtime
+                      const regularHoursInEntry = isOvertime 
+                        ? Math.max(0, 40 - (cumulativeHours - entry.hours))
+                        : entry.hours
+                      const overtimeHoursInEntry = isOvertime
+                        ? entry.hours - regularHoursInEntry
+                        : 0
+                      
+                      const rowClass = isOvertime 
+                        ? 'bg-red-50 dark:bg-red-900/20' 
+                        : ''
+                      
+                      return (
+                        <tr key={entry.id} className={rowClass}>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {formatDate(entry.clockIn)}
+                          <div>{formatDateWithDay(entry.clockIn)}</div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {formatTime(entry.clockIn)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {entry.clockOut ? formatTime(entry.clockOut) : '-'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
-                          {formatHours(entry.hours)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                          {entry.breaks.length > 0 ? (
-                            <div>
-                              {entry.breaks.map((b) => (
-                                <div key={b.id} className="text-xs">
-                                  {b.breakType}: {b.duration || 0}m
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            '-'
-                          )}
-                        </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {formatTime(entry.clockIn)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {entry.clockOut ? formatTime(entry.clockOut) : '-'}
+                          </td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${isOvertime ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                            {formatHours(entry.hours)}
+                            {isOvertime && overtimeHoursInEntry > 0 && (
+                              <span className="text-xs ml-1 text-red-500 dark:text-red-400">
+                                ({formatHours(regularHoursInEntry)} reg + {formatHours(overtimeHoursInEntry)} OT)
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
+                            {entry.breaks.length > 0 ? (
+                              <div>
+                                {entry.breaks.map((b) => (
+                                  <div key={b.id} className="text-xs">
+                                    {b.breakType}: {b.duration || 0}m
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${isOvertime ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                            {entry.clockOut && week.totalHours > 0
+                              ? formatCurrency((entry.hours / week.totalHours) * week.pay.grossPay)
+                              : '-'}
+                          </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <button
                               onClick={() => handleEditEntry({
                                 id: entry.id,
@@ -364,14 +443,14 @@ export default function Timesheet() {
                                 clockOut: entry.clockOut,
                                 notes: entry.notes || null
                               })}
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                              className="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
                               title="Edit entry"
                             >
                               <PencilIcon className="h-5 w-5" />
                             </button>
                             <button
                               onClick={() => handleDeleteEntry(entry.id)}
-                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors"
+                              className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                               title="Delete entry"
                             >
                               <TrashIcon className="h-5 w-5" />
@@ -379,8 +458,9 @@ export default function Timesheet() {
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
+                      )
+                    })}
+                    </tbody>
                 </table>
               </div>
 
@@ -470,7 +550,7 @@ export default function Timesheet() {
           </motion.div>
       </motion.div>
 
-      {/* Edit Entry Modal */}
+      {/* Edit/Create Entry Modal */}
       {editingEntry && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <motion.div
@@ -479,12 +559,16 @@ export default function Timesheet() {
             className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
           >
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Edit Time Entry
+              {creatingEntry ? 'Add Time Entry' : 'Edit Time Entry'}
             </h2>
             <EditEntryForm
               entry={editingEntry}
+              isCreating={creatingEntry}
               onSave={handleSaveEdit}
-              onCancel={() => setEditingEntry(null)}
+              onCancel={() => {
+                setEditingEntry(null)
+                setCreatingEntry(false)
+              }}
             />
           </motion.div>
         </div>
@@ -509,10 +593,12 @@ export default function Timesheet() {
 // Edit Entry Form Component
 function EditEntryForm({ 
   entry, 
+  isCreating = false,
   onSave, 
   onCancel 
 }: { 
   entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null }
+  isCreating?: boolean
   onSave: (updates: { clockIn: string; clockOut: string | null; notes?: string | null }) => void
   onCancel: () => void
 }) {
@@ -618,7 +704,7 @@ function EditEntryForm({
           disabled={saving}
           className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? 'Saving...' : isCreating ? 'Create Entry' : 'Save Changes'}
         </button>
       </div>
     </form>

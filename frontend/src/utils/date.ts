@@ -10,6 +10,11 @@ export function formatDate(date: string | Date): string {
   return format(d, 'MMM d, yyyy')
 }
 
+export function formatDateWithDay(date: string | Date): string {
+  const d = typeof date === 'string' ? parseISO(date) : date
+  return format(d, 'EEEE, MMM d, yyyy')
+}
+
 export function formatTime(date: string | Date): string {
   const d = typeof date === 'string' ? parseISO(date) : date
   return format(d, 'h:mm a')

@@ -28,10 +28,36 @@ export function calculateFederalTax(annualIncome: number): number {
 }
 
 /**
- * Calculate Montana state tax (flat 5.9% as of 2024)
+ * Get default state tax rate for a state
  */
-export function calculateMontanaTax(annualIncome: number): number {
-  return annualIncome * 0.059
+function getDefaultStateTaxRate(state: string | null | undefined): number {
+  if (!state) return 0.059 // Default to Montana 5.9%
+  
+  // Common state tax rates (flat rates, as of 2024)
+  const stateRates: { [key: string]: number } = {
+    'MT': 0.059, // Montana
+    'CA': 0.013, // California (varies by income, using average)
+    'TX': 0.0,   // Texas (no state income tax)
+    'FL': 0.0,   // Florida (no state income tax)
+    'NY': 0.04,  // New York (varies, using average)
+    'WA': 0.0,   // Washington (no state income tax)
+    'NV': 0.0,   // Nevada (no state income tax)
+    'TN': 0.0,   // Tennessee (no state income tax)
+    'SD': 0.0,   // South Dakota (no state income tax)
+    'WY': 0.0,   // Wyoming (no state income tax)
+    'NH': 0.0,   // New Hampshire (no state income tax)
+    'AK': 0.0,   // Alaska (no state income tax)
+  }
+  
+  return stateRates[state.toUpperCase()] ?? 0.059 // Default to Montana if state not found
+}
+
+/**
+ * Calculate state tax
+ */
+export function calculateStateTax(annualIncome: number, state: string | null | undefined, customRate: number | null | undefined): number {
+  const rate = customRate ?? getDefaultStateTaxRate(state)
+  return annualIncome * rate
 }
 
 /**
@@ -67,15 +93,21 @@ export function calculateFICA(annualIncome: number): number {
 /**
  * Calculate net pay from gross pay
  */
-export function calculateNetPay(grossPay: number, annualGrossPay: number): {
+export function calculateNetPay(
+  grossPay: number, 
+  annualGrossPay: number,
+  state?: string | null,
+  stateTaxRate?: number | null
+): {
   federalTax: number
   stateTax: number
   fica: number
   netPay: number
+  stateTaxRate: number // Return the rate used for display
 } {
   // Calculate annual taxes
   const annualFederalTax = calculateFederalTax(annualGrossPay)
-  const annualStateTax = calculateMontanaTax(annualGrossPay)
+  const annualStateTax = calculateStateTax(annualGrossPay, state, stateTaxRate)
   const annualFICA = calculateFICA(annualGrossPay)
   
   // Pro-rate to pay period
@@ -84,12 +116,14 @@ export function calculateNetPay(grossPay: number, annualGrossPay: number): {
   const fica = (annualFICA / annualGrossPay) * grossPay
   
   const netPay = grossPay - federalTax - stateTax - fica
+  const usedStateTaxRate = stateTaxRate ?? getDefaultStateTaxRate(state)
   
   return {
     federalTax,
     stateTax,
     fica,
-    netPay
+    netPay,
+    stateTaxRate: usedStateTaxRate
   }
 }
 

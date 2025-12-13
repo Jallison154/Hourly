@@ -213,13 +213,79 @@ async function getTimesheetData(
     const weeks = getWeeksInPayPeriod(payPeriod)
     
     // Calculate weekly breakdowns
-    const weeklyData = weeks.map(week => {
-      const weekEntries = entries.filter(e => {
-        return e.clockIn >= week.start && e.clockIn <= week.end
+    const weeklyData = await Promise.all(weeks.map(async (week) => {
+      // Calculate the actual Sunday-Saturday range for this week FIRST
+      // This is important because week.start/end might be clipped to pay period boundaries
+      // We need the full week to get all entries, including from previous pay period
+      // Use the week.start date to find which Sunday-Saturday week it belongs to
+      // If week.start is clipped (e.g., pay period starts on Wednesday), we need to find the Sunday of that week
+      const weekStartDate = new Date(week.start)
+      const dayOfWeek = weekStartDate.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+      
+      // Calculate days to subtract to get to Sunday
+      // If it's Sunday (0), go back 0 days. Otherwise, go back dayOfWeek days.
+      const daysToSunday = dayOfWeek === 0 ? 0 : dayOfWeek
+      const actualSunday = new Date(weekStartDate)
+      actualSunday.setDate(weekStartDate.getDate() - daysToSunday)
+      actualSunday.setHours(0, 0, 0, 0)
+      
+      const actualSaturday = new Date(actualSunday)
+      actualSaturday.setDate(actualSunday.getDate() + 6) // Saturday is 6 days after Sunday (7 days total: Sun to Sat)
+      actualSaturday.setHours(23, 59, 59, 999)
+      
+      console.log(`Week ${week.weekNumber}: Actual week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period range: ${week.start.toISOString()} to ${week.end.toISOString()})`)
+      
+      // Get entries from current pay period that fall in this ACTUAL week (Sunday-Saturday)
+      // Sort by clockIn time for proper chronological order
+      const weekEntries = entries
+        .filter(e => {
+          // Use actual Sunday-Saturday range, not pay period boundaries
+          return e.clockIn >= actualSunday && e.clockIn <= actualSaturday
+        })
+        .sort((a, b) => a.clockIn.getTime() - b.clockIn.getTime())
+      
+      // Get ALL entries for this week (full Sunday-Saturday), even if they're outside the current pay period
+      // This ensures weekly hours and overtime calculations are accurate
+      const allWeekEntries = await prisma.timeEntry.findMany({
+        where: {
+          userId: req.userId!,
+          clockIn: {
+            gte: actualSunday,
+            lte: actualSaturday
+          },
+          clockOut: { not: null }
+        },
+        include: {
+          breaks: true
+        }
       })
       
-      // Calculate hours for the week
+      console.log(`Week ${week.weekNumber}: Found ${allWeekEntries.length} total entries (${weekEntries.length} from current pay period)`)
+      
+      // Calculate total hours for DISPLAY - only from entries in current pay period
+      // (Pay calculation will still use allWeekEntries for accurate overtime)
       let weekHours = 0
+      weekEntries.forEach(entry => {
+        if (entry.clockOut) {
+          const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
+          const breakHours = entry.totalBreakMinutes / 60
+          const workedHours = hours - breakHours
+          weekHours += workedHours
+        }
+      })
+      
+      // Calculate hours from previous pay period entries (entries not in current pay period)
+      // This is needed for accurate overtime calculation in the frontend
+      const previousPayPeriodHours = allWeekEntries
+        .filter(e => !weekEntries.some(we => we.id === e.id))
+        .reduce((sum, entry) => {
+          const hours = (entry.clockOut!.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
+          const breakHours = entry.totalBreakMinutes / 60
+          return sum + (hours - breakHours)
+        }, 0)
+      
+      // Map entries from current pay period for display (with hours calculated)
+      // (Already sorted chronologically above)
       const weekEntriesWithHours = weekEntries.map(entry => {
         if (!entry.clockOut) {
           return {
@@ -233,8 +299,6 @@ async function getTimesheetData(
         const breakHours = entry.totalBreakMinutes / 60
         const workedHours = hours - breakHours
         
-        weekHours += workedHours
-        
         return {
           ...entry,
           hours: workedHours,
@@ -242,27 +306,37 @@ async function getTimesheetData(
         }
       })
       
-      // Calculate pay for the week
-      const completedEntries = weekEntries.filter(e => e.clockOut !== null)
+      // Calculate pay for the week using ALL entries (for accurate overtime)
       const weekPay = calculatePayForEntries(
-        completedEntries.map(e => ({
+        allWeekEntries.map(e => ({
           clockIn: e.clockIn,
           clockOut: e.clockOut!,
           totalBreakMinutes: e.totalBreakMinutes
         })),
         user.hourlyRate,
-        user.overtimeRate || 1.5
+        user.overtimeRate || 1.5,
+        user.state,
+        user.stateTaxRate
       )
+      
+      // Apply adjustment proportionally to weekly breakdown
+      const totalWeeks = weeks.length
+      const weeklyAdjustment = (user.paycheckAdjustment || 0) / totalWeeks
+      weekPay.grossPay += weeklyAdjustment
+      weekPay.netPay += weeklyAdjustment
+      
+      console.log(`Week ${week.weekNumber}: Total hours = ${weekHours.toFixed(2)}, Regular = ${weekPay.regularHours.toFixed(2)}, Overtime = ${weekPay.overtimeHours.toFixed(2)}`)
       
       return {
         weekNumber: week.weekNumber,
-        start: week.start,
-        end: week.end,
+        start: actualSunday.toISOString(), // Return full Sunday-Saturday range, not clipped pay period
+        end: actualSaturday.toISOString(),
         entries: weekEntriesWithHours,
         totalHours: weekHours,
+        previousPayPeriodHours: previousPayPeriodHours, // Hours from previous pay period in this week
         pay: weekPay
       }
-    })
+    }))
     
     // Calculate pay period totals
     const completedEntries = entries.filter(e => e.clockOut !== null)
@@ -273,7 +347,9 @@ async function getTimesheetData(
         totalBreakMinutes: e.totalBreakMinutes
       })),
       user.hourlyRate,
-      user.overtimeRate || 1.5
+      user.overtimeRate || 1.5,
+      user.state,
+      user.stateTaxRate
     )
     
     // Calculate total hours

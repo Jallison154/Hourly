@@ -12,7 +12,10 @@ const updateProfileSchema = z.object({
   timeRoundingInterval: z.number().int().min(1).max(60).optional(),
   profileImage: z.string().url().optional().nullable(),
   payPeriodType: z.enum(['weekly', 'monthly']).optional(),
-  payPeriodEndDay: z.number().int().min(1).max(31).optional()
+  payPeriodEndDay: z.number().int().min(1).max(31).optional(),
+  paycheckAdjustment: z.number().optional(),
+  state: z.string().max(2).optional().nullable(),
+  stateTaxRate: z.number().min(0).max(1).optional().nullable()
 })
 
 // Get user profile
@@ -30,6 +33,9 @@ router.get('/profile', authenticate, async (req: AuthRequest, res) => {
         profileImage: true,
         payPeriodType: true,
         payPeriodEndDay: true,
+        paycheckAdjustment: true,
+        state: true,
+        stateTaxRate: true,
         createdAt: true
       }
     })
@@ -62,7 +68,10 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
         timeRoundingInterval: true,
         profileImage: true,
         payPeriodType: true,
-        payPeriodEndDay: true
+        payPeriodEndDay: true,
+        paycheckAdjustment: true,
+        state: true,
+        stateTaxRate: true
       }
     })
     

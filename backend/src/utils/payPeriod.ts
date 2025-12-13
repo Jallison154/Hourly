@@ -10,9 +10,38 @@ export interface Week {
 }
 
 /**
+ * Get the Sunday that starts the week for a given date
+ * A week runs Sunday to Saturday (7 days)
+ */
+function getWeekStartSunday(date: Date): Date {
+  const dayOfWeek = date.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+  const sunday = new Date(date)
+  
+  // Calculate days to subtract to get to Sunday
+  // If it's Sunday (0), go back 0 days
+  // Otherwise, go back dayOfWeek days
+  const daysToSunday = dayOfWeek === 0 ? 0 : dayOfWeek
+  sunday.setDate(date.getDate() - daysToSunday)
+  sunday.setHours(0, 0, 0, 0)
+  
+  return sunday
+}
+
+/**
+ * Get the Saturday that ends the week for a given Sunday
+ * A week runs Sunday to Saturday (7 days)
+ */
+function getWeekEndSaturday(sunday: Date): Date {
+  const saturday = new Date(sunday)
+  saturday.setDate(sunday.getDate() + 6) // Saturday is 6 days after Sunday
+  saturday.setHours(23, 59, 59, 999)
+  return saturday
+}
+
+/**
  * Calculate the current pay period
  * For monthly: uses endDay (default 10) - period runs from (endDay+1) to endDay of next month
- * For weekly: uses Monday-Sunday weeks
+ * For weekly: uses Sunday-Saturday weeks (7 days)
  */
 export function getCurrentPayPeriod(
   date: Date = new Date(),
@@ -20,19 +49,13 @@ export function getCurrentPayPeriod(
   payPeriodEndDay: number = 10
 ): PayPeriod {
   if (payPeriodType === 'weekly') {
-    // Weekly: Monday to Sunday
-    const dayOfWeek = date.getDay()
-    const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Monday
-    const monday = new Date(date.setDate(diff))
-    monday.setHours(0, 0, 0, 0)
-    
-    const sunday = new Date(monday)
-    sunday.setDate(monday.getDate() + 6)
-    sunday.setHours(23, 59, 59, 999)
+    // Weekly: Sunday to Saturday (7 days)
+    const sunday = getWeekStartSunday(date)
+    const saturday = getWeekEndSaturday(sunday)
     
     return {
-      start: monday,
-      end: sunday
+      start: sunday,
+      end: saturday
     }
   } else {
     // Monthly: (endDay+1) to endDay of next month
@@ -68,48 +91,40 @@ export function getPayPeriodForDate(
 }
 
 /**
- * Split pay period into weeks (Monday-Sunday)
+ * Split pay period into weeks (Sunday-Saturday, 7 days each)
  */
 export function getWeeksInPayPeriod(payPeriod: PayPeriod): Week[] {
   const weeks: Week[] = []
   const start = new Date(payPeriod.start)
   const end = new Date(payPeriod.end)
   
-  // Find the Monday of the week containing the start date
-  const startMonday = new Date(start)
-  const dayOfWeek = startMonday.getDay()
-  const diff = startMonday.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // Adjust to Monday
-  startMonday.setDate(diff)
-  startMonday.setHours(0, 0, 0, 0)
+  // Find the Sunday of the week containing the start date
+  const startSunday = getWeekStartSunday(start)
   
-  // If the pay period starts after Monday, use the pay period start
-  if (start > startMonday) {
-    startMonday.setTime(start.getTime())
-  }
+  // If the pay period starts after Sunday, use the pay period start
+  // Otherwise, use the Sunday
+  const firstWeekStart = start > startSunday ? new Date(start) : new Date(startSunday)
   
-  let currentWeekStart = new Date(startMonday)
+  let currentWeekStart = getWeekStartSunday(firstWeekStart)
   let weekNumber = 1
   
   while (currentWeekStart <= end) {
-    const weekEnd = new Date(currentWeekStart)
-    weekEnd.setDate(weekEnd.getDate() + 6) // Sunday
-    weekEnd.setHours(23, 59, 59, 999)
+    const weekEnd = getWeekEndSaturday(currentWeekStart)
     
     // Don't extend beyond pay period end
-    if (weekEnd > end) {
-      weekEnd.setTime(end.getTime())
-    }
+    const actualWeekEnd = weekEnd > end ? new Date(end) : new Date(weekEnd)
     
     // Don't start before pay period start
-    const weekStart = currentWeekStart < start ? new Date(start) : new Date(currentWeekStart)
+    const actualWeekStart = currentWeekStart < start ? new Date(start) : new Date(currentWeekStart)
     
     weeks.push({
-      start: weekStart,
-      end: weekEnd,
+      start: actualWeekStart,
+      end: actualWeekEnd,
       weekNumber
     })
     
-    // Move to next Monday
+    // Move to next Sunday (7 days later)
+    currentWeekStart = new Date(currentWeekStart)
     currentWeekStart.setDate(currentWeekStart.getDate() + 7)
     weekNumber++
   }
@@ -150,5 +165,3 @@ export function getPayPeriodsForRange(startDate: Date, endDate: Date): PayPeriod
   
   return periods.sort((a, b) => a.start.getTime() - b.start.getTime())
 }
-
-

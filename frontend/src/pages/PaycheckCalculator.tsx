@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { paycheckAPI, userAPI } from '../services/api'
+import { paycheckAPI, userAPI, timesheetAPI } from '../services/api'
 import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
-import { formatCurrency, formatHours } from '../utils/date'
+import { formatCurrency, formatHours, formatDate } from '../utils/date'
 import type { PayCalculation } from '../types'
 
 export default function PaycheckCalculator() {
@@ -12,17 +12,26 @@ export default function PaycheckCalculator() {
   const [calculation, setCalculation] = useState<PayCalculation & {
     hourlyRate?: number
     weeklyBreakdown?: Array<PayCalculation & { weekNumber: number; start: string; end: string }>
+    payPeriod?: { start: string; end: string }
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [useCurrentPeriod, setUseCurrentPeriod] = useState(true)
+  const [payPeriods, setPayPeriods] = useState<Array<{ start: string; end: string }>>([])
+  const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
   const { dialog, showAlert, closeDialog } = useDialog()
 
   useEffect(() => {
     loadUserProfile()
-    if (useCurrentPeriod) {
-      loadCurrentPeriodEstimate()
+    loadPayPeriods()
+  }, [])
+
+  useEffect(() => {
+    if (useCurrentPeriod && selectedPeriod) {
+      loadPeriodEstimate(selectedPeriod.start, selectedPeriod.end)
+    } else if (!useCurrentPeriod && hours) {
+      // Don't auto-load if manually entering hours
     }
-  }, [useCurrentPeriod])
+  }, [useCurrentPeriod, selectedPeriod])
 
   const loadUserProfile = async () => {
     try {
@@ -33,13 +42,26 @@ export default function PaycheckCalculator() {
     }
   }
 
-  const loadCurrentPeriodEstimate = async () => {
+  const loadPayPeriods = async () => {
+    try {
+      const periods = await timesheetAPI.getPayPeriods()
+      setPayPeriods(periods)
+      if (periods.length > 0) {
+        setSelectedPeriod(periods[0])
+      }
+    } catch (error) {
+      console.error('Failed to load pay periods:', error)
+    }
+  }
+
+  const loadPeriodEstimate = async (startDate?: string, endDate?: string) => {
     setLoading(true)
     try {
-      const data = await paycheckAPI.getEstimate()
+      const data = await paycheckAPI.getEstimate(startDate, endDate)
       setCalculation(data)
     } catch (error) {
       console.error('Failed to load estimate:', error)
+      await showAlert('Error', 'Failed to load paycheck estimate')
     } finally {
       setLoading(false)
     }
@@ -96,9 +118,32 @@ export default function PaycheckCalculator() {
                 className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
               <label htmlFor="useCurrentPeriod" className="text-sm text-gray-700 dark:text-gray-300">
-                Use current pay period hours
+                Use pay period hours
               </label>
             </div>
+
+            {useCurrentPeriod && payPeriods.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Select Pay Period
+                </label>
+                <select
+                  value={selectedPeriod ? `${selectedPeriod.start}|${selectedPeriod.end}` : ''}
+                  onChange={(e) => {
+                    const [start, end] = e.target.value.split('|')
+                    setSelectedPeriod({ start, end })
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                  {payPeriods.map((period, index) => (
+                    <option key={`${period.start}|${period.end}`} value={`${period.start}|${period.end}`}>
+                      {formatDate(period.start)} - {formatDate(period.end)}
+                      {index === 0 ? ' (Current)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {!useCurrentPeriod && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -151,9 +196,16 @@ export default function PaycheckCalculator() {
           >
             {/* Summary */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                Pay Summary
-              </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Pay Summary
+                </h2>
+                {calculation.payPeriod && (
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {formatDate(calculation.payPeriod.start)} - {formatDate(calculation.payPeriod.end)}
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Regular Hours</div>

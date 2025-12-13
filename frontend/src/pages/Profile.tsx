@@ -17,7 +17,10 @@ export default function Profile() {
     timeRoundingInterval: user?.timeRoundingInterval || 5,
     profileImage: user?.profileImage || '',
     payPeriodType: (user?.payPeriodType || 'monthly') as 'weekly' | 'monthly',
-    payPeriodEndDay: user?.payPeriodEndDay || 10
+    payPeriodEndDay: user?.payPeriodEndDay || 10,
+    paycheckAdjustment: user?.paycheckAdjustment || 0,
+    state: user?.state || '',
+    stateTaxRate: user?.stateTaxRate || null
   })
   const [imagePreview, setImagePreview] = useState<string | null>(user?.profileImage || null)
 
@@ -30,7 +33,10 @@ export default function Profile() {
         timeRoundingInterval: user.timeRoundingInterval || 5,
         profileImage: user.profileImage || '',
         payPeriodType: (user.payPeriodType || 'monthly') as 'weekly' | 'monthly',
-        payPeriodEndDay: user.payPeriodEndDay || 10
+        payPeriodEndDay: user.payPeriodEndDay || 10,
+        paycheckAdjustment: user.paycheckAdjustment || 0,
+        state: user.state || '',
+        stateTaxRate: user.stateTaxRate || null
       })
       setImagePreview(user.profileImage || null)
     }
@@ -290,6 +296,107 @@ export default function Profile() {
             </div>
           </div>
 
+          {/* Paycheck Adjustment */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Paycheck Adjustment
+            </h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Adjustment Amount ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.paycheckAdjustment}
+                onChange={(e) => setFormData({ ...formData, paycheckAdjustment: parseFloat(e.target.value) || 0 })}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="0.00"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                This amount will be added to your gross and net pay calculations. Use negative values to subtract.
+              </p>
+            </div>
+          </div>
+
+          {/* Tax Settings */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Tax Settings
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  State (2-letter code)
+                </label>
+                <input
+                  type="text"
+                  maxLength={2}
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
+                  placeholder="MT"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Enter your state code (e.g., MT, CA, TX). Used for state tax calculations.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  State Tax Rate (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.stateTaxRate !== null && formData.stateTaxRate !== undefined ? (formData.stateTaxRate * 100) : ''}
+                  onChange={(e) => setFormData({ ...formData, stateTaxRate: e.target.value ? parseFloat(e.target.value) / 100 : null })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="5.9"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Enter your state tax rate as a percentage (e.g., 5.9 for 5.9%). Leave empty to use default rate for your state.
+                </p>
+              </div>
+            </div>
+            
+            {/* Tax Calculation Display */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                Current Tax Calculations
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Federal Tax:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">Progressive brackets (2024)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">State Tax:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {formData.stateTaxRate !== null && formData.stateTaxRate !== undefined
+                      ? `${(formData.stateTaxRate * 100).toFixed(2)}%`
+                      : formData.state
+                        ? `Default for ${formData.state} (varies by state)`
+                        : 'Montana default: 5.9%'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">FICA (Social Security):</span>
+                  <span className="text-gray-900 dark:text-white font-medium">6.2% (up to $168,600/year)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Medicare:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">1.45% (no cap)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Additional Medicare:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">0.9% (over $200,000/year)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Submit Button and Logout */}
           <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
             <motion.button
@@ -318,6 +425,51 @@ export default function Profile() {
             </motion.button>
           </div>
         </form>
+
+        {/* Danger Zone - Outside form to prevent submission */}
+        <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4">
+            Danger Zone
+          </h3>
+          <div className="space-y-4">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-red-900 dark:text-red-200 mb-2">
+                Delete All Time Entries
+              </h4>
+              <p className="text-xs text-red-700 dark:text-red-300 mb-3">
+                This will permanently delete all your time entries. This action cannot be undone. 
+                Use this if you want to re-import your data from CSV.
+              </p>
+              <motion.button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const confirmed = await showConfirm(
+                    'Delete All Time Entries',
+                    'Are you sure you want to delete ALL time entries? This action cannot be undone. You can re-import your data after deletion.',
+                    'Delete All',
+                    'Cancel'
+                  )
+                  if (confirmed) {
+                    try {
+                      const { timeEntriesAPI } = await import('../services/api')
+                      const result = await timeEntriesAPI.deleteAllEntries()
+                      await showAlert('Success', `Successfully deleted ${result.deletedCount} time entries. You can now re-import your data.`)
+                    } catch (error: any) {
+                      await showAlert('Error', error.response?.data?.error || 'Failed to delete time entries')
+                    }
+                  }
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete All Time Entries
+              </motion.button>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Dialog */}
