@@ -174,20 +174,20 @@ export default function ClockInOut() {
             </>
           ) : (
             <>
-              <div className="text-center mb-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              <div className="text-center mb-4">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                   Clocked in at {currentEntry && formatDateTime(currentEntry.clockIn)}
                 </p>
               </div>
 
               {/* Custom Time Toggle */}
-              <div className="mb-4">
+              <div className="mb-3">
                 <button
                   onClick={() => {
                     setShowTimePicker(!showTimePicker)
                     setUseCustomTime(!showTimePicker)
                   }}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   {showTimePicker ? 'Use current time' : 'Set custom time'}
                 </button>
@@ -199,7 +199,7 @@ export default function ClockInOut() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="mb-6"
+                    className="mb-4"
                   >
                     <TimePicker
                       value={clockOutTime}
@@ -215,7 +215,7 @@ export default function ClockInOut() {
                 onClick={handleClockOut}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-6 px-8 rounded-xl text-xl sm:text-2xl shadow-lg transition-colors mb-3"
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
               >
                 Clock Out
               </motion.button>
@@ -225,7 +225,7 @@ export default function ClockInOut() {
                 onClick={handleCancelClockIn}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg text-base shadow-md transition-colors"
+                className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors"
               >
                 Cancel Clock In
               </motion.button>
