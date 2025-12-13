@@ -97,7 +97,7 @@ export default function WeeklySummary() {
     return () => clearInterval(interval)
   }, [])
 
-  // Calculate days until next pay period
+  // Calculate days until end of current pay period
   useEffect(() => {
     if (!user) return
     
@@ -106,10 +106,9 @@ export default function WeeklySummary() {
     const payPeriodEndDay = user.payPeriodEndDay || 10
     
     const currentPeriod = getCurrentPayPeriod(now, payPeriodType, payPeriodEndDay)
-    const nextPeriod = getNextPayPeriod(currentPeriod, payPeriodType, payPeriodEndDay)
     
-    // Calculate days until end of next pay period
-    const msUntilEnd = nextPeriod.end.getTime() - now.getTime()
+    // Calculate days until end of current pay period
+    const msUntilEnd = currentPeriod.end.getTime() - now.getTime()
     const daysUntil = Math.ceil(msUntilEnd / (1000 * 60 * 60 * 24))
     
     setDaysUntilNextPayPeriod(daysUntil)
@@ -320,7 +319,7 @@ export default function WeeklySummary() {
         </div>
         {daysUntilNextPayPeriod !== null && (
           <div className="text-center">
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Days Until Pay Period</div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Days till end of pay period</div>
             <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
               {daysUntilNextPayPeriod}
             </div>
