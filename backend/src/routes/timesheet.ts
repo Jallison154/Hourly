@@ -236,11 +236,15 @@ async function getTimesheetData(
       console.log(`Week ${week.weekNumber}: Actual week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period range: ${week.start.toISOString()} to ${week.end.toISOString()})`)
       
       // Get entries from current pay period that fall in this ACTUAL week (Sunday-Saturday)
+      // But also respect pay period boundaries (week.start and week.end) for the first/last week
       // Sort by clockIn time for proper chronological order
       const weekEntries = entries
         .filter(e => {
-          // Use actual Sunday-Saturday range, not pay period boundaries
-          return e.clockIn >= actualSunday && e.clockIn <= actualSaturday
+          // Must be within the actual week range (Sunday-Saturday)
+          const inWeekRange = e.clockIn >= actualSunday && e.clockIn <= actualSaturday
+          // Also must be within the pay period boundaries for this week (clipped to pay period)
+          const inPayPeriodRange = e.clockIn >= week.start && e.clockIn <= week.end
+          return inWeekRange && inPayPeriodRange
         })
         .sort((a, b) => a.clockIn.getTime() - b.clockIn.getTime())
       
