@@ -430,8 +430,14 @@ export default function Timesheet() {
                             )}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${isOvertime ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                            {entry.clockOut && week.totalHours > 0
-                              ? formatCurrency((entry.hours / week.totalHours) * week.pay.grossPay)
+                            {entry.clockOut
+                              ? (() => {
+                                  // Calculate actual pay for this entry based on regular and overtime hours
+                                  const hourlyRate = timesheet.user.hourlyRate
+                                  const overtimeRate = timesheet.user.overtimeRate || 1.5
+                                  const entryPay = (regularHoursInEntry * hourlyRate) + (overtimeHoursInEntry * hourlyRate * overtimeRate)
+                                  return formatCurrency(entryPay)
+                                })()
                               : '-'}
                           </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm">
@@ -466,53 +472,146 @@ export default function Timesheet() {
 
               {/* Week Pay Summary */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <div className="mb-3">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Hours Breakdown</div>
-                  <div className="flex gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Regular: </span>
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {formatHours(week.pay.regularHours)}
-                      </span>
-                    </div>
-                    {week.pay.overtimeHours > 0 && (
-                      <div>
-                        <span className="text-orange-600 dark:text-orange-400">Overtime: </span>
-                        <span className="font-semibold text-orange-600 dark:text-orange-400">
-                          {formatHours(week.pay.overtimeHours)} (1.5x)
-                        </span>
+                {(() => {
+                  // Calculate totals by summing individual entry pays to match daily pay column
+                  const hourlyRate = timesheet.user.hourlyRate
+                  const overtimeRate = timesheet.user.overtimeRate || 1.5
+                  const previousHours = week.previousPayPeriodHours || 0
+                  
+                  let totalRegularHours = 0
+                  let totalOvertimeHours = 0
+                  let totalRegularPay = 0
+                  let totalOvertimePay = 0
+                  
+                  // Calculate full week hours for overtime determination
+                  const fullWeekHours = week.totalHours + previousHours
+                  
+                  week.entries.forEach((entry, entryIndex) => {
+                    if (!entry.clockOut) return
+                    
+                    const cumulativeHoursFromDisplayed = week.entries
+                      .slice(0, entryIndex + 1)
+                      .reduce((sum, e) => sum + (e.hours || 0), 0)
+                    const cumulativeHours = previousHours + cumulativeHoursFromDisplayed
+                    
+                    const isOvertime = fullWeekHours > 40 && cumulativeHours > 40
+                    const regularHoursInEntry = isOvertime 
+                      ? Math.max(0, 40 - (cumulativeHours - entry.hours))
+                      : entry.hours
+                    const overtimeHoursInEntry = isOvertime
+                      ? entry.hours - regularHoursInEntry
+                      : 0
+                    
+                    totalRegularHours += regularHoursInEntry
+                    totalOvertimeHours += overtimeHoursInEntry
+                    totalRegularPay += regularHoursInEntry * hourlyRate
+                    totalOvertimePay += overtimeHoursInEntry * hourlyRate * overtimeRate
+                  })
+                  
+                  const totalGrossPay = totalRegularPay + totalOvertimePay
+                  
+                  // Calculate taxes (same logic as backend - 2024 brackets)
+                  const annualGrossPay = totalGrossPay * 24 // Estimate annual (monthly pay periods)
+                  
+                  // Federal tax brackets (2024, Single filer)
+                  const federalBrackets = [
+                    { min: 0, max: 11600, rate: 0.10 },
+                    { min: 11600, max: 47150, rate: 0.12 },
+                    { min: 47150, max: 100525, rate: 0.22 },
+                    { min: 100525, max: 191950, rate: 0.24 },
+                    { min: 191950, max: 243725, rate: 0.32 },
+                    { min: 243725, max: 609350, rate: 0.35 },
+                    { min: 609350, max: Infinity, rate: 0.37 }
+                  ]
+                  
+                  let annualFederalTax = 0
+                  let remainingIncome = annualGrossPay
+                  
+                  for (const bracket of federalBrackets) {
+                    if (remainingIncome <= 0) break
+                    const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min)
+                    annualFederalTax += taxableInBracket * bracket.rate
+                    remainingIncome -= taxableInBracket
+                  }
+                  
+                  // State tax
+                  const stateTaxRate = week.pay.stateTaxRate || 0.059 // Default Montana rate
+                  const annualStateTax = annualGrossPay * stateTaxRate
+                  
+                  // FICA (Social Security + Medicare)
+                  const socialSecurityWageBase = 168600
+                  const socialSecurityRate = 0.062
+                  const medicareRate = 0.0145
+                  const additionalMedicareThreshold = 200000
+                  const additionalMedicareRate = 0.009
+                  
+                  const socialSecurityIncome = Math.min(annualGrossPay, socialSecurityWageBase)
+                  const annualFICA = socialSecurityIncome * socialSecurityRate
+                  const annualMedicare = annualGrossPay * medicareRate
+                  const additionalMedicare = annualGrossPay > additionalMedicareThreshold 
+                    ? (annualGrossPay - additionalMedicareThreshold) * additionalMedicareRate 
+                    : 0
+                  const totalAnnualFICA = annualFICA + annualMedicare + additionalMedicare
+                  
+                  // Pro-rate to pay period
+                  const federalTax = (annualFederalTax / annualGrossPay) * totalGrossPay
+                  const stateTax = (annualStateTax / annualGrossPay) * totalGrossPay
+                  const fica = (totalAnnualFICA / annualGrossPay) * totalGrossPay
+                  
+                  const totalNetPay = totalGrossPay - federalTax - stateTax - fica
+                  
+                  return (
+                    <>
+                      <div className="mb-3">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Hours Breakdown</div>
+                        <div className="flex gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600 dark:text-gray-400">Regular: </span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {formatHours(totalRegularHours)}
+                            </span>
+                          </div>
+                          {totalOvertimeHours > 0 && (
+                            <div>
+                              <span className="text-orange-600 dark:text-orange-400">Overtime: </span>
+                              <span className="font-semibold text-orange-600 dark:text-orange-400">
+                                {formatHours(totalOvertimeHours)} (1.5x)
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <div className="text-gray-600 dark:text-gray-400">Regular Pay</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(week.pay.regularPay)}
-                    </div>
-                  </div>
-                  {week.pay.overtimePay > 0 && (
-                    <div className="border-l-4 border-orange-500 pl-3">
-                      <div className="text-orange-600 dark:text-orange-400 font-medium">Overtime Pay</div>
-                      <div className="font-semibold text-orange-600 dark:text-orange-400">
-                        {formatCurrency(week.pay.overtimePay)}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <div className="text-gray-600 dark:text-gray-400">Regular Pay</div>
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {formatCurrency(totalRegularPay)}
+                          </div>
+                        </div>
+                        {totalOvertimePay > 0 && (
+                          <div className="border-l-4 border-orange-500 pl-3">
+                            <div className="text-orange-600 dark:text-orange-400 font-medium">Overtime Pay</div>
+                            <div className="font-semibold text-orange-600 dark:text-orange-400">
+                              {formatCurrency(totalOvertimePay)}
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-gray-600 dark:text-gray-400">Gross Pay</div>
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {formatCurrency(totalGrossPay)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600 dark:text-gray-400">Net Pay</div>
+                          <div className="font-semibold text-blue-600 dark:text-blue-400">
+                            {formatCurrency(totalNetPay)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  <div>
-                    <div className="text-gray-600 dark:text-gray-400">Gross Pay</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
-                      {formatCurrency(week.pay.grossPay)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-600 dark:text-gray-400">Net Pay</div>
-                    <div className="font-semibold text-blue-600 dark:text-blue-400">
-                      {formatCurrency(week.pay.netPay)}
-                    </div>
-                  </div>
-                </div>
+                    </>
+                  )
+                })()}
               </div>
             </motion.div>
         ))}

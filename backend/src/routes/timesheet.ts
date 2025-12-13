@@ -267,7 +267,6 @@ async function getTimesheetData(
       console.log(`Week ${week.weekNumber}: Found ${allWeekEntries.length} total entries (${weekEntries.length} from current pay period)`)
       
       // Calculate total hours for DISPLAY - only from entries in current pay period
-      // (Pay calculation will still use allWeekEntries for accurate overtime)
       let weekHours = 0
       weekEntries.forEach(entry => {
         if (entry.clockOut) {
@@ -279,7 +278,7 @@ async function getTimesheetData(
       })
       
       // Calculate hours from previous pay period entries (entries not in current pay period)
-      // This is needed for accurate overtime calculation in the frontend
+      // This is needed for accurate overtime calculation
       const previousPayPeriodHours = allWeekEntries
         .filter(e => !weekEntries.some(we => we.id === e.id))
         .reduce((sum, entry) => {
@@ -287,6 +286,9 @@ async function getTimesheetData(
           const breakHours = entry.totalBreakMinutes / 60
           return sum + (hours - breakHours)
         }, 0)
+      
+      // Calculate total hours for the FULL week (including previous pay period) for overtime determination
+      const fullWeekHours = weekHours + previousPayPeriodHours
       
       // Map entries from current pay period for display (with hours calculated)
       // (Already sorted chronologically above)
@@ -310,26 +312,78 @@ async function getTimesheetData(
         }
       })
       
-      // Calculate pay for the week using ALL entries (for accurate overtime)
-      const weekPay = calculatePayForEntries(
-        allWeekEntries.map(e => ({
-          clockIn: e.clockIn,
-          clockOut: e.clockOut!,
-          totalBreakMinutes: e.totalBreakMinutes
-        })),
-        user.hourlyRate,
-        user.overtimeRate || 1.5,
-        user.state,
-        user.stateTaxRate
-      )
+      // Calculate hours from previous pay period entries (entries not in current pay period)
+      // This is needed for accurate overtime calculation
+      const previousPayPeriodHours = allWeekEntries
+        .filter(e => !weekEntries.some(we => we.id === e.id))
+        .reduce((sum, entry) => {
+          const hours = (entry.clockOut!.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
+          const breakHours = entry.totalBreakMinutes / 60
+          return sum + (hours - breakHours)
+        }, 0)
+      
+      // Calculate total hours for the FULL week (including previous pay period) for overtime determination
+      const fullWeekHours = weekHours + previousPayPeriodHours
+      
+      // Calculate pay for DISPLAYED entries only (matching the displayed hours)
+      // But apply overtime rates based on the full week's hours for accuracy
+      const hourlyRate = user.hourlyRate
+      const overtimeRate = user.overtimeRate || 1.5
+      
+      let regularPay = 0
+      let overtimePay = 0
+      let regularHours = 0
+      let overtimeHours = 0
+      
+      if (fullWeekHours <= 40) {
+        // No overtime - all displayed hours are regular
+        regularHours = weekHours
+        regularPay = weekHours * hourlyRate
+      } else {
+        // Overtime applies - need to determine how much of displayed hours are overtime
+        // Hours from previous pay period come first, then displayed hours
+        const hoursBeforeDisplayed = previousPayPeriodHours
+        
+        if (hoursBeforeDisplayed >= 40) {
+          // All displayed hours are overtime (previous pay period already exceeded 40)
+          overtimeHours = weekHours
+          overtimePay = weekHours * hourlyRate * overtimeRate
+        } else {
+          // Some displayed hours are regular, some are overtime
+          const regularHoursInDisplayed = Math.max(0, 40 - hoursBeforeDisplayed)
+          const overtimeHoursInDisplayed = Math.max(0, weekHours - regularHoursInDisplayed)
+          
+          regularHours = Math.min(weekHours, regularHoursInDisplayed)
+          overtimeHours = overtimeHoursInDisplayed
+          regularPay = regularHours * hourlyRate
+          overtimePay = overtimeHours * hourlyRate * overtimeRate
+        }
+      }
+      
+      const grossPay = regularPay + overtimePay
+      
+      // Calculate taxes based on gross pay
+      const annualGrossPay = grossPay * 24 // Estimate annual (monthly pay periods)
+      const { calculateNetPay } = await import('../utils/taxCalculator')
+      const taxes = calculateNetPay(grossPay, annualGrossPay, user.state, user.stateTaxRate)
       
       // Apply adjustment proportionally to weekly breakdown
       const totalWeeks = weeks.length
       const weeklyAdjustment = (user.paycheckAdjustment || 0) / totalWeeks
-      weekPay.grossPay += weeklyAdjustment
-      weekPay.netPay += weeklyAdjustment
       
-      console.log(`Week ${week.weekNumber}: Total hours = ${weekHours.toFixed(2)}, Regular = ${weekPay.regularHours.toFixed(2)}, Overtime = ${weekPay.overtimeHours.toFixed(2)}`)
+      const weekPay = {
+        regularHours,
+        overtimeHours,
+        regularPay,
+        overtimePay,
+        grossPay: grossPay + weeklyAdjustment,
+        federalTax: taxes.federalTax,
+        stateTax: taxes.stateTax,
+        fica: taxes.fica,
+        netPay: taxes.netPay + weeklyAdjustment
+      }
+      
+      console.log(`Week ${week.weekNumber}: Displayed hours = ${weekHours.toFixed(2)}, Full week hours = ${fullWeekHours.toFixed(2)}, Previous pay period hours = ${previousPayPeriodHours.toFixed(2)}, Regular = ${weekPay.regularHours.toFixed(2)}, Overtime = ${weekPay.overtimeHours.toFixed(2)}`)
       
       return {
         weekNumber: week.weekNumber,
@@ -370,7 +424,8 @@ async function getTimesheetData(
       payPeriod,
       user: {
         name: user.name,
-        hourlyRate: user.hourlyRate
+        hourlyRate: user.hourlyRate,
+        overtimeRate: user.overtimeRate || 1.5
       },
       weeks: weeklyData,
       totals: {

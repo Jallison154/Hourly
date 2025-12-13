@@ -67,6 +67,7 @@ export interface TimesheetData {
   user: {
     name: string
     hourlyRate: number
+    overtimeRate?: number
   }
   weeks: Array<{
     weekNumber: number

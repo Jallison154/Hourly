@@ -70,16 +70,83 @@ echo ""
 # Check if this is a git repository and update if needed
 if [ -d ".git" ]; then
     print_info "Detected git repository, checking for updates..."
-    if git diff --quiet && git diff --staged --quiet; then
-        print_info "Pulling latest changes..."
-        # Fetch and merge instead of pull to avoid issues
-        git fetch origin || print_info "Could not fetch changes"
-        git merge origin/$(git branch --show-current) 2>/dev/null || print_info "Could not merge changes (may need manual update)"
-        print_success "Repository updated"
+    
+    # Temporarily disable exit on error for git operations
+    set +e
+    
+    # Get current branch name (default to main if can't determine)
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "main")
+    
+    # Check if there are uncommitted changes
+    git diff --quiet 2>/dev/null
+    DIFF_EXIT=$?
+    git diff --staged --quiet 2>/dev/null
+    STAGED_EXIT=$?
+    
+    if [ $DIFF_EXIT -ne 0 ] || [ $STAGED_EXIT -ne 0 ]; then
+        print_info "You have uncommitted changes."
+        print_info "Stashing local changes temporarily..."
+        git stash push -m "Auto-stash before install.sh update $(date +%Y-%m-%d_%H:%M:%S)" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            STASHED=true
+        else
+            STASHED=false
+            print_info "Could not stash changes (continuing anyway)"
+        fi
     else
-        print_info "You have uncommitted changes. Skipping git pull."
-        print_info "To update manually: git pull"
+        STASHED=false
     fi
+    
+    # Fetch latest changes from origin
+    print_info "Fetching latest changes from origin..."
+    if git fetch origin --prune 2>/dev/null; then
+        print_success "Fetched latest changes"
+        
+        # Check if we're behind origin
+        LOCAL=$(git rev-parse HEAD 2>/dev/null)
+        REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null)
+        
+        if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
+            print_info "Local repository is behind origin. Updating..."
+            
+            # Reset hard to origin to ensure we get the latest code
+            # This will discard any local commits that aren't on origin
+            if git reset --hard "origin/$CURRENT_BRANCH" 2>/dev/null; then
+                print_success "Repository updated to latest version"
+                
+                # Clean untracked files and directories (optional, but helps ensure clean state)
+                print_info "Cleaning untracked files..."
+                git clean -fd 2>/dev/null || true
+            else
+                print_error "Failed to update repository. You may need to update manually."
+                print_info "Try: git pull origin $CURRENT_BRANCH"
+            fi
+        else
+            if [ -z "$REMOTE" ]; then
+                print_info "Could not find remote branch origin/$CURRENT_BRANCH"
+            else
+                print_success "Repository is already up to date"
+            fi
+        fi
+    else
+        print_error "Could not fetch changes from origin"
+        print_info "Check your internet connection and git remote configuration"
+        print_info "Continuing with existing code..."
+    fi
+    
+    # Restore stashed changes if any
+    if [ "$STASHED" = true ]; then
+        print_info "Restoring previously stashed changes..."
+        git stash pop 2>/dev/null
+        if [ $? -ne 0 ]; then
+            print_info "Could not restore stashed changes (they are still in git stash)"
+            print_info "View stashed changes with: git stash list"
+        fi
+    fi
+    
+    # Re-enable exit on error
+    set -e
+    
     echo ""
 elif [ -d "../.git" ] && [ "$(basename "$(cd .. && pwd)")" = "Hourly" ]; then
     # If we're in a nested directory, warn the user
