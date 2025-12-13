@@ -121,7 +121,8 @@ export default function Timesheet() {
     } catch (error: any) {
       console.error('Failed to load timesheet:', error)
       console.error('Error details:', error.response?.data || error.message)
-      // Don't set loading to false on error so user sees the error state
+      // Show error to user
+      showAlert('Failed to load timesheet', error.response?.data?.message || error.message || 'An error occurred')
     } finally {
       if (!silent) {
         setLoading(false)
