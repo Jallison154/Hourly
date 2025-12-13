@@ -55,36 +55,6 @@ function getCurrentPayPeriod(
   }
 }
 
-// Calculate next pay period
-function getNextPayPeriod(
-  currentPeriod: { start: Date; end: Date },
-  payPeriodType: string = 'monthly',
-  payPeriodEndDay: number = 10
-): { start: Date; end: Date } {
-  if (payPeriodType === 'weekly') {
-    // Next week: 7 days after current period
-    const nextStart = new Date(currentPeriod.end)
-    nextStart.setDate(nextStart.getDate() + 1)
-    nextStart.setHours(0, 0, 0, 0)
-    
-    const nextEnd = new Date(nextStart)
-    nextEnd.setDate(nextStart.getDate() + 6)
-    nextEnd.setHours(23, 59, 59, 999)
-    
-    return { start: nextStart, end: nextEnd }
-  } else {
-    // Next month: start from day after current period end
-    const nextStart = new Date(currentPeriod.end)
-    nextStart.setDate(nextStart.getDate() + 1)
-    nextStart.setHours(0, 0, 0, 0)
-    
-    // End is endDay of the month after nextStart's month
-    const nextEnd = new Date(nextStart.getFullYear(), nextStart.getMonth() + 1, payPeriodEndDay, 23, 59, 59, 999)
-    
-    return { start: nextStart, end: nextEnd }
-  }
-}
-
 export default function WeeklySummary() {
   const { user } = useAuth()
   const [summary, setSummary] = useState<WeeklySummaryData | null>(null)

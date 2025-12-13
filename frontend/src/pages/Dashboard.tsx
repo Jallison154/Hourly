@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { metricsAPI } from '../services/api'
 import { formatCurrency, formatHours } from '../utils/date'
