@@ -21,7 +21,14 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     
     // Get user
     const user = await prisma.user.findUnique({
-      where: { id: req.userId! }
+      where: { id: req.userId! },
+      select: {
+        hourlyRate: true,
+        overtimeRate: true,
+        paycheckAdjustment: true,
+        state: true,
+        stateTaxRate: true
+      }
     })
     
     if (!user) {

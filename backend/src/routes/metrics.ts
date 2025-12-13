@@ -15,8 +15,10 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         id: true,
         hourlyRate: true,
         overtimeRate: true,
-        payPeriodType: true, 
-        payPeriodEndDay: true 
+        payPeriodType: true,
+        payPeriodEndDay: true,
+        state: true,
+        stateTaxRate: true
       }
     })
     

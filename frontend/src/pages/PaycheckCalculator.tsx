@@ -75,7 +75,7 @@ export default function PaycheckCalculator() {
 
     setLoading(true)
     try {
-      const data = await paycheckAPI.getEstimate({
+      const data = await paycheckAPI.getEstimate(undefined, undefined, {
         hours: parseFloat(hours),
         hourlyRate
       })

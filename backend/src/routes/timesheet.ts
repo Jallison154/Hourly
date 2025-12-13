@@ -185,7 +185,16 @@ async function getTimesheetData(
     })
     // Get user
     const user = await prisma.user.findUnique({
-      where: { id: req.userId! }
+      where: { id: req.userId! },
+      select: {
+        hourlyRate: true,
+        overtimeRate: true,
+        paycheckAdjustment: true,
+        state: true,
+        stateTaxRate: true,
+        payPeriodType: true,
+        payPeriodEndDay: true
+      }
     })
     
     if (!user) {
@@ -311,19 +320,6 @@ async function getTimesheetData(
           breakHours
         }
       })
-      
-      // Calculate hours from previous pay period entries (entries not in current pay period)
-      // This is needed for accurate overtime calculation
-      const previousPayPeriodHours = allWeekEntries
-        .filter(e => !weekEntries.some(we => we.id === e.id))
-        .reduce((sum, entry) => {
-          const hours = (entry.clockOut!.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-          const breakHours = entry.totalBreakMinutes / 60
-          return sum + (hours - breakHours)
-        }, 0)
-      
-      // Calculate total hours for the FULL week (including previous pay period) for overtime determination
-      const fullWeekHours = weekHours + previousPayPeriodHours
       
       // Calculate pay for DISPLAYED entries only (matching the displayed hours)
       // But apply overtime rates based on the full week's hours for accuracy

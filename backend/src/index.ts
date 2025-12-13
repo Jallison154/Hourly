@@ -62,9 +62,10 @@ app.get('/api/test', (req, res) => {
   })
 })
 
-app.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`)
-  console.log(`Access from other devices: http://<your-server-ip>:${PORT}`)
+const port = typeof PORT === 'string' ? parseInt(PORT, 10) : PORT
+app.listen(port, HOST, () => {
+  console.log(`Server running on ${HOST}:${port}`)
+  console.log(`Access from other devices: http://<your-server-ip>:${port}`)
 })
 
 
