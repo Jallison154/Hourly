@@ -36,8 +36,8 @@ export default function Navigation() {
   }, [])
 
   const navItems = [
-    { path: '/', label: 'Clock', icon: '⏰' },
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
+    { path: '/', label: 'Clock', icon: '⏰' },
     { path: '/timesheet', label: 'Timesheet', icon: '📋' },
     { path: '/calculator', label: 'Paycheck', icon: '💰' }
   ]

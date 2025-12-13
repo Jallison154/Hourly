@@ -214,36 +214,6 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow p-6"
-      >
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Link
-              to="/clock"
-              className="p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-semibold transition-colors"
-            >
-              ⏰ Clock In/Out
-            </Link>
-            <Link
-              to="/timesheet"
-              className="p-4 bg-green-600 hover:bg-green-700 text-white rounded-lg text-center font-semibold transition-colors"
-            >
-              📋 View Timesheet
-            </Link>
-            <Link
-              to="/calculator"
-              className="p-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-semibold transition-colors"
-            >
-              💰 Paycheck Calculator
-            </Link>
-        </div>
-      </motion.div>
     </div>
   )
 }

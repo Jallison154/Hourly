@@ -7,10 +7,10 @@ export default function MobileBottomNav() {
   const location = useLocation()
 
   const navItems = [
-    { path: '/', label: 'Clock', icon: ClockIcon, iconSolid: ClockIconSolid },
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
     { path: '/timesheet', label: 'Timesheet', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
-    { path: '/calculator', label: 'Paycheck', icon: CalculatorIcon, iconSolid: CalculatorIconSolid },
+    { path: '/', label: 'Clock', icon: ClockIcon, iconSolid: ClockIconSolid, oversized: true },
+    { path: '/paycheck', label: 'Paycheck', icon: CalculatorIcon, iconSolid: CalculatorIconSolid },
     { path: '/profile', label: 'Profile', icon: UserIcon, iconSolid: UserIconSolid },
   ]
 
@@ -23,18 +23,19 @@ export default function MobileBottomNav() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 sm:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="flex justify-around items-center h-16">
+      <div className="flex justify-around items-end h-20 pb-2">
         {navItems.map((item) => {
           const active = isActive(item.path)
           const Icon = active ? item.iconSolid : item.icon
+          const isOversized = item.oversized
           
           return (
             <Link
               key={item.path}
               to={item.path}
-              className="flex flex-col items-center justify-center flex-1 h-full relative"
+              className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-[1.5] -mt-4' : 'flex-1'}`}
             >
-              {active && (
+              {active && !isOversized && (
                 <motion.div
                   layoutId="activeTab"
                   className="absolute top-0 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
@@ -42,10 +43,26 @@ export default function MobileBottomNav() {
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               )}
-              <Icon className={`w-6 h-6 ${active ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`} />
-              <span className={`text-xs mt-1 ${active ? 'text-blue-600 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
-                {item.label}
-              </span>
+              {isOversized ? (
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg ${
+                    active 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  <Icon className="w-8 h-8" />
+                </motion.div>
+              ) : (
+                <>
+                  <Icon className={`w-6 h-6 ${active ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`} />
+                  <span className={`text-xs mt-1 ${active ? 'text-blue-600 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {item.label}
+                  </span>
+                </>
+              )}
             </Link>
           )
         })}
