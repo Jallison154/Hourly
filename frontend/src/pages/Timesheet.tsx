@@ -519,92 +519,17 @@ export default function Timesheet() {
               {/* Week Pay Summary */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 {(() => {
-                  // Calculate totals by summing individual entry pays to match daily pay column
-                  const hourlyRate = timesheet.user.hourlyRate
-                  const overtimeRate = timesheet.user.overtimeRate || 1.5
-                  const previousHours = week.previousPayPeriodHours || 0
-                  
-                  let totalRegularHours = 0
-                  let totalOvertimeHours = 0
-                  let totalRegularPay = 0
-                  let totalOvertimePay = 0
-                  
-                  // Calculate full week hours for overtime determination
-                  const fullWeekHours = week.totalHours + previousHours
-                  
-                  week.entries.forEach((entry, entryIndex) => {
-                    if (!entry.clockOut) return
-                    
-                    const cumulativeHoursFromDisplayed = week.entries
-                      .slice(0, entryIndex + 1)
-                      .reduce((sum, e) => sum + (e.hours || 0), 0)
-                    const cumulativeHours = previousHours + cumulativeHoursFromDisplayed
-                    
-                    const isOvertime = fullWeekHours > 40 && cumulativeHours > 40
-                    const regularHoursInEntry = isOvertime 
-                      ? Math.max(0, 40 - (cumulativeHours - entry.hours))
-                      : entry.hours
-                    const overtimeHoursInEntry = isOvertime
-                      ? entry.hours - regularHoursInEntry
-                      : 0
-                    
-                    totalRegularHours += regularHoursInEntry
-                    totalOvertimeHours += overtimeHoursInEntry
-                    totalRegularPay += regularHoursInEntry * hourlyRate
-                    totalOvertimePay += overtimeHoursInEntry * hourlyRate * overtimeRate
-                  })
-                  
-                  const totalGrossPay = totalRegularPay + totalOvertimePay
-                  
-                  // Calculate taxes (same logic as backend - 2024 brackets)
-                  const annualGrossPay = totalGrossPay * 24 // Estimate annual (monthly pay periods)
-                  
-                  // Federal tax brackets (2024, Single filer)
-                  const federalBrackets = [
-                    { min: 0, max: 11600, rate: 0.10 },
-                    { min: 11600, max: 47150, rate: 0.12 },
-                    { min: 47150, max: 100525, rate: 0.22 },
-                    { min: 100525, max: 191950, rate: 0.24 },
-                    { min: 191950, max: 243725, rate: 0.32 },
-                    { min: 243725, max: 609350, rate: 0.35 },
-                    { min: 609350, max: Infinity, rate: 0.37 }
-                  ]
-                  
-                  let annualFederalTax = 0
-                  let remainingIncome = annualGrossPay
-                  
-                  for (const bracket of federalBrackets) {
-                    if (remainingIncome <= 0) break
-                    const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min)
-                    annualFederalTax += taxableInBracket * bracket.rate
-                    remainingIncome -= taxableInBracket
-                  }
-                  
-                  // State tax
-                  const stateTaxRate = week.pay.stateTaxRate || 0.059 // Default Montana rate
-                  const annualStateTax = annualGrossPay * stateTaxRate
-                  
-                  // FICA (Social Security + Medicare)
-                  const socialSecurityWageBase = 168600
-                  const socialSecurityRate = 0.062
-                  const medicareRate = 0.0145
-                  const additionalMedicareThreshold = 200000
-                  const additionalMedicareRate = 0.009
-                  
-                  const socialSecurityIncome = Math.min(annualGrossPay, socialSecurityWageBase)
-                  const annualFICA = socialSecurityIncome * socialSecurityRate
-                  const annualMedicare = annualGrossPay * medicareRate
-                  const additionalMedicare = annualGrossPay > additionalMedicareThreshold 
-                    ? (annualGrossPay - additionalMedicareThreshold) * additionalMedicareRate 
-                    : 0
-                  const totalAnnualFICA = annualFICA + annualMedicare + additionalMedicare
-                  
-                  // Pro-rate to pay period
-                  const federalTax = (annualFederalTax / annualGrossPay) * totalGrossPay
-                  const stateTax = (annualStateTax / annualGrossPay) * totalGrossPay
-                  const fica = (totalAnnualFICA / annualGrossPay) * totalGrossPay
-                  
-                  const totalNetPay = totalGrossPay - federalTax - stateTax - fica
+                  // Use backend-calculated values from week.pay
+                  const weekPay = week.pay
+                  const totalGrossPay = weekPay.grossPay
+                  const totalNetPay = weekPay.netPay
+                  const totalRegularHours = weekPay.regularHours
+                  const totalOvertimeHours = weekPay.overtimeHours
+                  const totalRegularPay = weekPay.regularPay
+                  const totalOvertimePay = weekPay.overtimePay
+                  const federalTax = weekPay.federalTax
+                  const stateTax = weekPay.stateTax
+                  const fica = weekPay.fica
                   
                   return (
                     <>
