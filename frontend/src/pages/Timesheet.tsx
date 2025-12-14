@@ -209,12 +209,48 @@ export default function Timesheet() {
     
     try {
       const text = formatTimesheetAsText(timesheet)
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      
+      // Try modern clipboard API first (with proper undefined checks)
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+          await navigator.clipboard.writeText(text)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+          return
+        } catch (clipboardError) {
+          console.warn('Clipboard API failed, trying fallback:', clipboardError)
+          // Continue to fallback
+        }
+      }
+      
+      // Fallback for older browsers or when clipboard API isn't available
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      
+      try {
+        const successful = document.execCommand('copy')
+        if (successful) {
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+        } else {
+          throw new Error('execCommand copy failed')
+        }
+      } catch (execError) {
+        console.error('Fallback copy method failed:', execError)
+        throw execError
+      } finally {
+        document.body.removeChild(textArea)
+      }
     } catch (error) {
       console.error('Failed to copy to clipboard:', error)
-      await showAlert('Error', 'Failed to copy to clipboard')
+      await showAlert('Error', 'Failed to copy to clipboard. Please ensure you have clipboard permissions enabled.')
     }
   }
 
