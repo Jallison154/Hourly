@@ -193,6 +193,10 @@ export const userAPI = {
   }): Promise<User> => {
     const { data } = await api.put('/user/profile', updates)
     return data
+  },
+  
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await api.post('/user/change-password', { currentPassword, newPassword })
   }
 }
 

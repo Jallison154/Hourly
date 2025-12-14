@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
+import { userAPI } from '../services/api'
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuth()
@@ -23,6 +24,12 @@ export default function Profile() {
     stateTaxRate: user?.stateTaxRate || null
   })
   const [imagePreview, setImagePreview] = useState<string | null>(user?.profileImage || null)
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [changingPassword, setChangingPassword] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -71,6 +78,32 @@ export default function Profile() {
     }
   }
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      await showAlert('Error', 'New passwords do not match')
+      return
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      await showAlert('Error', 'New password must be at least 6 characters long')
+      return
+    }
+    
+    setChangingPassword(true)
+    try {
+      await userAPI.changePassword(passwordData.currentPassword, passwordData.newPassword)
+      await showAlert('Success', 'Password changed successfully!')
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to change password')
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
   const roundingOptions = [5, 10, 15, 30]
 
   return (
@@ -79,16 +112,10 @@ export default function Profile() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Profile Settings
           </h1>
-          <Link
-            to="/import"
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
-          >
-            Import Data
-          </Link>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -167,6 +194,63 @@ export default function Profile() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Change Password */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Change Password
+            </h2>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  minLength={6}
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Must be at least 6 characters
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={changingPassword}
+                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {changingPassword ? 'Changing Password...' : 'Change Password'}
+              </button>
+            </form>
           </div>
 
           {/* Pay Settings */}
@@ -426,6 +510,37 @@ export default function Profile() {
             </motion.button>
           </div>
         </form>
+
+        {/* Import Data Section */}
+        <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            Import Data
+          </h2>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Import time entries from a CSV file. This allows you to bulk import your work history, 
+              migrate data from other time tracking systems, or restore previously exported data.
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              The CSV file should contain columns for date, clock in time, clock out time, and optionally 
+              break duration. You can also specify date ranges for importing and clearing existing entries.
+            </p>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Link
+                to="/import"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Go to Import Page
+              </Link>
+            </motion.div>
+          </div>
+        </div>
 
         {/* Danger Zone - Outside form to prevent submission */}
         <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
