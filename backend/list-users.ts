@@ -8,18 +8,35 @@
  *    or: npx tsx list-users.ts
  */
 
-// Set DATABASE_URL to relative path before loading env
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:./prisma/dev.db'
-
 import 'dotenv/config'
+import path from 'path'
+import { existsSync } from 'fs'
+import { fileURLToPath } from 'url'
 
-// Override with relative path if absolute path doesn't work
-if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:')) {
-  const dbUrl = process.env.DATABASE_URL.replace('file:', '')
-  // If it's an absolute path that might be wrong, use relative instead
-  if (dbUrl.includes('Documents/Local Projects') && !dbUrl.includes("Jonathan's MacBook Pro")) {
-    process.env.DATABASE_URL = 'file:./prisma/dev.db'
+// Get the directory where this script is located
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Try to find the database file
+const possiblePaths = [
+  path.join(__dirname, 'prisma', 'dev.db'),
+  './prisma/dev.db',
+  process.env.DATABASE_URL?.replace('file:', '') || ''
+]
+
+let dbPath = null
+for (const db of possiblePaths) {
+  if (db && existsSync(db)) {
+    dbPath = db
+    break
   }
+}
+
+if (dbPath) {
+  process.env.DATABASE_URL = `file:${path.resolve(dbPath)}`
+} else {
+  // Default to relative path
+  process.env.DATABASE_URL = 'file:./prisma/dev.db'
 }
 
 import prisma from './src/utils/prisma'

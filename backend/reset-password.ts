@@ -11,18 +11,54 @@
  */
 
 import 'dotenv/config'
+import path from 'path'
+import { existsSync } from 'fs'
+import { fileURLToPath } from 'url'
 import bcrypt from 'bcryptjs'
+
+// Get the directory where this script is located
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Try to find the database file
+const possiblePaths = [
+  path.join(__dirname, 'prisma', 'dev.db'),
+  './prisma/dev.db',
+  process.env.DATABASE_URL?.replace('file:', '') || ''
+]
+
+let dbPath = null
+for (const db of possiblePaths) {
+  if (db && existsSync(db)) {
+    dbPath = db
+    break
+  }
+}
+
+if (dbPath) {
+  process.env.DATABASE_URL = `file:${path.resolve(dbPath)}`
+} else {
+  // Default to relative path
+  process.env.DATABASE_URL = 'file:./prisma/dev.db'
+}
+
 import prisma from './src/utils/prisma'
 
 async function resetPassword(email: string, newPassword: string) {
   try {
+    // Normalize email to lowercase and trim whitespace
+    const normalizedEmail = email.toLowerCase().trim()
+    
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     })
 
     if (!user) {
-      console.error(`❌ User with email "${email}" not found`)
+      console.error(`❌ User with email "${normalizedEmail}" not found`)
+      console.error(`   Searched for: "${normalizedEmail}"`)
+      console.error(`   (Original input: "${email}")`)
+      console.error(`\n   To see all users, run: npm run list-users`)
       process.exit(1)
     }
 
@@ -37,11 +73,11 @@ async function resetPassword(email: string, newPassword: string) {
 
     // Update password
     await prisma.user.update({
-      where: { email },
+      where: { email: normalizedEmail },
       data: { password: hashedPassword }
     })
 
-    console.log(`✅ Password reset successfully for ${email}`)
+    console.log(`✅ Password reset successfully for ${normalizedEmail}`)
     console.log(`   New password: ${newPassword}`)
   } catch (error) {
     console.error('❌ Error resetting password:', error)
