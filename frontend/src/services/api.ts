@@ -292,6 +292,18 @@ export const timeEntriesAPI = {
       endDate
     })
     return data
+  },
+  
+  exportEntries: async (startDate?: string, endDate?: string): Promise<Blob> => {
+    const params: Record<string, string> = {}
+    if (startDate) params.startDate = startDate
+    if (endDate) params.endDate = endDate
+    
+    const response = await api.get('/time-entries/export', {
+      params,
+      responseType: 'blob'
+    })
+    return response.data
   }
 }
 

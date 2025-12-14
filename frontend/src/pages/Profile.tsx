@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
-import { userAPI } from '../services/api'
+import { userAPI, timeEntriesAPI } from '../services/api'
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuth()
@@ -30,6 +30,7 @@ export default function Profile() {
     confirmPassword: ''
   })
   const [changingPassword, setChangingPassword] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -105,6 +106,30 @@ export default function Profile() {
   }
 
   const roundingOptions = [5, 10, 15, 30]
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const blob = await timeEntriesAPI.exportEntries()
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `time-entries-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      await showAlert('Success', 'Time entries exported successfully!')
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } }
+      await showAlert('Error', axiosError.response?.data?.error || 'Failed to export time entries')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
@@ -525,20 +550,38 @@ export default function Profile() {
               The CSV file should contain columns for date, clock in time, clock out time, and optionally 
               break duration. You can also specify date ranges for importing and clearing existing entries.
             </p>
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Link
-                to="/import"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+            <div className="flex flex-col sm:flex-row gap-3 mt-4">
+              <motion.button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting}
+                whileHover={{ scale: exporting ? 1 : 1.02 }}
+                whileTap={{ scale: exporting ? 1 : 0.98 }}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Go to Import Page
-              </Link>
-            </motion.div>
+                {exporting ? 'Exporting...' : 'Export All Entries'}
+              </motion.button>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Link
+                  to="/import"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Go to Import Page
+                </Link>
+              </motion.div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              💡 <strong>Tip:</strong> Export your data regularly as a backup. The exported CSV can be re-imported if needed.
+            </p>
           </div>
         </div>
 
