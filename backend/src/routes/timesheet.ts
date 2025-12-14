@@ -323,7 +323,7 @@ async function getTimesheetData(
       })
       
       // Calculate pay for DISPLAYED entries only (matching the displayed hours)
-      // But apply overtime rates based on the full week's hours for accuracy
+      // Only count hours within the pay period, even if week spans pay period boundaries
       const hourlyRate = user.hourlyRate
       const overtimeRate = user.overtimeRate || 1.5
       
@@ -332,29 +332,18 @@ async function getTimesheetData(
       let regularHours = 0
       let overtimeHours = 0
       
-      if (fullWeekHours <= 40) {
+      // Calculate pay based ONLY on hours in this pay period (weekHours)
+      // Don't consider hours from outside the pay period
+      if (weekHours <= 40) {
         // No overtime - all displayed hours are regular
         regularHours = weekHours
         regularPay = weekHours * hourlyRate
       } else {
-        // Overtime applies - need to determine how much of displayed hours are overtime
-        // Hours from previous pay period come first, then displayed hours
-        const hoursBeforeDisplayed = previousPayPeriodHours
-        
-        if (hoursBeforeDisplayed >= 40) {
-          // All displayed hours are overtime (previous pay period already exceeded 40)
-          overtimeHours = weekHours
-          overtimePay = weekHours * hourlyRate * overtimeRate
-        } else {
-          // Some displayed hours are regular, some are overtime
-          const regularHoursInDisplayed = Math.max(0, 40 - hoursBeforeDisplayed)
-          const overtimeHoursInDisplayed = Math.max(0, weekHours - regularHoursInDisplayed)
-          
-          regularHours = Math.min(weekHours, regularHoursInDisplayed)
-          overtimeHours = overtimeHoursInDisplayed
-          regularPay = regularHours * hourlyRate
-          overtimePay = overtimeHours * hourlyRate * overtimeRate
-        }
+        // Overtime applies - first 40 hours are regular, rest is overtime
+        regularHours = 40
+        overtimeHours = weekHours - 40
+        regularPay = regularHours * hourlyRate
+        overtimePay = overtimeHours * hourlyRate * overtimeRate
       }
       
       const grossPay = regularPay + overtimePay

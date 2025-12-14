@@ -173,14 +173,14 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       
       console.log(`Paycheck Week ${week.weekNumber}: Actual week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period range: ${week.start.toISOString()} to ${week.end.toISOString()})`)
       
-      // Get ALL entries for this week (full Sunday-Saturday), even if they're outside the current pay period
-      // This ensures weekly overtime calculations are accurate
-      const allWeekEntries = await prisma.timeEntry.findMany({
+      // Get entries for this week, but ONLY those within the pay period
+      // Only count hours that are in the pay period, even if week spans pay period boundaries
+      const weekEntries = await prisma.timeEntry.findMany({
         where: {
           userId: req.userId!,
           clockIn: {
-            gte: actualSunday,
-            lte: actualSaturday
+            gte: week.start, // Use pay period start, not actualSunday
+            lte: week.end    // Use pay period end, not actualSaturday
           },
           clockOut: { not: null }
         },
@@ -189,11 +189,12 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         }
       })
       
-      console.log(`Paycheck Week ${week.weekNumber}: Found ${allWeekEntries.length} total entries for full week`)
+      console.log(`Paycheck Week ${week.weekNumber}: Found ${weekEntries.length} entries within pay period`)
       
       // Recalculate break minutes from breaks array for accuracy
+      // Calculate pay ONLY for entries in the pay period
       const weekCalculation = calculatePayForEntries(
-        allWeekEntries.map(e => {
+        weekEntries.map(e => {
           // Recalculate break minutes from breaks array
           const calculatedBreakMinutes = e.breaks.reduce((total, b) => {
             if (b.duration) return total + b.duration
