@@ -26,6 +26,11 @@ export function formatHours(hours: number): string {
   return `${h}:${m.toString().padStart(2, '0')}`
 }
 
+export function formatDateWithDayShort(date: string | Date): string {
+  const d = typeof date === 'string' ? parseISO(date) : date
+  return format(d, 'MMM d (EEE)')
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
