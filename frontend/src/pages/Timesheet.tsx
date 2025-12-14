@@ -527,9 +527,6 @@ export default function Timesheet() {
                   const totalOvertimeHours = weekPay.overtimeHours
                   const totalRegularPay = weekPay.regularPay
                   const totalOvertimePay = weekPay.overtimePay
-                  const federalTax = weekPay.federalTax
-                  const stateTax = weekPay.stateTax
-                  const fica = weekPay.fica
                   
                   return (
                     <>
