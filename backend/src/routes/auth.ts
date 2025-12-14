@@ -23,9 +23,12 @@ router.post('/register', async (req, res) => {
   try {
     const { email, password, name, hourlyRate } = registerSchema.parse(req.body)
     
+    // Normalize email to lowercase and trim whitespace
+    const normalizedEmail = email.toLowerCase().trim()
+    
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     })
     
     if (existingUser) {
@@ -35,10 +38,10 @@ router.post('/register', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
     
-    // Create user
+    // Create user with normalized email
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         name,
         hourlyRate: hourlyRate || 0
@@ -86,16 +89,18 @@ router.post('/login', async (req, res) => {
     })
     
     const { email, password } = loginSchema.parse(req.body)
-    console.log('Login attempt for email:', email)
+    // Normalize email to lowercase and trim whitespace
+    const normalizedEmail = email.toLowerCase().trim()
+    console.log('Login attempt for email:', normalizedEmail)
     
-    // Find user
+    // Find user (email is already normalized)
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     })
     
     if (!user) {
       console.log('Login failed: User not found for email:', email)
-      return res.status(401).json({ error: 'Invalid credentials' })
+      return res.status(401).json({ error: 'No account found with this email address. Please check your email or register a new account.' })
     }
     
     // Check password
@@ -103,7 +108,7 @@ router.post('/login', async (req, res) => {
     
     if (!isValid) {
       console.log('Login failed: Invalid password for email:', email)
-      return res.status(401).json({ error: 'Invalid credentials' })
+      return res.status(401).json({ error: 'Incorrect password. Please try again or use the password reset option.' })
     }
     
     console.log('Login successful for email:', email)

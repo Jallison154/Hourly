@@ -10,6 +10,7 @@
  * Example: npm run reset-password user@example.com newpassword123
  */
 
+import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import prisma from './src/utils/prisma'
 

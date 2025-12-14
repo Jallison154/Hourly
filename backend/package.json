@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "reset-password": "tsx reset-password.ts"
+    "reset-password": "tsx reset-password.ts",
+    "list-users": "tsx list-users.ts"
   },
   "dependencies": {
     "express": "^4.18.2",
