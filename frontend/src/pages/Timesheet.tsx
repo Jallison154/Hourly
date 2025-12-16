@@ -696,7 +696,21 @@ function EditEntryForm({
   const [notes, setNotes] = useState(entry.notes || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [breaks, setBreaks] = useState<Break[]>(entry.breaks || [])
+  const [breaks, setBreaks] = useState<Break[]>(() => {
+    // Ensure breaks match the Break type structure
+    if (!entry.breaks) return []
+    return entry.breaks.map(breakItem => ({
+      id: breakItem.id,
+      timeEntryId: entry.id,
+      breakType: breakItem.breakType as 'lunch' | 'rest' | 'other',
+      startTime: breakItem.startTime,
+      endTime: breakItem.endTime,
+      duration: breakItem.duration,
+      notes: breakItem.notes,
+      createdAt: (breakItem as any).createdAt || new Date().toISOString(),
+      updatedAt: (breakItem as any).updatedAt || new Date().toISOString()
+    }))
+  })
   const [showAddBreak, setShowAddBreak] = useState(false)
   const [newBreak, setNewBreak] = useState({
     breakType: 'lunch' as 'lunch' | 'rest' | 'other',

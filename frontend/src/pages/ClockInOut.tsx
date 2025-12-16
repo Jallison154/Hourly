@@ -21,7 +21,6 @@ export default function ClockInOut() {
   const [clockOutTime, setClockOutTime] = useState(new Date())
   const [useCustomTime, setUseCustomTime] = useState(false)
   const [showBreakDialog, setShowBreakDialog] = useState(false)
-  const [breakMinutes, setBreakMinutes] = useState<number | null>(null)
   const [customBreakMinutes, setCustomBreakMinutes] = useState('')
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
 
@@ -68,7 +67,6 @@ export default function ClockInOut() {
       await loadStatus()
       setUseCustomTime(false)
       setShowTimePicker(false)
-      setBreakMinutes(null)
       setCustomBreakMinutes('')
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
