@@ -222,6 +222,23 @@ async function getTimesheetData(
     // Get weeks in pay period
     const weeks = getWeeksInPayPeriod(payPeriod)
     
+    // Calculate pay period totals FIRST (needed for weekly tax calculations)
+    const completedEntries = entries.filter(e => e.clockOut !== null)
+    const payPeriodPay = calculatePayForEntries(
+      completedEntries.map(e => ({
+        clockIn: e.clockIn,
+        clockOut: e.clockOut!,
+        totalBreakMinutes: e.totalBreakMinutes
+      })),
+      user.hourlyRate,
+      user.overtimeRate || 1.5,
+      user.state,
+      user.stateTaxRate
+    )
+    
+    // Use pay period's annual estimate for all weekly tax calculations
+    const payPeriodAnnualGrossPay = payPeriodPay.grossPay * 24
+    
     // Calculate weekly breakdowns
     const weeklyData = await Promise.all(weeks.map(async (week) => {
       // Calculate the actual Sunday-Saturday range for this week FIRST
@@ -381,23 +398,6 @@ async function getTimesheetData(
         pay: weekPay
       }
     }))
-    
-    // Calculate pay period totals
-    const completedEntries = entries.filter(e => e.clockOut !== null)
-    const payPeriodPay = calculatePayForEntries(
-      completedEntries.map(e => ({
-        clockIn: e.clockIn,
-        clockOut: e.clockOut!,
-        totalBreakMinutes: e.totalBreakMinutes
-      })),
-      user.hourlyRate,
-      user.overtimeRate || 1.5,
-      user.state,
-      user.stateTaxRate
-    )
-    
-    // Use pay period's annual estimate for all weekly tax calculations
-    const payPeriodAnnualGrossPay = payPeriodPay.grossPay * 24
     
     // Calculate total hours
     let totalHours = 0
