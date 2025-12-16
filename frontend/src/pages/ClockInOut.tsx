@@ -20,6 +20,9 @@ export default function ClockInOut() {
   const [clockInTime, setClockInTime] = useState(new Date())
   const [clockOutTime, setClockOutTime] = useState(new Date())
   const [useCustomTime, setUseCustomTime] = useState(false)
+  const [showBreakDialog, setShowBreakDialog] = useState(false)
+  const [breakMinutes, setBreakMinutes] = useState<number | null>(null)
+  const [customBreakMinutes, setCustomBreakMinutes] = useState('')
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
 
   useEffect(() => {
@@ -53,12 +56,20 @@ export default function ClockInOut() {
   }
 
   const handleClockOut = async () => {
+    // Show break dialog first
+    setShowBreakDialog(true)
+  }
+
+  const handleBreakSelected = async (minutes: number | null) => {
+    setShowBreakDialog(false)
     try {
       const time = useCustomTime ? clockOutTime.toISOString() : undefined
-      await timeEntriesAPI.clockOut(time)
+      await timeEntriesAPI.clockOut(time, minutes || undefined)
       await loadStatus()
       setUseCustomTime(false)
       setShowTimePicker(false)
+      setBreakMinutes(null)
+      setCustomBreakMinutes('')
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
       await showAlert('Error', axiosError.response?.data?.error || 'Failed to clock out')
@@ -287,6 +298,84 @@ export default function ClockInOut() {
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* Break Selection Dialog */}
+      {showBreakDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
+          >
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Did you take a break today?
+            </h2>
+            <div className="space-y-3 mb-4">
+              <motion.button
+                onClick={() => handleBreakSelected(15)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                15 minutes
+              </motion.button>
+              <motion.button
+                onClick={() => handleBreakSelected(30)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                30 minutes
+              </motion.button>
+              <motion.button
+                onClick={() => handleBreakSelected(60)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                1 hour
+              </motion.button>
+              <div className="pt-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Custom (minutes)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={customBreakMinutes}
+                    onChange={(e) => setCustomBreakMinutes(e.target.value)}
+                    placeholder="Enter minutes"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  />
+                  <motion.button
+                    onClick={() => {
+                      const minutes = parseInt(customBreakMinutes)
+                      if (!isNaN(minutes) && minutes >= 0) {
+                        handleBreakSelected(minutes)
+                      }
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={!customBreakMinutes || isNaN(parseInt(customBreakMinutes))}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Use
+                  </motion.button>
+                </div>
+              </div>
+              <motion.button
+                onClick={() => handleBreakSelected(null)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors mt-2"
+              >
+                No break
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Dialog */}
       <Dialog

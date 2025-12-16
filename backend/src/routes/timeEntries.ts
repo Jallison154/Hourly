@@ -12,7 +12,8 @@ const clockInSchema = z.object({
 })
 
 const clockOutSchema = z.object({
-  clockOutTime: z.string().datetime().optional() // ISO string, defaults to now
+  clockOutTime: z.string().datetime().optional(), // ISO string, defaults to now
+  breakMinutes: z.number().int().min(0).optional() // Break time in minutes
 })
 
 const createEntrySchema = z.object({
@@ -104,7 +105,7 @@ router.post('/clock-in', authenticate, async (req: AuthRequest, res) => {
 // Clock out
 router.post('/clock-out', authenticate, async (req: AuthRequest, res) => {
   try {
-    const { clockOutTime } = clockOutSchema.parse(req.body)
+    const { clockOutTime, breakMinutes: providedBreakMinutes } = clockOutSchema.parse(req.body)
     let clockOut = clockOutTime ? new Date(clockOutTime) : new Date()
     
     // Get user's rounding interval
@@ -137,14 +138,18 @@ router.post('/clock-out', authenticate, async (req: AuthRequest, res) => {
     }
     
     // Calculate total break minutes
-    const breakMinutes = openEntry.breaks.reduce((total, b) => {
-      if (b.duration) return total + b.duration
-      if (b.endTime) {
-        const duration = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
-        return total + duration
-      }
-      return total
-    }, 0)
+    // If breakMinutes provided, use it; otherwise calculate from existing breaks
+    let breakMinutes = providedBreakMinutes
+    if (breakMinutes === undefined) {
+      breakMinutes = openEntry.breaks.reduce((total, b) => {
+        if (b.duration) return total + b.duration
+        if (b.endTime) {
+          const duration = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
+          return total + duration
+        }
+        return total
+      }, 0)
+    }
     
     // Update entry
     const entry = await prisma.timeEntry.update({

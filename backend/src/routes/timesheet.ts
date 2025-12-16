@@ -348,10 +348,10 @@ async function getTimesheetData(
       
       const grossPay = regularPay + overtimePay
       
-      // Calculate taxes based on gross pay
-      const annualGrossPay = grossPay * 24 // Estimate annual (monthly pay periods)
+      // Calculate taxes using the pay period's annual estimate (not the week's estimate)
+      // This ensures consistent tax calculations across all weeks
       const { calculateNetPay } = await import('../utils/taxCalculator')
-      const taxes = calculateNetPay(grossPay, annualGrossPay, user.state, user.stateTaxRate)
+      const taxes = calculateNetPay(grossPay, payPeriodAnnualGrossPay, user.state, user.stateTaxRate)
       
       // Apply adjustment proportionally to weekly breakdown
       const totalWeeks = weeks.length
@@ -395,6 +395,9 @@ async function getTimesheetData(
       user.state,
       user.stateTaxRate
     )
+    
+    // Use pay period's annual estimate for all weekly tax calculations
+    const payPeriodAnnualGrossPay = payPeriodPay.grossPay * 24
     
     // Calculate total hours
     let totalHours = 0

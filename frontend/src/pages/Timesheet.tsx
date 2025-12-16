@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { timesheetAPI, timeEntriesAPI } from '../services/api'
 import { formatDate, formatDateWithDay, formatTime, formatHours, formatCurrency } from '../utils/date'
 import { formatTimesheetAsText } from '../utils/timesheetFormatter'
 import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
 import TimePicker from '../components/TimePicker'
-import type { TimesheetData } from '../types'
+import type { TimesheetData, Break } from '../types'
 import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
@@ -16,7 +16,7 @@ export default function Timesheet() {
   const [payPeriods, setPayPeriods] = useState<Array<{ start: string; end: string }>>([])
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
   const [isClockedIn, setIsClockedIn] = useState(false)
-  const [editingEntry, setEditingEntry] = useState<{ id: string; clockIn: string; clockOut: string | null; notes?: string | null } | null>(null)
+  const [editingEntry, setEditingEntry] = useState<{ id: string; clockIn: string; clockOut: string | null; notes?: string | null; breaks?: Array<{ id: string; breakType: string; startTime: string; endTime: string | null; duration: number | null; notes: string | null }> } | null>(null)
   const [creatingEntry, setCreatingEntry] = useState(false)
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
   // Use ref to track previous clock status for transition detection
@@ -131,8 +131,21 @@ export default function Timesheet() {
     }
   }
 
-  const handleEditEntry = (entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null }) => {
-    setEditingEntry(entry)
+  const handleEditEntry = async (entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null }) => {
+    try {
+      // Fetch full entry with breaks
+      const fullEntry = await timeEntriesAPI.getEntry(entry.id)
+      setEditingEntry({
+        id: fullEntry.id,
+        clockIn: fullEntry.clockIn,
+        clockOut: fullEntry.clockOut,
+        notes: fullEntry.notes || null,
+        breaks: fullEntry.breaks || []
+      })
+    } catch (error) {
+      // Fallback to basic entry if fetch fails
+      setEditingEntry(entry)
+    }
   }
 
   const handleCreateEntry = () => {
@@ -664,7 +677,7 @@ function EditEntryForm({
   onSave, 
   onCancel 
 }: { 
-  entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null }
+  entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null; breaks?: Array<{ id: string; breakType: string; startTime: string; endTime: string | null; duration: number | null; notes: string | null }> }
   isCreating?: boolean
   onSave: (updates: { clockIn: string; clockOut: string | null; notes?: string | null }) => void
   onCancel: () => void
@@ -683,6 +696,17 @@ function EditEntryForm({
   const [notes, setNotes] = useState(entry.notes || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [breaks, setBreaks] = useState<Break[]>(entry.breaks || [])
+  const [showAddBreak, setShowAddBreak] = useState(false)
+  const [newBreak, setNewBreak] = useState({
+    breakType: 'lunch' as 'lunch' | 'rest' | 'other',
+    startTime: new Date(),
+    endTime: new Date(),
+    hasEndTime: true,
+    duration: 30,
+    notes: ''
+  })
+  const [loadingBreaks, setLoadingBreaks] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -702,6 +726,16 @@ function EditEntryForm({
         clockOut: hasClockOut ? clockOut.toISOString() : null,
         notes: notes || null
       })
+      
+      // Reload breaks after save to ensure we have latest data
+      if (entry.id !== 'new') {
+        try {
+          const updatedEntry = await timeEntriesAPI.getEntry(entry.id)
+          setBreaks(updatedEntry.breaks || [])
+        } catch (err) {
+          console.error('Failed to reload breaks:', err)
+        }
+      }
     } catch (error) {
       console.error('Error saving entry:', error)
       setError('Failed to save entry')
@@ -743,6 +777,194 @@ function EditEntryForm({
           onChange={setClockOut}
           label="Clock Out"
         />
+      )}
+
+      {/* Break Management */}
+      {entry.id !== 'new' && (
+        <div className="border-t pt-4">
+          <div className="flex justify-between items-center mb-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Breaks
+            </label>
+            <motion.button
+              type="button"
+              onClick={() => setShowAddBreak(!showAddBreak)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+            >
+              + Add Break
+            </motion.button>
+          </div>
+
+          {breaks.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {breaks.map((b) => (
+                <div
+                  key={b.id}
+                  className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 flex justify-between items-center"
+                >
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900 dark:text-white capitalize text-sm">
+                      {b.breakType}
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      {formatTime(b.startTime)}
+                      {b.endTime && ` - ${formatTime(b.endTime)}`}
+                      {b.duration !== null && b.duration !== undefined && ` (${b.duration}m)`}
+                    </div>
+                    {b.notes && (
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">{b.notes}</div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setLoadingBreaks(true)
+                        await timeEntriesAPI.deleteBreak(b.id)
+                        setBreaks(breaks.filter(br => br.id !== b.id))
+                      } catch (err: unknown) {
+                        const axiosError = err as { response?: { data?: { error?: string } } }
+                        setError(axiosError.response?.data?.error || 'Failed to delete break')
+                      } finally {
+                        setLoadingBreaks(false)
+                      }
+                    }}
+                    disabled={loadingBreaks}
+                    className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <AnimatePresence>
+            {showAddBreak && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3"
+              >
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Break Type
+                  </label>
+                  <select
+                    value={newBreak.breakType}
+                    onChange={(e) => setNewBreak({ ...newBreak, breakType: e.target.value as 'lunch' | 'rest' | 'other' })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                  >
+                    <option value="lunch">Lunch</option>
+                    <option value="rest">Rest Break</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Start Time
+                    </label>
+                    <TimePicker
+                      value={newBreak.startTime}
+                      onChange={(date) => setNewBreak({ ...newBreak, startTime: date })}
+                      label=""
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Duration (min)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newBreak.duration}
+                      onChange={(e) => setNewBreak({ ...newBreak, duration: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Notes (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newBreak.notes}
+                    onChange={(e) => setNewBreak({ ...newBreak, notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
+                    placeholder="Break notes..."
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <motion.button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setLoadingBreaks(true)
+                        const endTime = new Date(newBreak.startTime)
+                        endTime.setMinutes(endTime.getMinutes() + newBreak.duration)
+                        const addedBreak = await timeEntriesAPI.addBreak(entry.id, {
+                          breakType: newBreak.breakType,
+                          startTime: newBreak.startTime.toISOString(),
+                          endTime: endTime.toISOString(),
+                          duration: newBreak.duration,
+                          notes: newBreak.notes || undefined
+                        })
+                        setBreaks([...breaks, addedBreak])
+                        setNewBreak({
+                          breakType: 'lunch',
+                          startTime: new Date(),
+                          endTime: new Date(),
+                          hasEndTime: true,
+                          duration: 30,
+                          notes: ''
+                        })
+                        setShowAddBreak(false)
+                      } catch (err: unknown) {
+                        const axiosError = err as { response?: { data?: { error?: string } } }
+                        setError(axiosError.response?.data?.error || 'Failed to add break')
+                      } finally {
+                        setLoadingBreaks(false)
+                      }
+                    }}
+                    disabled={loadingBreaks}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Add Break
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      setShowAddBreak(false)
+                      setNewBreak({
+                        breakType: 'lunch',
+                        startTime: new Date(),
+                        endTime: new Date(),
+                        hasEndTime: true,
+                        duration: 30,
+                        notes: ''
+                      })
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       )}
 
       <div>

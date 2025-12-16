@@ -212,8 +212,8 @@ export const timeEntriesAPI = {
     return data
   },
   
-  clockOut: async (clockOutTime?: string): Promise<TimeEntry> => {
-    const { data } = await api.post('/time-entries/clock-out', { clockOutTime })
+  clockOut: async (clockOutTime?: string, breakMinutes?: number): Promise<TimeEntry> => {
+    const { data } = await api.post('/time-entries/clock-out', { clockOutTime, breakMinutes })
     return data
   },
   

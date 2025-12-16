@@ -18,6 +18,7 @@ export default function PaycheckCalculator() {
   const [useCurrentPeriod, setUseCurrentPeriod] = useState(true)
   const [payPeriods, setPayPeriods] = useState<Array<{ start: string; end: string }>>([])
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string } | null>(null)
+  const [selectedWeek, setSelectedWeek] = useState<(PayCalculation & { weekNumber: number; start: string; end: string }) | null>(null)
   const { dialog, showAlert, closeDialog } = useDialog()
 
   useEffect(() => {
@@ -281,9 +282,12 @@ export default function PaycheckCalculator() {
                 </h2>
                 <div className="space-y-4">
                   {calculation.weeklyBreakdown.map((week) => (
-                    <div
+                    <motion.div
                       key={week.weekNumber}
-                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
+                      onClick={() => setSelectedWeek(week)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 cursor-pointer transition-shadow hover:shadow-md"
                     >
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="font-semibold text-gray-900 dark:text-white">
@@ -316,7 +320,10 @@ export default function PaycheckCalculator() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                        Click for details
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
@@ -325,6 +332,133 @@ export default function PaycheckCalculator() {
         )}
         </motion.div>
       </div>
+
+      {/* Week Breakdown Modal */}
+      {selectedWeek && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Week {selectedWeek.weekNumber} Breakdown
+              </h2>
+              <button
+                onClick={() => setSelectedWeek(null)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Date Range</div>
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {formatDate(selectedWeek.start)} - {formatDate(selectedWeek.end)}
+                  </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Hours</div>
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {formatHours(selectedWeek.regularHours + selectedWeek.overtimeHours)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Hours Breakdown</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Regular Hours</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {formatHours(selectedWeek.regularHours)}
+                    </span>
+                  </div>
+                  {selectedWeek.overtimeHours > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-orange-600 dark:text-orange-400">Overtime Hours</span>
+                      <span className="font-semibold text-orange-600 dark:text-orange-400">
+                        {formatHours(selectedWeek.overtimeHours)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Pay Breakdown</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Regular Pay</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(selectedWeek.regularPay)}
+                    </span>
+                  </div>
+                  {selectedWeek.overtimePay > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-orange-600 dark:text-orange-400">Overtime Pay</span>
+                      <span className="font-semibold text-orange-600 dark:text-orange-400">
+                        {formatCurrency(selectedWeek.overtimePay)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-2 mt-2">
+                    <span className="text-gray-900 dark:text-white font-semibold">Gross Pay</span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {formatCurrency(selectedWeek.grossPay)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Tax Breakdown</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Federal Tax</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(selectedWeek.federalTax)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">State Tax</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(selectedWeek.stateTax)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">FICA</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(selectedWeek.fica)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2 mt-2">
+                    <span className="text-gray-900 dark:text-white font-semibold">Total Taxes</span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {formatCurrency(selectedWeek.federalTax + selectedWeek.stateTax + selectedWeek.fica)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border-2 border-blue-500">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-blue-900 dark:text-blue-100">Net Pay</span>
+                  <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {formatCurrency(selectedWeek.netPay)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Dialog */}
       <Dialog

@@ -151,6 +151,9 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     console.log(`After adjustment: Gross = $${calculation.grossPay.toFixed(2)}, Net = $${calculation.netPay.toFixed(2)}`)
     console.log(`=== END PAYCHECK CALCULATION ===\n`)
     
+    // Calculate the pay period's annual income estimate (use this for all weekly tax calculations)
+    const payPeriodAnnualGrossPay = calculation.grossPay * 24 // Monthly pay periods
+    
     // Get weekly breakdown
     // For accurate weekly overtime, we need ALL entries in each week, even if they're from previous pay period
     const weeks = getWeeksInPayPeriod(payPeriod)
@@ -191,31 +194,57 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       
       console.log(`Paycheck Week ${week.weekNumber}: Found ${weekEntries.length} entries within pay period`)
       
-      // Recalculate break minutes from breaks array for accuracy
-      // Calculate pay ONLY for entries in the pay period
-      const weekCalculation = calculatePayForEntries(
-        weekEntries.map(e => {
-          // Recalculate break minutes from breaks array
-          const calculatedBreakMinutes = e.breaks.reduce((total, b) => {
-            if (b.duration) return total + b.duration
-            if (b.endTime) {
-              const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
-              return total + dur
-            }
-            return total
-          }, 0)
-          
-          return {
-            clockIn: e.clockIn,
-            clockOut: e.clockOut!,
-            totalBreakMinutes: calculatedBreakMinutes
+      // Calculate weekly gross pay (hours and pay only, no taxes yet)
+      let weekHours = 0
+      let weekRegularHours = 0
+      let weekOvertimeHours = 0
+      let weekRegularPay = 0
+      let weekOvertimePay = 0
+      
+      weekEntries.forEach(e => {
+        if (!e.clockOut) return
+        
+        const calculatedBreakMinutes = e.breaks.reduce((total, b) => {
+          if (b.duration) return total + b.duration
+          if (b.endTime) {
+            const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
+            return total + dur
           }
-        }),
-        rate,
-        overtimeRate,
-        user.state,
-        user.stateTaxRate
-      )
+          return total
+        }, 0)
+        
+        const hours = (e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60)
+        const breakHours = calculatedBreakMinutes / 60
+        const workedHours = hours - breakHours
+        
+        weekHours += workedHours
+      })
+      
+      // Calculate pay based ONLY on hours in this pay period
+      if (weekHours <= 40) {
+        weekRegularHours = weekHours
+        weekRegularPay = weekHours * rate
+      } else {
+        weekRegularHours = 40
+        weekOvertimeHours = weekHours - 40
+        weekRegularPay = 40 * rate
+        weekOvertimePay = weekOvertimeHours * rate * overtimeRate
+      }
+      
+      const weekGrossPay = weekRegularPay + weekOvertimePay
+      
+      // Calculate taxes using the pay period's annual estimate (not the week's estimate)
+      const { calculateNetPay } = await import('../utils/taxCalculator')
+      const weekTaxes = calculateNetPay(weekGrossPay, payPeriodAnnualGrossPay, user.state, user.stateTaxRate)
+      
+      const weekCalculation = {
+        regularHours: weekRegularHours,
+        overtimeHours: weekOvertimeHours,
+        regularPay: weekRegularPay,
+        overtimePay: weekOvertimePay,
+        grossPay: weekGrossPay,
+        ...weekTaxes
+      }
       
       console.log(`Paycheck Week ${week.weekNumber}: Total hours = ${(weekCalculation.regularHours + weekCalculation.overtimeHours).toFixed(2)}, Regular = ${weekCalculation.regularHours.toFixed(2)}, Overtime = ${weekCalculation.overtimeHours.toFixed(2)}, Gross = $${weekCalculation.grossPay.toFixed(2)}`)
       
