@@ -53,10 +53,41 @@ function getDefaultStateTaxRate(state: string | null | undefined): number {
 }
 
 /**
+ * Calculate Montana state tax using progressive brackets (2024/2025)
+ * 4.7% on income up to $21,100 (single) or $42,200 (married)
+ * 5.9% on income above those thresholds
+ */
+function calculateMontanaStateTax(annualIncome: number, filingStatus: 'single' | 'married' = 'single'): number {
+  const threshold = filingStatus === 'married' ? 42200 : 21100
+  const lowerRate = 0.047
+  const upperRate = 0.059
+  
+  if (annualIncome <= threshold) {
+    return annualIncome * lowerRate
+  } else {
+    const lowerBracketTax = threshold * lowerRate
+    const upperBracketIncome = annualIncome - threshold
+    const upperBracketTax = upperBracketIncome * upperRate
+    return lowerBracketTax + upperBracketTax
+  }
+}
+
+/**
  * Calculate state tax
  */
 export function calculateStateTax(annualIncome: number, state: string | null | undefined, customRate: number | null | undefined): number {
-  const rate = customRate ?? getDefaultStateTaxRate(state)
+  // If custom rate is provided, use it (flat rate)
+  if (customRate !== null && customRate !== undefined) {
+    return annualIncome * customRate
+  }
+  
+  // Use progressive brackets for Montana
+  if (state && state.toUpperCase() === 'MT') {
+    return calculateMontanaStateTax(annualIncome, 'single') // Default to single filer
+  }
+  
+  // For other states, use flat rate
+  const rate = getDefaultStateTaxRate(state)
   return annualIncome * rate
 }
 

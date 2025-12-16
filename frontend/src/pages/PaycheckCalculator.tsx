@@ -248,7 +248,9 @@ export default function PaycheckCalculator() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Montana State Tax (5.9%)</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Montana State Tax {calculation.stateTaxRate ? `(${(calculation.stateTaxRate * 100).toFixed(2)}%)` : '(Progressive: 4.7% up to $21,100, 5.9% above)'}
+                    </span>
                     <span className="text-gray-900 dark:text-white">
                       {formatCurrency(calculation.stateTax)}
                     </span>

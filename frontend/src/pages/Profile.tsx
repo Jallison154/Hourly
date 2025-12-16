@@ -486,9 +486,11 @@ export default function Profile() {
                   <span className="text-gray-900 dark:text-white font-medium">
                     {formData.stateTaxRate !== null && formData.stateTaxRate !== undefined
                       ? `${(formData.stateTaxRate * 100).toFixed(2)}%`
-                      : formData.state
-                        ? `Default for ${formData.state} (varies by state)`
-                        : 'Montana default: 5.9%'}
+                      : formData.state === 'MT'
+                        ? 'Montana: Progressive (4.7% up to $21,100, 5.9% above)'
+                        : formData.state
+                          ? `Default for ${formData.state} (varies by state)`
+                          : 'Montana: Progressive (4.7% up to $21,100, 5.9% above)'}
                   </span>
                 </div>
                 <div className="flex justify-between">
