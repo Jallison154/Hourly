@@ -259,6 +259,33 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         weekNumber: week.weekNumber,
         start: week.start.toISOString(),
         end: week.end.toISOString(),
+        entries: weekEntries.map(e => ({
+          id: e.id,
+          clockIn: e.clockIn.toISOString(),
+          clockOut: e.clockOut?.toISOString() || null,
+          totalBreakMinutes: e.breaks.reduce((total, b) => {
+            if (b.duration) return total + b.duration
+            if (b.endTime) {
+              const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
+              return total + dur
+            }
+            return total
+          }, 0),
+          notes: e.notes,
+          breaks: e.breaks,
+          hours: e.clockOut ? (() => {
+            const hours = (e.clockOut!.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60)
+            const breakHours = e.breaks.reduce((total, b) => {
+              if (b.duration) return total + b.duration
+              if (b.endTime) {
+                const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
+                return total + dur
+              }
+              return total
+            }, 0) / 60
+            return hours - breakHours
+          })() : 0
+        })),
         ...weekCalculation
       }
     }))
