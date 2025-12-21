@@ -82,10 +82,10 @@ export default function ActiveTimer({ entry, user }: ActiveTimerProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white/20 backdrop-blur-sm rounded-lg p-4"
+          className="bg-white/20 backdrop-blur-sm rounded-lg p-3"
         >
-          <p className="text-sm opacity-90 mb-1">Current Earnings</p>
-          <p className="text-3xl font-bold tabular-nums">
+          <p className="text-xs opacity-90 mb-1">Current Earnings</p>
+          <p className="text-xl font-bold tabular-nums">
             ${earnings.toFixed(2)}
           </p>
         </motion.div>

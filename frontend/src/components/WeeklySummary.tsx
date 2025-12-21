@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { timeEntriesAPI } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { formatHours } from '../utils/date'
+import type { TimeEntry } from '../types'
 
 interface WeeklySummaryData {
   hoursWorked: number
@@ -60,12 +61,28 @@ export default function WeeklySummary() {
   const [summary, setSummary] = useState<WeeklySummaryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [daysUntilNextPayPeriod, setDaysUntilNextPayPeriod] = useState<number | null>(null)
+  const [currentEntry, setCurrentEntry] = useState<TimeEntry | null>(null)
+
+  // Load current clock status for live updates
+  useEffect(() => {
+    const loadStatus = async () => {
+      try {
+        const status = await timeEntriesAPI.getStatus()
+        setCurrentEntry(status.isClockedIn ? status.entry : null)
+      } catch (error) {
+        console.error('Failed to load clock status:', error)
+      }
+    }
+    loadStatus()
+    const statusInterval = setInterval(loadStatus, 5000) // Check every 5 seconds
+    return () => clearInterval(statusInterval)
+  }, [])
 
   useEffect(() => {
     loadWeeklySummary()
-    const interval = setInterval(loadWeeklySummary, 30000) // Refresh every 30 seconds
+    const interval = setInterval(loadWeeklySummary, currentEntry ? 1000 : 30000) // Update every second if clocked in, every 30 seconds otherwise
     return () => clearInterval(interval)
-  }, [])
+  }, [currentEntry])
 
   // Calculate days until end of current pay period
   useEffect(() => {
@@ -135,11 +152,23 @@ export default function WeeklySummary() {
         }
       })
 
+      // Add current active entry hours if clocked in and entry is in this week
+      if (currentEntry && !currentEntry.clockOut) {
+        const entryDate = new Date(currentEntry.clockIn)
+        if (entryDate >= sunday && entryDate <= saturday) {
+          const now = new Date()
+          const hours = (now.getTime() - entryDate.getTime()) / (1000 * 60 * 60)
+          const breakHours = (currentEntry.totalBreakMinutes || 0) / 60
+          const workedHours = hours - breakHours
+          hoursWorked += Math.max(0, workedHours)
+        }
+      }
+
       // Calculate overtime (hours over 40)
       const overtimeHours = Math.max(0, hoursWorked - 40)
       
-      // Calculate hours left until 40
-      const hoursLeft = Math.max(0, 40 - hoursWorked)
+      // Calculate hours left until 40 (can be negative for overtime)
+      const hoursLeft = 40 - hoursWorked
 
       // Count days worked this week
       const daysWorked = workedDates.size
@@ -246,8 +275,16 @@ export default function WeeklySummary() {
         </div>
         <div className="text-center">
           <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Hours Left</div>
-          <div className={`text-xl font-bold ${summary.hoursLeft <= 5 && summary.hoursLeft > 0 ? 'text-yellow-600 dark:text-yellow-400' : summary.hoursLeft === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
-            {formatHours(summary.hoursLeft)}
+          <div className={`text-xl font-bold ${
+            summary.hoursLeft < 0 
+              ? 'text-orange-600 dark:text-orange-400' 
+              : summary.hoursLeft <= 5 && summary.hoursLeft > 0 
+                ? 'text-yellow-600 dark:text-yellow-400' 
+                : summary.hoursLeft === 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-gray-900 dark:text-white'
+          }`}>
+            {summary.hoursLeft < 0 ? `-${formatHours(Math.abs(summary.hoursLeft))}` : formatHours(summary.hoursLeft)}
           </div>
         </div>
       </div>

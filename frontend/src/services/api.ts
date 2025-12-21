@@ -303,6 +303,14 @@ export const timeEntriesAPI = {
       params,
       responseType: 'blob'
     })
+    
+    // Check if the blob is actually a JSON error response
+    if (response.data.type === 'application/json' || response.headers['content-type']?.includes('application/json')) {
+      const text = await response.data.text()
+      const errorData = JSON.parse(text)
+      throw new Error(errorData.error || 'Failed to export time entries')
+    }
+    
     return response.data
   }
 }

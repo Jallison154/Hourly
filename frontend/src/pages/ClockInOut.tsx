@@ -128,137 +128,143 @@ export default function ClockInOut() {
         )}
 
         {/* Main Clock In/Out Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 mb-6"
-        >
-          {!isClockedIn ? (
-            <>
-              <div className="text-center mb-8">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                  Ready to Start?
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Tap the button below to clock in
-                </p>
-              </div>
+        {!isClockedIn && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 mb-6"
+          >
+            <div className="text-center mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Ready to Start?
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Tap the button below to clock in
+              </p>
+            </div>
 
-              {/* Custom Time Toggle */}
-              <div className="mb-3">
-                <motion.button
-                  onClick={() => {
-                    setShowTimePicker(!showTimePicker)
-                    setUseCustomTime(!showTimePicker)
-                  }}
-                  whileTap={{ scale: 0.97, opacity: 0.7 }}
-                  transition={{ duration: 0.1 }}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
+            {/* Custom Time Toggle */}
+            <div className="mb-3">
+              <motion.button
+                onClick={() => {
+                  setShowTimePicker(!showTimePicker)
+                  setUseCustomTime(!showTimePicker)
+                }}
+                whileTap={{ scale: 0.97, opacity: 0.7 }}
+                transition={{ duration: 0.1 }}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
+              >
+                {showTimePicker ? 'Use current time' : 'Set custom time'}
+              </motion.button>
+            </div>
+
+            <AnimatePresence>
+              {showTimePicker && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-4"
                 >
-                  {showTimePicker ? 'Use current time' : 'Set custom time'}
-                </motion.button>
-              </div>
+                  <TimePicker
+                    value={clockInTime}
+                    onChange={setClockInTime}
+                    label="Clock In Time"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-              <AnimatePresence>
-                {showTimePicker && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-4"
-                  >
-                    <TimePicker
-                      value={clockInTime}
-                      onChange={setClockInTime}
-                      label="Clock In Time"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            {/* Clock In Button */}
+            <motion.button
+              onClick={handleClockIn}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97, opacity: 0.9 }}
+              transition={{ duration: 0.1 }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
+            >
+              Clock In
+            </motion.button>
+          </motion.div>
+        )}
 
-              {/* Clock In Button */}
+        {/* Clocked In Section */}
+        {isClockedIn && currentEntry && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 mb-6"
+          >
+            <div className="text-center mb-4">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                Clocked in at {formatDateTime(currentEntry.clockIn)}
+              </p>
+            </div>
+
+            {/* Custom Time Toggle */}
+            <div className="mb-3">
               <motion.button
-                onClick={handleClockIn}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97, opacity: 0.9 }}
+                onClick={() => {
+                  setShowTimePicker(!showTimePicker)
+                  setUseCustomTime(!showTimePicker)
+                }}
+                whileTap={{ scale: 0.97, opacity: 0.7 }}
                 transition={{ duration: 0.1 }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
               >
-                Clock In
+                {showTimePicker ? 'Use current time' : 'Set custom time'}
               </motion.button>
-            </>
-          ) : (
-            <>
-              <div className="text-center mb-4">
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                  Clocked in at {currentEntry && formatDateTime(currentEntry.clockIn)}
-                </p>
-              </div>
+            </div>
 
-              {/* Custom Time Toggle */}
-              <div className="mb-3">
-                <motion.button
-                  onClick={() => {
-                    setShowTimePicker(!showTimePicker)
-                    setUseCustomTime(!showTimePicker)
-                  }}
-                  whileTap={{ scale: 0.97, opacity: 0.7 }}
-                  transition={{ duration: 0.1 }}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
+            <AnimatePresence>
+              {showTimePicker && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-4"
                 >
-                  {showTimePicker ? 'Use current time' : 'Set custom time'}
-                </motion.button>
-              </div>
+                  <TimePicker
+                    value={clockOutTime}
+                    onChange={setClockOutTime}
+                    label="Clock Out Time"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-              <AnimatePresence>
-                {showTimePicker && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-4"
-                  >
-                    <TimePicker
-                      value={clockOutTime}
-                      onChange={setClockOutTime}
-                      label="Clock Out Time"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            {/* Clock Out Button */}
+            <motion.button
+              onClick={handleClockOut}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97, opacity: 0.9 }}
+              transition={{ duration: 0.1 }}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
+            >
+              Clock Out
+            </motion.button>
 
-              {/* Clock Out Button */}
-              <motion.button
-                onClick={handleClockOut}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97, opacity: 0.9 }}
-                transition={{ duration: 0.1 }}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
-              >
-                Clock Out
-              </motion.button>
+            {/* Cancel Clock In Button */}
+            <motion.button
+              onClick={handleCancelClockIn}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97, opacity: 0.9 }}
+              transition={{ duration: 0.1 }}
+              className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors"
+            >
+              Cancel Clock In
+            </motion.button>
+          </motion.div>
+        )}
 
-              {/* Cancel Clock In Button */}
-              <motion.button
-                onClick={handleCancelClockIn}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97, opacity: 0.9 }}
-                transition={{ duration: 0.1 }}
-                className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors"
-              >
-                Cancel Clock In
-              </motion.button>
-            </>
-          )}
-        </motion.div>
-
-        {/* Manual Entry Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8"
-        >
+        {/* Manual Entry Section - Only show when not clocked in */}
+        {!isClockedIn && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8"
+          >
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               Manual Entry

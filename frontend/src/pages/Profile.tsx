@@ -124,8 +124,9 @@ export default function Profile() {
       
       await showAlert('Success', 'Time entries exported successfully!')
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } }
-      await showAlert('Error', axiosError.response?.data?.error || 'Failed to export time entries')
+      console.error('Export error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to export time entries'
+      await showAlert('Error', errorMessage)
     } finally {
       setExporting(false)
     }
