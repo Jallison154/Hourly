@@ -38,8 +38,7 @@ export default function Navigation() {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/', label: 'Clock', icon: '⏰' },
-    { path: '/timesheet', label: 'Timesheet', icon: '📋' },
-    { path: '/calculator', label: 'Paycheck', icon: '💰' }
+    { path: '/timesheet', label: 'Timesheet', icon: '📋' }
   ]
 
   return (
@@ -108,23 +107,6 @@ export default function Navigation() {
                 hour12: true 
               })}
             </div>
-
-            <Link
-              to="/profile"
-              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-            >
-              {user?.profileImage ? (
-                <img
-                  src={user.profileImage}
-                  alt={user?.name || 'Profile'}
-                  className="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600 object-cover"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold border-2 border-gray-300 dark:border-gray-600">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              )}
-            </Link>
           </div>
         </div>
       </div>

@@ -10,8 +10,6 @@ export default function MobileBottomNav() {
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
     { path: '/timesheet', label: 'Timesheet', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
     { path: '/', label: 'Clock', icon: ClockIcon, iconSolid: ClockIconSolid, oversized: true },
-    { path: '/paycheck', label: 'Paycheck', icon: CalculatorIcon, iconSolid: CalculatorIconSolid },
-    { path: '/profile', label: 'Profile', icon: UserIcon, iconSolid: UserIconSolid },
   ]
 
   const isActive = (path: string) => {

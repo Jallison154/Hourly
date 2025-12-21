@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Dashboard from './pages/Dashboard'
 import ClockInOut from './pages/ClockInOut'
 import Timesheet from './pages/Timesheet'
-import PaycheckCalculator from './pages/PaycheckCalculator'
 import Profile from './pages/Profile'
 import Import from './pages/Import'
 import Login from './pages/Login'
@@ -42,8 +41,6 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/clock" element={<ProtectedRoute><ClockInOut /></ProtectedRoute>} />
       <Route path="/timesheet" element={<ProtectedRoute><Timesheet /></ProtectedRoute>} />
-      <Route path="/calculator" element={<ProtectedRoute><PaycheckCalculator /></ProtectedRoute>} />
-      <Route path="/paycheck" element={<ProtectedRoute><PaycheckCalculator /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/import" element={<ProtectedRoute><Import /></ProtectedRoute>} />
     </Routes>

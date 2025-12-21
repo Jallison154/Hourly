@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { metricsAPI } from '../services/api'
+import { useAuth } from '../hooks/useAuth'
 import { formatCurrency, formatHours } from '../utils/date'
 import type { Metrics } from '../types'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -50,11 +53,27 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-8 flex justify-between items-center"
       >
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Dashboard
         </h1>
+        <Link
+          to="/profile"
+          className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+        >
+          {user?.profileImage ? (
+            <img
+              src={user.profileImage}
+              alt={user?.name || 'Profile'}
+              className="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600 object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold border-2 border-gray-300 dark:border-gray-600">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+          )}
+        </Link>
         <p className="text-gray-600 dark:text-gray-400">
           Pay Period: {new Date(metrics.payPeriod.start).toLocaleDateString()} - {new Date(metrics.payPeriod.end).toLocaleDateString()}
         </p>
