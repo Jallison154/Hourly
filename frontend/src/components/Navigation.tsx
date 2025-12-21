@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
 import { timeEntriesAPI } from '../services/api'
 import type { TimeEntry } from '../types'
 
 export default function Navigation() {
-  const { user } = useAuth()
   const location = useLocation()
   const [clockStatus, setClockStatus] = useState<{ isClockedIn: boolean; entry: TimeEntry | null } | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())

@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { HomeIcon, ClockIcon, DocumentTextIcon, CalculatorIcon, UserIcon } from '@heroicons/react/24/outline'
-import { HomeIcon as HomeIconSolid, ClockIcon as ClockIconSolid, DocumentTextIcon as DocumentTextIconSolid, CalculatorIcon as CalculatorIconSolid, UserIcon as UserIconSolid } from '@heroicons/react/24/solid'
+import { HomeIcon, ClockIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { HomeIcon as HomeIconSolid, ClockIcon as ClockIconSolid, DocumentTextIcon as DocumentTextIconSolid } from '@heroicons/react/24/solid'
 
 export default function MobileBottomNav() {
   const location = useLocation()

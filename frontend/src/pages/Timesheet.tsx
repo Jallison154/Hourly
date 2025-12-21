@@ -6,7 +6,7 @@ import { formatTimesheetAsText } from '../utils/timesheetFormatter'
 import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
 import TimePicker from '../components/TimePicker'
-import type { TimesheetData, Break, PayCalculation } from '../types'
+import type { TimesheetData, Break } from '../types'
 import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
