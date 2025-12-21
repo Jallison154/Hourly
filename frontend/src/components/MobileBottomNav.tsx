@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { HomeIcon, ClockIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
@@ -6,15 +5,6 @@ import { HomeIcon as HomeIconSolid, ClockIcon as ClockIconSolid, DocumentTextIco
 
 export default function MobileBottomNav() {
   const location = useLocation()
-  const [currentTime, setCurrentTime] = useState(new Date())
-
-  useEffect(() => {
-    const timeInterval = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timeInterval)
-  }, [])
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
