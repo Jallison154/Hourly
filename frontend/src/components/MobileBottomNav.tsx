@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { HomeIcon, ClockIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
@@ -5,6 +6,15 @@ import { HomeIcon as HomeIconSolid, ClockIcon as ClockIconSolid, DocumentTextIco
 
 export default function MobileBottomNav() {
   const location = useLocation()
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  useEffect(() => {
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timeInterval)
+  }, [])
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
@@ -22,10 +32,25 @@ export default function MobileBottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 sm:hidden" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) * 0.5)' }}>
       <div className="flex justify-around items-center h-14">
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
           const active = isActive(item.path)
           const Icon = active ? item.iconSolid : item.icon
           const isOversized = item.oversized
+          
+          // Show time in the middle (index 1)
+          if (index === 1) {
+            return (
+              <div key="time" className="flex-1 flex items-center justify-center">
+                <div className="text-xs font-mono text-gray-600 dark:text-gray-400">
+                  {currentTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                  })}
+                </div>
+              </div>
+            )
+          }
           
           return (
             <motion.div

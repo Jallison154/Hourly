@@ -95,6 +95,8 @@ export interface Metrics {
     avgClockOut: { hour: number; minute: number } | null
   }
   dailyHours: { [key: string]: number }
+  weeklyHours: { [key: string]: number }
+  yearlyHours: { [key: string]: number }
   recentActivity: {
     last30DaysHours: number
     last30DaysEntries: number

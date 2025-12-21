@@ -31,7 +31,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       user?.payPeriodEndDay || 10
     )
     
-    // Get entries for current pay period
+    // Get entries for current pay period (for currentPeriod calculations)
     const entries = await prisma.timeEntry.findMany({
       where: {
         userId: req.userId!,
@@ -42,7 +42,15 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       }
     })
     
-    // Calculate totals
+    // Get all completed entries for weekly and yearly views
+    const allEntries = await prisma.timeEntry.findMany({
+      where: {
+        userId: req.userId!,
+        clockOut: { not: null }
+      }
+    })
+    
+    // Calculate totals for current period
     let totalHours = 0
     let completedEntries = 0
     const dailyHours: { [key: string]: number } = {}
@@ -56,9 +64,35 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         totalHours += workedHours
         completedEntries++
         
-        // Group by date
+        // Group by date (for current period)
         const dateKey = entry.clockIn.toISOString().split('T')[0]
         dailyHours[dateKey] = (dailyHours[dateKey] || 0) + workedHours
+      }
+    })
+    
+    // Calculate weekly and yearly hours from all entries
+    const weeklyHours: { [key: string]: number } = {}
+    const yearlyHours: { [key: string]: number } = {}
+    
+    allEntries.forEach(entry => {
+      if (entry.clockOut) {
+        const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
+        const breakHours = entry.totalBreakMinutes / 60
+        const workedHours = hours - breakHours
+        
+        // Group by week (start of week is Sunday)
+        const entryDate = new Date(entry.clockIn)
+        const year = entryDate.getFullYear()
+        const startOfYear = new Date(year, 0, 1)
+        const daysSinceStart = Math.floor((entryDate.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
+        const dayOfWeek = entryDate.getDay() // 0 = Sunday, 6 = Saturday
+        const weekNumber = Math.floor((daysSinceStart + startOfYear.getDay()) / 7) + 1
+        const weekKey = `${year}-W${String(weekNumber).padStart(2, '0')}`
+        weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + workedHours
+        
+        // Group by month (YYYY-MM)
+        const monthKey = `${year}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`
+        yearlyHours[monthKey] = (yearlyHours[monthKey] || 0) + workedHours
       }
     })
     
@@ -144,6 +178,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         } : null
       },
       dailyHours,
+      weeklyHours,
+      yearlyHours,
       recentActivity: {
         last30DaysHours: recentHours,
         last30DaysEntries: recentEntries.length
