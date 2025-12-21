@@ -7,7 +7,7 @@ import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
 import TimePicker from '../components/TimePicker'
 import type { TimesheetData, Break } from '../types'
-import { TrashIcon, PencilIcon, PlusIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, PencilIcon, PlusIcon, EnvelopeIcon, Bars3Icon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null)
@@ -18,6 +18,7 @@ export default function Timesheet() {
   const [isClockedIn, setIsClockedIn] = useState(false)
   const [editingEntry, setEditingEntry] = useState<{ id: string; clockIn: string; clockOut: string | null; notes?: string | null; breaks?: Array<{ id: string; breakType: string; startTime: string; endTime: string | null; duration: number | null; notes: string | null }> } | null>(null)
   const [creatingEntry, setCreatingEntry] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   
   // Pay Summary state
   const [calculation, setCalculation] = useState<any>(null)
@@ -346,6 +347,65 @@ export default function Timesheet() {
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                 Timesheet
               </h1>
+              {/* Hamburger Menu Button */}
+              <div className="relative">
+                <motion.button
+                  onClick={() => setShowMenu(!showMenu)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors"
+                  aria-label="Menu"
+                >
+                  <Bars3Icon className="h-6 w-6" />
+                </motion.button>
+                
+                {/* Dropdown Menu */}
+                {showMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowMenu(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                      className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1"
+                    >
+                      <button
+                        onClick={() => {
+                          handleCreateEntry()
+                          setShowMenu(false)
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <PlusIcon className="h-5 w-5" />
+                        <span>Add Entry</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await handleCopyToClipboard()
+                          setShowMenu(false)
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <span>📋</span>
+                        <span>{copied ? 'Copied!' : 'Copy as Text'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleEmailTimesheet()
+                          setShowMenu(false)
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <EnvelopeIcon className="h-5 w-5" />
+                        <span>Email</span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div>
@@ -380,47 +440,6 @@ export default function Timesheet() {
                 </p>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <motion.button
-              onClick={handleCreateEntry}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97, opacity: 0.9 }}
-              transition={{ duration: 0.1 }}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-colors"
-            >
-              <PlusIcon className="h-5 w-5" />
-              <span>Add Entry</span>
-            </motion.button>
-            <motion.button
-              onClick={handleCopyToClipboard}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97, opacity: 0.9 }}
-              transition={{ duration: 0.1 }}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg transition-colors"
-            >
-              {copied ? (
-                <>
-                  <span>✓</span>
-                  <span>Copied!</span>
-                </>
-              ) : (
-                <>
-                  <span>📋</span>
-                  <span>Copy as Text</span>
-                </>
-              )}
-            </motion.button>
-            <motion.button
-              onClick={handleEmailTimesheet}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97, opacity: 0.9 }}
-              transition={{ duration: 0.1 }}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg transition-colors"
-            >
-              <EnvelopeIcon className="h-5 w-5" />
-              <span>Email</span>
-            </motion.button>
           </div>
         </div>
 
