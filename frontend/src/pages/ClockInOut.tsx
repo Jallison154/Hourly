@@ -301,7 +301,7 @@ export default function ClockInOut() {
             )}
           </AnimatePresence>
         </motion.div>
-      </div>
+        )}
 
       {/* Break Selection Dialog */}
       {showBreakDialog && (
