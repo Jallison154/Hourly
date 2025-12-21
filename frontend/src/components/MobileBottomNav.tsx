@@ -18,8 +18,8 @@ export default function MobileBottomNav() {
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
-    { path: '/timesheet', label: 'Timesheet', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
     { path: '/', label: 'Clock', icon: ClockIcon, iconSolid: ClockIconSolid, oversized: true },
+    { path: '/timesheet', label: 'Timesheet', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
   ]
 
   const isActive = (path: string) => {
@@ -32,25 +32,10 @@ export default function MobileBottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 sm:hidden" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) * 0.5)' }}>
       <div className="flex justify-around items-center h-14">
-        {navItems.map((item, index) => {
+        {navItems.map((item) => {
           const active = isActive(item.path)
           const Icon = active ? item.iconSolid : item.icon
           const isOversized = item.oversized
-          
-          // Show time in the middle (index 1)
-          if (index === 1) {
-            return (
-              <div key="time" className="flex-1 flex items-center justify-center">
-                <div className="text-xs font-mono text-gray-600 dark:text-gray-400">
-                  {currentTime.toLocaleTimeString('en-US', { 
-                    hour: '2-digit', 
-                    minute: '2-digit',
-                    hour12: true 
-                  })}
-                </div>
-              </div>
-            )
-          }
           
           return (
             <motion.div

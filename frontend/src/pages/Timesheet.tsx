@@ -7,7 +7,7 @@ import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
 import TimePicker from '../components/TimePicker'
 import type { TimesheetData, Break } from '../types'
-import { TrashIcon, PencilIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { TrashIcon, PencilIcon, PlusIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null)
@@ -272,6 +272,35 @@ export default function Timesheet() {
     }
   }
 
+  const handleEmailTimesheet = () => {
+    if (!timesheet || !selectedPeriod) return
+    
+    const text = formatTimesheetAsText(timesheet)
+    
+    // Get the months from the pay period for the subject
+    const startDate = new Date(selectedPeriod.start)
+    const endDate = new Date(selectedPeriod.end)
+    const startMonth = startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    const endMonth = endDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    
+    let subject = ''
+    if (startMonth === endMonth) {
+      subject = `${startMonth} Timesheet`
+    } else {
+      subject = `${startMonth} - ${endMonth} Timesheet`
+    }
+    
+    // Encode the email body and subject
+    const encodedSubject = encodeURIComponent(subject)
+    const encodedBody = encodeURIComponent(text)
+    
+    // Create mailto link
+    const mailtoLink = `mailto:?subject=${encodedSubject}&body=${encodedBody}`
+    
+    // Open email client
+    window.location.href = mailtoLink
+  }
+
   // Load paycheck calculation when timesheet loads
   const loadPaycheckCalculation = async (startDate?: string, endDate?: string) => {
     try {
@@ -381,6 +410,16 @@ export default function Timesheet() {
                   <span>Copy as Text</span>
                 </>
               )}
+            </motion.button>
+            <motion.button
+              onClick={handleEmailTimesheet}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97, opacity: 0.9 }}
+              transition={{ duration: 0.1 }}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg transition-colors"
+            >
+              <EnvelopeIcon className="h-5 w-5" />
+              <span>Email</span>
             </motion.button>
           </div>
         </div>

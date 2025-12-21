@@ -91,6 +91,7 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Dashboard
         </h1>
+        <div className="flex-1"></div>
         <Link
           to="/profile"
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity"

@@ -424,6 +424,120 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
   }
 })
 
+// Export time entries as CSV
+// IMPORTANT: This must be defined BEFORE /:id route, otherwise "export" will be treated as an ID
+router.get('/export', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { startDate, endDate } = req.query
+    
+    // Build where clause
+    const where: any = {
+      userId: req.userId!
+    }
+    
+    // Add date filter if provided
+    if (startDate || endDate) {
+      where.clockIn = {}
+      if (startDate) {
+        where.clockIn.gte = new Date(startDate as string)
+      }
+      if (endDate) {
+        const end = new Date(endDate as string)
+        end.setHours(23, 59, 59, 999)
+        where.clockIn.lte = end
+      }
+    }
+    
+    // Get all time entries with breaks
+    const entries = await prisma.timeEntry.findMany({
+      where,
+      include: {
+        breaks: true
+      },
+      orderBy: {
+        clockIn: 'asc'
+      }
+    })
+    
+    // Format date for CSV (e.g., "December 10, 2025")
+    function formatDateForCSV(date: Date): string {
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                     'July', 'August', 'September', 'October', 'November', 'December']
+      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
+    }
+    
+    // Format time for CSV (e.g., "11:10:00 AM")
+    function formatTimeForCSV(date: Date): string {
+      const hours = date.getHours()
+      const minutes = date.getMinutes()
+      const seconds = date.getSeconds()
+      const ampm = hours >= 12 ? 'PM' : 'AM'
+      const displayHours = hours % 12 || 12
+      return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`
+    }
+    
+    // Format full datetime for CSV (e.g., "December 10, 2025 at 11:10:00 AM")
+    function formatDateTimeForCSV(date: Date): string {
+      return `${formatDateForCSV(date)} at ${formatTimeForCSV(date)}`
+    }
+    
+    // Format break time (e.g., "0h 15m")
+    function formatBreakTime(minutes: number): string {
+      const hours = Math.floor(minutes / 60)
+      const mins = minutes % 60
+      return `${hours}h ${mins.toString().padStart(2, '0')}m`
+    }
+    
+    // Build CSV content
+    let csv = 'Date Range\n'
+    if (startDate && endDate) {
+      csv += `${formatDateForCSV(new Date(startDate as string))} - ${formatDateForCSV(new Date(endDate as string))}\n`
+    } else {
+      csv += 'All Entries\n'
+    }
+    csv += '\n'
+    csv += '"Client Name","Start Time","End Time","Break Time","Worked Hours","Rate/h","Amount","Note"\n'
+    
+    entries.forEach((entry) => {
+      const clockInStr = entry.clockIn ? formatDateTimeForCSV(entry.clockIn) : ''
+      const clockOutStr = entry.clockOut ? formatDateTimeForCSV(entry.clockOut) : ''
+      
+      // Calculate total break minutes from breaks array
+      const totalBreakMinutes = entry.breaks.reduce((sum, b) => {
+        return sum + (b.duration || 0)
+      }, 0)
+      const breakTimeStr = totalBreakMinutes > 0 ? formatBreakTime(totalBreakMinutes) : '0h 00m'
+      
+      // Calculate worked hours
+      let workedHours = '0:00'
+      if (entry.clockIn && entry.clockOut) {
+        const diffMs = entry.clockOut.getTime() - entry.clockIn.getTime()
+        const diffMinutes = Math.floor((diffMs - (totalBreakMinutes * 60 * 1000)) / (1000 * 60))
+        const hours = Math.floor(diffMinutes / 60)
+        const minutes = diffMinutes % 60
+        workedHours = `${hours}:${minutes.toString().padStart(2, '0')}`
+      }
+      
+      // Escape quotes in notes
+      const notes = (entry.notes || '').replace(/"/g, '""')
+      
+      csv += `"","${clockInStr}","${clockOutStr}","${breakTimeStr}","${workedHours}","","","${notes}"\n`
+    })
+    
+    // Set headers for CSV download
+    const filename = startDate && endDate
+      ? `time-entries-${startDate}-${endDate}.csv`
+      : `time-entries-${new Date().toISOString().split('T')[0]}.csv`
+    
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(csv)
+  } catch (error) {
+    console.error('Export error:', error)
+    res.status(500).json({ error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' })
+  }
+})
+
 // Delete all time entries for the user
 // IMPORTANT: This must be defined BEFORE /:id route, otherwise "all" will be treated as an ID
 router.delete('/all', authenticate, async (req: AuthRequest, res) => {
@@ -762,119 +876,6 @@ router.post('/bulk-delete', authenticate, async (req: AuthRequest, res) => {
     })
   } catch (error) {
     console.error('Bulk delete error:', error)
-    res.status(500).json({ error: 'Internal server error' })
-  }
-})
-
-// Export time entries as CSV
-router.get('/export', authenticate, async (req: AuthRequest, res) => {
-  try {
-    const { startDate, endDate } = req.query
-    
-    // Build where clause
-    const where: any = {
-      userId: req.userId!
-    }
-    
-    // Add date filter if provided
-    if (startDate || endDate) {
-      where.clockIn = {}
-      if (startDate) {
-        where.clockIn.gte = new Date(startDate as string)
-      }
-      if (endDate) {
-        const end = new Date(endDate as string)
-        end.setHours(23, 59, 59, 999)
-        where.clockIn.lte = end
-      }
-    }
-    
-    // Get all time entries with breaks
-    const entries = await prisma.timeEntry.findMany({
-      where,
-      include: {
-        breaks: true
-      },
-      orderBy: {
-        clockIn: 'asc'
-      }
-    })
-    
-    // Format date for CSV (e.g., "December 10, 2025")
-    function formatDateForCSV(date: Date): string {
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                     'July', 'August', 'September', 'October', 'November', 'December']
-      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
-    }
-    
-    // Format time for CSV (e.g., "11:10:00 AM")
-    function formatTimeForCSV(date: Date): string {
-      const hours = date.getHours()
-      const minutes = date.getMinutes()
-      const seconds = date.getSeconds()
-      const ampm = hours >= 12 ? 'PM' : 'AM'
-      const displayHours = hours % 12 || 12
-      return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`
-    }
-    
-    // Format full datetime for CSV (e.g., "December 10, 2025 at 11:10:00 AM")
-    function formatDateTimeForCSV(date: Date): string {
-      return `${formatDateForCSV(date)} at ${formatTimeForCSV(date)}`
-    }
-    
-    // Format break time (e.g., "0h 15m")
-    function formatBreakTime(minutes: number): string {
-      const hours = Math.floor(minutes / 60)
-      const mins = minutes % 60
-      return `${hours}h ${mins.toString().padStart(2, '0')}m`
-    }
-    
-    // Build CSV content
-    let csv = 'Date Range\n'
-    if (startDate && endDate) {
-      csv += `${formatDateForCSV(new Date(startDate as string))} - ${formatDateForCSV(new Date(endDate as string))}\n`
-    } else {
-      csv += 'All Entries\n'
-    }
-    csv += '\n'
-    csv += '"Client Name","Start Time","End Time","Break Time","Worked Hours","Rate/h","Amount","Note"\n'
-    
-    entries.forEach((entry) => {
-      const clockInStr = entry.clockIn ? formatDateTimeForCSV(entry.clockIn) : ''
-      const clockOutStr = entry.clockOut ? formatDateTimeForCSV(entry.clockOut) : ''
-      
-      // Calculate total break minutes
-      const totalBreakMinutes = entry.breaks.reduce((sum, b) => {
-        return sum + (b.duration || 0)
-      }, 0)
-      const breakTimeStr = totalBreakMinutes > 0 ? formatBreakTime(totalBreakMinutes) : '0h 00m'
-      
-      // Calculate worked hours
-      let workedHours = '0:00'
-      if (entry.clockIn && entry.clockOut) {
-        const diffMs = entry.clockOut.getTime() - entry.clockIn.getTime()
-        const diffMinutes = Math.floor((diffMs - (totalBreakMinutes * 60 * 1000)) / (1000 * 60))
-        const hours = Math.floor(diffMinutes / 60)
-        const minutes = diffMinutes % 60
-        workedHours = `${hours}:${minutes.toString().padStart(2, '0')}`
-      }
-      
-      // Escape quotes in notes
-      const notes = (entry.notes || '').replace(/"/g, '""')
-      
-      csv += `"","${clockInStr}","${clockOutStr}","${breakTimeStr}","${workedHours}","","","${notes}"\n`
-    })
-    
-    // Set headers for CSV download
-    const filename = startDate && endDate
-      ? `time-entries-${startDate}-${endDate}.csv`
-      : `time-entries-${new Date().toISOString().split('T')[0]}.csv`
-    
-    res.setHeader('Content-Type', 'text/csv')
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
-    res.send(csv)
-  } catch (error) {
-    console.error('Export error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
