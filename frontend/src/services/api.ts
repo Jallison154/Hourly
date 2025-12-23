@@ -1,15 +1,28 @@
 import axios from 'axios'
+import { Capacitor } from '@capacitor/core'
 import type { User, TimeEntry, Break, PayCalculation, TimesheetData, Metrics, PayPeriod } from '../types'
 
 // Auto-detect API URL for mobile access
 // If VITE_API_URL is set, use it. Otherwise, try to detect the server IP
 const getApiUrl = () => {
   const isDev = import.meta.env.DEV
+  const isNative = Capacitor.isNativePlatform()
   
   // Check for explicit API URL in environment variable
   if (import.meta.env.VITE_API_URL) {
     if (isDev) console.log('Using VITE_API_URL:', import.meta.env.VITE_API_URL)
     return import.meta.env.VITE_API_URL
+  }
+  
+  // If running in Capacitor (native iOS app), use a configurable backend URL
+  // For production, you'll need to set this to your actual backend server
+  if (isNative) {
+    // You can set this to your backend server URL
+    // For local development, use your Mac's IP address (e.g., http://192.168.1.100:5000/api)
+    // For production, use your deployed backend URL
+    const nativeApiUrl = import.meta.env.VITE_NATIVE_API_URL || 'http://localhost:5000/api'
+    if (isDev) console.log('Using native API URL:', nativeApiUrl)
+    return nativeApiUrl
   }
   
   // If we're in the browser, use the current hostname (works for mobile on same network)
