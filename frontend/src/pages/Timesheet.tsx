@@ -6,6 +6,7 @@ import { formatTimesheetAsText } from '../utils/timesheetFormatter'
 import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
 import TimePicker from '../components/TimePicker'
+import PullToRefresh from '../components/PullToRefresh'
 import type { TimesheetData, Break } from '../types'
 import { TrashIcon, PencilIcon, PlusIcon, EnvelopeIcon, Bars3Icon } from '@heroicons/react/24/outline'
 
@@ -320,8 +321,16 @@ export default function Timesheet() {
     }
   }, [selectedPeriod])
 
+  const handleRefresh = async () => {
+    if (selectedPeriod) {
+      await loadTimesheet(selectedPeriod.start, selectedPeriod.end)
+      await loadPaycheckCalculation(selectedPeriod.start, selectedPeriod.end)
+    }
+  }
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -791,7 +800,8 @@ export default function Timesheet() {
         onConfirm={dialog.onConfirm}
         onCancel={dialog.onCancel}
       />
-    </div>
+      </div>
+    </PullToRefresh>
   )
 }
 

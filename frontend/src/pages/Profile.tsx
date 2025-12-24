@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
+import PullToRefresh from '../components/PullToRefresh'
 import { userAPI, timeEntriesAPI } from '../services/api'
 
 export default function Profile() {
@@ -132,8 +133,18 @@ export default function Profile() {
     }
   }
 
+  const handleRefresh = async () => {
+    try {
+      const updatedUser = await userAPI.getProfile()
+      updateUser(updatedUser)
+    } catch (error) {
+      console.error('Failed to refresh profile:', error)
+    }
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -647,7 +658,8 @@ export default function Profile() {
         onConfirm={dialog.onConfirm}
         onCancel={dialog.onCancel}
       />
-    </div>
+      </div>
+    </PullToRefresh>
   )
 }
 

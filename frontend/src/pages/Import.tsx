@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { importAPI, timeEntriesAPI } from '../services/api'
 import Dialog from '../components/Dialog'
+import PullToRefresh from '../components/PullToRefresh'
 import { useDialog } from '../hooks/useDialog'
 
 export default function Import() {
@@ -108,8 +109,16 @@ export default function Import() {
     }
   }
 
+  const handleRefresh = async () => {
+    // Clear any results/errors on refresh
+    setResult(null)
+    setError(null)
+    setClearResult(null)
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -306,7 +315,8 @@ export default function Import() {
         onConfirm={dialog.onConfirm}
         onCancel={dialog.onCancel}
       />
-    </div>
+      </div>
+    </PullToRefresh>
   )
 }
 
