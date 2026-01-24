@@ -7,43 +7,43 @@ echo ""
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     cat > .env << EOF
-DATABASE_URL="postgresql://user:password@localhost:5432/hours_calculator"
+# Database - use relative path to ensure it works regardless of project location
+DATABASE_URL="file:./prisma/dev.db"
+
+# JWT Secret
 JWT_SECRET="$(openssl rand -hex 32)"
+
+# Server port
 PORT=5000
 EOF
-    echo "✓ .env file created"
-    echo ""
-    echo "⚠️  IMPORTANT: Please update DATABASE_URL in .env with your PostgreSQL credentials"
+    echo "✓ .env file created with SQLite database"
     echo ""
 else
     echo "✓ .env file already exists"
-fi
-
-# Check if DATABASE_URL is set
-if grep -q "postgresql://user:password" .env; then
-    echo ""
-    echo "⚠️  WARNING: You need to update DATABASE_URL in .env file"
-    echo "   Format: postgresql://username:password@localhost:5432/database_name"
-    echo ""
-    read -p "Have you updated the DATABASE_URL? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Please update .env file and run this script again"
-        exit 1
+    
+    # Check if DATABASE_URL uses absolute path (common issue)
+    if grep -q "file:/Users" .env || grep -q "file:/home" .env; then
+        echo ""
+        echo "⚠️  WARNING: Your DATABASE_URL uses an absolute path"
+        echo "   This can cause database reset issues when the project moves"
+        echo "   Consider updating to: DATABASE_URL=\"file:./prisma/dev.db\""
+        echo ""
     fi
 fi
 
 echo ""
-echo "Generating Prisma Client..."
-npm run prisma:generate
+echo "Installing dependencies..."
+npm install
 
 echo ""
-echo "Running database migrations..."
-npm run prisma:migrate
+echo "Generating Prisma Client..."
+npx prisma generate
+
+echo ""
+echo "Syncing database schema..."
+npx prisma db push
 
 echo ""
 echo "✓ Database setup complete!"
 echo ""
 echo "You can now start the server with: npm run dev"
-
-
