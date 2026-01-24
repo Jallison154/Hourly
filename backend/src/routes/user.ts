@@ -11,11 +11,11 @@ const updateProfileSchema = z.object({
   hourlyRate: z.number().positive().optional(),
   overtimeRate: z.number().positive().optional(),
   timeRoundingInterval: z.number().int().min(1).max(60).optional(),
-  profileImage: z.string().url().optional().nullable(),
+  profileImage: z.union([z.string().url(), z.literal(''), z.null()]).optional(),
   payPeriodType: z.enum(['weekly', 'monthly']).optional(),
   payPeriodEndDay: z.number().int().min(1).max(31).optional(),
   paycheckAdjustment: z.number().optional(),
-  state: z.string().max(2).optional().nullable(),
+  state: z.union([z.string().max(2), z.literal('')]).optional().nullable(),
   stateTaxRate: z.number().min(0).max(1).optional().nullable(),
   filingStatus: z.enum(['single', 'married']).optional()
 })
