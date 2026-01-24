@@ -8,15 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string, hourlyRate?: number) => Promise<void>
   logout: () => void
-  updateUser: (updates: {
-    name?: string
-    hourlyRate?: number
-    overtimeRate?: number
-    timeRoundingInterval?: number
-    profileImage?: string | null
-    payPeriodType?: 'weekly' | 'monthly'
-    payPeriodEndDay?: number
-  }) => Promise<void>
+  updateUser: (updates: Partial<User>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -54,15 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
-  const updateUser = async (updates: {
-    name?: string
-    hourlyRate?: number
-    overtimeRate?: number
-    timeRoundingInterval?: number
-    profileImage?: string | null
-    payPeriodType?: 'weekly' | 'monthly'
-    payPeriodEndDay?: number
-  }) => {
+  const updateUser = async (updates: Partial<User>) => {
     const updated = await userAPI.updateProfile(updates)
     setUser(updated)
   }

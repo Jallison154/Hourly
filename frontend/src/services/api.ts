@@ -195,15 +195,7 @@ export const userAPI = {
     return data
   },
   
-  updateProfile: async (updates: {
-    name?: string
-    hourlyRate?: number
-    overtimeRate?: number
-    timeRoundingInterval?: number
-    profileImage?: string | null
-    payPeriodType?: 'weekly' | 'monthly'
-    payPeriodEndDay?: number
-  }): Promise<User> => {
+  updateProfile: async (updates: Partial<User>): Promise<User> => {
     const { data } = await api.put('/user/profile', updates)
     return data
   },

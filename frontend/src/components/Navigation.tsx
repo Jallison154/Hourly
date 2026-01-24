@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { timeEntriesAPI } from '../services/api'
+import { useAuth } from '../hooks/useAuth'
 import type { TimeEntry } from '../types'
 
 export default function Navigation() {
   const location = useLocation()
+  const { user } = useAuth()
   const [clockStatus, setClockStatus] = useState<{ isClockedIn: boolean; entry: TimeEntry | null } | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -105,6 +107,24 @@ export default function Navigation() {
                 hour12: true 
               })}
             </div>
+            
+            {/* Profile Icon */}
+            <Link
+              to="/profile"
+              className="flex items-center hover:opacity-80 transition-opacity"
+            >
+              {user?.profileImage ? (
+                <img
+                  src={user.profileImage}
+                  alt={user?.name || 'Profile'}
+                  className="w-9 h-9 rounded-full border-2 border-gray-300 dark:border-gray-600 object-cover"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold border-2 border-gray-300 dark:border-gray-600">
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              )}
+            </Link>
           </div>
         </div>
       </div>
