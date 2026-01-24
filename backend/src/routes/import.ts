@@ -32,20 +32,38 @@ function parseBreakTime(breakTimeStr: string): number {
 
 /**
  * Parse Hours Keeper CSV format
- * Format: First line is date range, second line is headers
+ * Format can be:
+ * 1) First line is date range, second line is headers, data starts at line 3
+ * 2) First line is headers, data starts at line 2
  * Headers: "Client Name","Start Time","End Time","Break Time","Worked Hours","Rate/h","Amount","Note"
  */
 function parseHoursKeeperCSV(csvContent: string): ImportEntry[] {
   const lines = csvContent.split('\n').filter(line => line.trim())
   console.log(`Total lines in CSV: ${lines.length}`)
   
-  if (lines.length < 3) {
-    console.log('Not enough lines in CSV (need at least 3)')
-    return [] // Need at least date range, headers, and one data row
+  if (lines.length < 2) {
+    console.log('Not enough lines in CSV (need at least 2)')
+    return [] // Need at least headers and one data row
   }
 
-  // Skip first line (date range) and parse headers from second line
-  const headerLine = lines[1]
+  // Detect if first line is headers or date range
+  // Headers line will contain "Start Time" or "Client Name"
+  const firstLine = lines[0].toLowerCase()
+  const isFirstLineHeaders = firstLine.includes('start time') || firstLine.includes('client name') || firstLine.includes('end time')
+  
+  // Determine header line index and data start index
+  const headerLineIndex = isFirstLineHeaders ? 0 : 1
+  const dataStartIndex = isFirstLineHeaders ? 1 : 2
+  
+  console.log(`First line is headers: ${isFirstLineHeaders}`)
+  console.log(`Header line index: ${headerLineIndex}, Data start index: ${dataStartIndex}`)
+  
+  if (lines.length <= dataStartIndex) {
+    console.log('Not enough data rows after headers')
+    return []
+  }
+
+  const headerLine = lines[headerLineIndex]
   console.log('Header line:', headerLine)
   
   // Parse headers properly (handle quoted values)
@@ -71,10 +89,10 @@ function parseHoursKeeperCSV(csvContent: string): ImportEntry[] {
   
   console.log('Parsed headers:', headers)
 
-  // Parse data rows starting from line 2 (index 2)
-  console.log(`Parsing ${lines.length - 2} data rows`)
-  for (let i = 2; i < lines.length; i++) {
-    if (i === 2) {
+  // Parse data rows starting from dataStartIndex
+  console.log(`Parsing ${lines.length - dataStartIndex} data rows`)
+  for (let i = dataStartIndex; i < lines.length; i++) {
+    if (i === dataStartIndex) {
       console.log('First data row:', lines[i])
     }
     // Parse CSV line respecting quotes - better parser for quoted fields
@@ -115,20 +133,20 @@ function parseHoursKeeperCSV(csvContent: string): ImportEntry[] {
       
       if (header === 'start time' || header.includes('start time')) {
         entry.clockIn = value
-        if (i === 2) console.log('Found clockIn:', value)
+        if (i === dataStartIndex) console.log('Found clockIn:', value)
       } else if (header === 'end time' || header.includes('end time')) {
         entry.clockOut = value
-        if (i === 2) console.log('Found clockOut:', value)
+        if (i === dataStartIndex) console.log('Found clockOut:', value)
       } else if (header === 'break time' || header.includes('break time')) {
         breakMinutes = parseBreakTime(value)
-        if (i === 2) console.log('Found break time:', value, 'parsed to', breakMinutes, 'minutes')
+        if (i === dataStartIndex) console.log('Found break time:', value, 'parsed to', breakMinutes, 'minutes')
       } else if (header === 'note' || header.includes('note')) {
         entry.notes = value
         entry.description = value
       }
     })
     
-    if (i === 2) {
+    if (i === dataStartIndex) {
       console.log('Entry after header matching:', {
         clockIn: entry.clockIn,
         clockOut: entry.clockOut,
