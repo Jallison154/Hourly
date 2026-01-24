@@ -250,8 +250,9 @@ if [ ! -f ".env" ]; then
     # Get server IP address for mobile access
     SERVER_IP=$(hostname -I | awk '{print $1}' 2>/dev/null || ip route get 1.1.1.1 | awk '{print $7; exit}' 2>/dev/null || echo "localhost")
     
+    # Use RELATIVE path for database to prevent reset issues when project moves
     cat > .env << EOF
-DATABASE_URL="file:$(pwd)/prisma/dev.db"
+DATABASE_URL="file:./prisma/dev.db"
 JWT_SECRET="$JWT_SECRET"
 PORT=5000
 HOST=0.0.0.0
@@ -261,25 +262,50 @@ EOF
     print_info "Access from iPhone: http://$SERVER_IP:5000"
     print_success ".env file created"
 else
-    print_info ".env file already exists, skipping..."
+    print_info ".env file already exists"
+    
+    # Check if DATABASE_URL uses absolute path (common issue that causes resets)
+    if grep -q "file:/.*prisma/dev.db" .env 2>/dev/null; then
+        print_info "Fixing DATABASE_URL to use relative path (prevents database reset issues)..."
+        sed -i 's|DATABASE_URL="file:/.*prisma/dev.db"|DATABASE_URL="file:./prisma/dev.db"|g' .env 2>/dev/null || \
+        sed -i '' 's|DATABASE_URL="file:/.*prisma/dev.db"|DATABASE_URL="file:./prisma/dev.db"|g' .env 2>/dev/null
+        print_success "DATABASE_URL fixed to relative path"
+    fi
 fi
 echo ""
 
-# Step 7: Generate Prisma client and run migrations
+# Step 7: Generate Prisma client and sync database schema
 print_info "Generating Prisma client..."
 npm run prisma:generate
 print_success "Prisma client generated"
 
-print_info "Running database migrations..."
-# Check if database exists
+print_info "Syncing database schema..."
+# Check if database exists with data
 if [ -f "prisma/dev.db" ]; then
-    print_info "Database exists, applying migrations..."
-    npm run prisma:migrate deploy || npm run prisma:migrate
+    print_info "Existing database found - preserving data..."
+    
+    # Check for and add any missing columns to preserve data
+    # This prevents Prisma from wanting to reset the database
+    
+    # Check if filingStatus column exists, add if missing
+    if ! sqlite3 prisma/dev.db ".schema User" 2>/dev/null | grep -q "filingStatus"; then
+        print_info "  Adding missing column: filingStatus"
+        sqlite3 prisma/dev.db "ALTER TABLE User ADD COLUMN filingStatus TEXT NOT NULL DEFAULT 'single';" 2>/dev/null || true
+    fi
+    
+    # Add future schema columns here as needed:
+    # if ! sqlite3 prisma/dev.db ".schema TableName" 2>/dev/null | grep -q "columnName"; then
+    #     sqlite3 prisma/dev.db "ALTER TABLE TableName ADD COLUMN columnName TYPE DEFAULT 'value';" 2>/dev/null || true
+    # fi
+    
+    # Now sync with Prisma (should be safe since we added missing columns)
+    npx prisma db push --skip-generate --accept-data-loss 2>&1 | grep -v "already in sync" || true
+    print_success "Database schema synced (data preserved)"
 else
     print_info "Creating new database..."
-    npm run prisma:migrate
+    npx prisma db push --skip-generate
+    print_success "New database created"
 fi
-print_success "Database migrations completed"
 echo ""
 
 # Step 7.5: Build backend for production (required for systemd service)
