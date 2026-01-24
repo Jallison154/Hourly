@@ -16,7 +16,8 @@ const updateProfileSchema = z.object({
   payPeriodEndDay: z.number().int().min(1).max(31).optional(),
   paycheckAdjustment: z.number().optional(),
   state: z.string().max(2).optional().nullable(),
-  stateTaxRate: z.number().min(0).max(1).optional().nullable()
+  stateTaxRate: z.number().min(0).max(1).optional().nullable(),
+  filingStatus: z.enum(['single', 'married']).optional()
 })
 
 // Get user profile
@@ -37,6 +38,7 @@ router.get('/profile', authenticate, async (req: AuthRequest, res) => {
         paycheckAdjustment: true,
         state: true,
         stateTaxRate: true,
+        filingStatus: true,
         createdAt: true
       }
     })
@@ -72,7 +74,8 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
         payPeriodEndDay: true,
         paycheckAdjustment: true,
         state: true,
-        stateTaxRate: true
+        stateTaxRate: true,
+        filingStatus: true
       }
     })
     

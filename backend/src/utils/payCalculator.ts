@@ -9,6 +9,8 @@ export interface PayCalculation {
   federalTax: number
   stateTax: number
   fica: number
+  socialSecurity: number
+  medicare: number
   netPay: number
   stateTaxRate?: number // The state tax rate used for calculations (for display)
 }
@@ -23,7 +25,8 @@ export function calculatePay(
   weeklyHours: number = 0,
   overtimeRate: number = 1.5,
   state?: string | null,
-  stateTaxRate?: number | null
+  stateTaxRate?: number | null,
+  filingStatus: 'single' | 'married' = 'single'
 ): PayCalculation {
   const regularHours = Math.min(hours, 40 - weeklyHours)
   const overtimeHours = Math.max(0, hours - regularHours)
@@ -36,7 +39,7 @@ export function calculatePay(
   // This is a rough estimate - in reality, you'd need to track all pay periods
   const annualGrossPay = grossPay * 24 // Assuming 24 pay periods per year (monthly)
   
-  const taxes = calculateNetPay(grossPay, annualGrossPay, state, stateTaxRate)
+  const taxes = calculateNetPay(grossPay, annualGrossPay, state, stateTaxRate, filingStatus)
   
   return {
     regularHours,
@@ -56,7 +59,8 @@ export function calculatePayForEntries(
   hourlyRate: number,
   overtimeRate: number = 1.5,
   state?: string | null,
-  stateTaxRate?: number | null
+  stateTaxRate?: number | null,
+  filingStatus: 'single' | 'married' = 'single'
 ): PayCalculation {
   // Group entries by week
   const weeks: { [key: string]: number } = {}
@@ -137,7 +141,7 @@ export function calculatePayForEntries(
   // Estimate annual income
   const annualGrossPay = grossPay * 24 // Monthly pay periods
   
-  const taxes = calculateNetPay(grossPay, annualGrossPay, state, stateTaxRate)
+  const taxes = calculateNetPay(grossPay, annualGrossPay, state, stateTaxRate, filingStatus)
   
   return {
     regularHours,

@@ -194,7 +194,8 @@ async function getTimesheetData(
         state: true,
         stateTaxRate: true,
         payPeriodType: true,
-        payPeriodEndDay: true
+        payPeriodEndDay: true,
+        filingStatus: true
       }
     })
     
@@ -224,6 +225,7 @@ async function getTimesheetData(
     
     // Calculate pay period totals FIRST (needed for weekly tax calculations)
     const completedEntries = entries.filter(e => e.clockOut !== null)
+    const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
     const payPeriodPay = calculatePayForEntries(
       completedEntries.map(e => ({
         clockIn: e.clockIn,
@@ -233,7 +235,8 @@ async function getTimesheetData(
       user.hourlyRate,
       user.overtimeRate || 1.5,
       user.state,
-      user.stateTaxRate
+      user.stateTaxRate,
+      filingStatus
     )
     
     // Use pay period's annual estimate for all weekly tax calculations
@@ -368,7 +371,7 @@ async function getTimesheetData(
       // Calculate taxes using the pay period's annual estimate (not the week's estimate)
       // This ensures consistent tax calculations across all weeks
       const { calculateNetPay } = await import('../utils/taxCalculator')
-      const taxes = calculateNetPay(grossPay, payPeriodAnnualGrossPay, user.state, user.stateTaxRate)
+      const taxes = calculateNetPay(grossPay, payPeriodAnnualGrossPay, user.state, user.stateTaxRate, filingStatus)
       
       // Apply adjustment proportionally to weekly breakdown
       const totalWeeks = weeks.length

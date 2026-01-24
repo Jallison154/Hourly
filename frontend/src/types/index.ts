@@ -11,6 +11,7 @@ export interface User {
   paycheckAdjustment?: number
   state?: string | null
   stateTaxRate?: number | null
+  filingStatus?: 'single' | 'married'
 }
 
 export interface TimeEntry {
@@ -47,6 +48,8 @@ export interface PayCalculation {
   federalTax: number
   stateTax: number
   fica: number
+  socialSecurity?: number
+  medicare?: number
   netPay: number
   stateTaxRate?: number // The state tax rate used for calculations (for display)
 }

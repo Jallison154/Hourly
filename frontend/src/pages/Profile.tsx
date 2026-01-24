@@ -22,7 +22,8 @@ export default function Profile() {
     payPeriodEndDay: user?.payPeriodEndDay || 10,
     paycheckAdjustment: user?.paycheckAdjustment || 0,
     state: user?.state || '',
-    stateTaxRate: user?.stateTaxRate || null
+    stateTaxRate: user?.stateTaxRate || null,
+    filingStatus: (user?.filingStatus || 'single') as 'single' | 'married'
   })
   const [imagePreview, setImagePreview] = useState<string | null>(user?.profileImage || null)
   const [passwordData, setPasswordData] = useState({
@@ -45,7 +46,8 @@ export default function Profile() {
         payPeriodEndDay: user.payPeriodEndDay || 10,
         paycheckAdjustment: user.paycheckAdjustment || 0,
         state: user.state || '',
-        stateTaxRate: user.stateTaxRate || null
+        stateTaxRate: user.stateTaxRate || null,
+        filingStatus: (user.filingStatus || 'single') as 'single' | 'married'
       })
       setImagePreview(user.profileImage || null)
     }
@@ -449,6 +451,38 @@ export default function Profile() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Filing Status
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, filingStatus: 'single' })}
+                    className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                      formData.filingStatus === 'single'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    Single
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, filingStatus: 'married' })}
+                    className={`px-4 py-2 rounded-lg border-2 transition-colors ${
+                      formData.filingStatus === 'married'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-semibold'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    Married
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Your filing status affects standard deductions and tax brackets for federal and state taxes.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   State (2-letter code)
                 </label>
                 <input
@@ -490,6 +524,12 @@ export default function Profile() {
               </h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Federal Standard Deduction:</span>
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {formData.filingStatus === 'married' ? '$29,200' : '$14,600'} ({formData.filingStatus})
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Federal Tax:</span>
                   <span className="text-gray-900 dark:text-white font-medium">Progressive brackets (2024)</span>
                 </div>
@@ -499,10 +539,10 @@ export default function Profile() {
                     {formData.stateTaxRate !== null && formData.stateTaxRate !== undefined
                       ? `${(formData.stateTaxRate * 100).toFixed(2)}%`
                       : formData.state === 'MT'
-                        ? 'Montana: Progressive (4.7% up to $21,100, 5.9% above)'
+                        ? `Montana: Progressive (4.7%/${formData.filingStatus === 'married' ? '$42,200' : '$21,100'}, 5.9% above) - Std Ded: ${formData.filingStatus === 'married' ? '$11,080' : '$5,540'}`
                         : formData.state
                           ? `Default for ${formData.state} (varies by state)`
-                          : 'Montana: Progressive (4.7% up to $21,100, 5.9% above)'}
+                          : `Montana: Progressive (4.7%/${formData.filingStatus === 'married' ? '$42,200' : '$21,100'}, 5.9% above) - Std Ded: ${formData.filingStatus === 'married' ? '$11,080' : '$5,540'}`}
                   </span>
                 </div>
                 <div className="flex justify-between">

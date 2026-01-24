@@ -29,7 +29,8 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         state: true,
         stateTaxRate: true,
         payPeriodType: true,
-        payPeriodEndDay: true
+        payPeriodEndDay: true,
+        filingStatus: true
       }
     })
     
@@ -118,6 +119,7 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     })
     
     // Use calculated break minutes from breaks array for accuracy
+    const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
     const calculation = calculatePayForEntries(
       entries.map(e => {
         // Recalculate break minutes from breaks array
@@ -139,7 +141,8 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       rate,
       overtimeRate,
       user.state,
-      user.stateTaxRate
+      user.stateTaxRate,
+      filingStatus
     )
     
     console.log(`Before adjustment: Gross = $${calculation.grossPay.toFixed(2)}, Net = $${calculation.netPay.toFixed(2)}`)
@@ -235,7 +238,7 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       
       // Calculate taxes using the pay period's annual estimate (not the week's estimate)
       const { calculateNetPay } = await import('../utils/taxCalculator')
-      const weekTaxes = calculateNetPay(weekGrossPay, payPeriodAnnualGrossPay, user.state, user.stateTaxRate)
+      const weekTaxes = calculateNetPay(weekGrossPay, payPeriodAnnualGrossPay, user.state, user.stateTaxRate, filingStatus)
       
       const weekCalculation = {
         regularHours: weekRegularHours,

@@ -24,6 +24,7 @@ model User {
   paycheckAdjustment  Float        @default(0) // Adjustment amount to add/subtract from paycheck calculations
   state                String?      // State for tax calculations (e.g., "MT", "CA")
   stateTaxRate         Float?       // State tax rate as decimal (e.g., 0.059 for 5.9%). If null, uses default for state
+  filingStatus        String       @default("single") // "single" or "married" for tax calculations
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   
