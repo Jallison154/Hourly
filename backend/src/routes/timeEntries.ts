@@ -294,12 +294,15 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       })
     }
     
+    // Normalize empty string notes to null
+    const normalizedNotes = notes && notes.trim() ? notes.trim() : null
+    
     const entry = await prisma.timeEntry.create({
       data: {
         userId: req.userId!,
         clockIn: clockInDate,
         clockOut: clockOutDate,
-        notes,
+        notes: normalizedNotes,
         isManualEntry: isManualEntry ?? true
       },
       include: {
@@ -596,7 +599,10 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
     
     if (data.clockIn) updateData.clockIn = new Date(data.clockIn)
     if (data.clockOut !== undefined) updateData.clockOut = data.clockOut ? new Date(data.clockOut) : null
-    if (data.notes !== undefined) updateData.notes = data.notes
+    // Normalize empty string notes to null
+    if (data.notes !== undefined) {
+      updateData.notes = data.notes && data.notes.trim() ? data.notes.trim() : null
+    }
     if (data.totalBreakMinutes !== undefined) updateData.totalBreakMinutes = data.totalBreakMinutes
     
     // Check if entry exists and belongs to user
@@ -688,6 +694,9 @@ router.post('/:id/breaks', authenticate, async (req: AuthRequest, res) => {
       breakDuration = Math.round((end.getTime() - start.getTime()) / 60000)
     }
     
+    // Normalize empty string notes to null
+    const normalizedNotes = notes && notes.trim() ? notes.trim() : null
+    
     const breakEntry = await prisma.break.create({
       data: {
         timeEntryId: req.params.id,
@@ -695,7 +704,7 @@ router.post('/:id/breaks', authenticate, async (req: AuthRequest, res) => {
         startTime: start,
         endTime: end,
         duration: breakDuration || 0,
-        notes
+        notes: normalizedNotes
       }
     })
     
@@ -738,7 +747,10 @@ router.put('/breaks/:breakId', authenticate, async (req: AuthRequest, res) => {
     if (data.startTime) updateData.startTime = new Date(data.startTime)
     if (data.endTime !== undefined) updateData.endTime = data.endTime ? new Date(data.endTime) : null
     if (data.duration !== undefined) updateData.duration = data.duration
-    if (data.notes !== undefined) updateData.notes = data.notes
+    // Normalize empty string notes to null
+    if (data.notes !== undefined) {
+      updateData.notes = data.notes && data.notes.trim() ? data.notes.trim() : null
+    }
     
     // Check if break exists and belongs to user's entry
     const breakEntry = await prisma.break.findFirst({

@@ -59,9 +59,18 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
   try {
     const data = updateProfileSchema.parse(req.body)
     
+    // Normalize empty strings to null for nullable fields
+    const normalizedData: any = { ...data }
+    if (normalizedData.profileImage === '') {
+      normalizedData.profileImage = null
+    }
+    if (normalizedData.state === '') {
+      normalizedData.state = null
+    }
+    
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data,
+      data: normalizedData,
       select: {
         id: true,
         email: true,
