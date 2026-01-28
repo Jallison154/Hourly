@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import { timesheetAPI, timeEntriesAPI, paycheckAPI } from '../services/api'
 import { formatDate, formatDateWithDay, formatTime, formatHours, formatCurrency } from '../utils/date'
 import { formatTimesheetAsText } from '../utils/timesheetFormatter'
@@ -411,6 +412,15 @@ export default function Timesheet() {
                         <EnvelopeIcon className="h-5 w-5" />
                         <span>Email</span>
                       </button>
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                      <Link
+                        to="/schedule"
+                        onClick={() => setShowMenu(false)}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <span>📅</span>
+                        <span>Schedule</span>
+                      </Link>
                     </motion.div>
                   </>
                 )}
