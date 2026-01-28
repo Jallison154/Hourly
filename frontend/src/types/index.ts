@@ -1,3 +1,13 @@
+export interface WeeklySchedule {
+  monday?: number
+  tuesday?: number
+  wednesday?: number
+  thursday?: number
+  friday?: number
+  saturday?: number
+  sunday?: number
+}
+
 export interface User {
   id: string
   email: string
@@ -12,6 +22,7 @@ export interface User {
   state?: string | null
   stateTaxRate?: number | null
   filingStatus?: 'single' | 'married'
+  weeklySchedule?: string | null // JSON string
 }
 
 export interface TimeEntry {

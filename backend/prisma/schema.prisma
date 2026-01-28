@@ -25,6 +25,7 @@ model User {
   state                String?      // State for tax calculations (e.g., "MT", "CA")
   stateTaxRate         Float?       // State tax rate as decimal (e.g., 0.059 for 5.9%). If null, uses default for state
   filingStatus        String       @default("single") // "single" or "married" for tax calculations
+  weeklySchedule      String?      // JSON string: { "monday": 8, "tuesday": 8, ... } - hours per day
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   

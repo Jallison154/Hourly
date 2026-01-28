@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { Capacitor } from '@capacitor/core'
-import type { User, TimeEntry, Break, PayCalculation, TimesheetData, Metrics, PayPeriod } from '../types'
+import type { User, TimeEntry, Break, PayCalculation, TimesheetData, Metrics, PayPeriod, WeeklySchedule } from '../types'
 
 // Auto-detect API URL for mobile access
 // If VITE_API_URL is set, use it. Otherwise, try to detect the server IP
@@ -202,6 +202,16 @@ export const userAPI = {
   
   changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
     await api.post('/user/change-password', { currentPassword, newPassword })
+  },
+  
+  getSchedule: async (): Promise<WeeklySchedule> => {
+    const { data } = await api.get('/user/schedule')
+    return data
+  },
+  
+  updateSchedule: async (schedule: WeeklySchedule): Promise<WeeklySchedule> => {
+    const { data } = await api.put('/user/schedule', schedule)
+    return data
   }
 }
 
