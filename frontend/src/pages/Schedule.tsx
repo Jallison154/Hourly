@@ -6,11 +6,48 @@ import Dialog from '../components/Dialog'
 import PullToRefresh from '../components/PullToRefresh'
 import { userAPI } from '../services/api'
 import type { WeeklySchedule } from '../types'
-import { formatCurrency } from '../utils/date'
+import { formatCurrency, formatHours } from '../utils/date'
+
+// Helper function to convert HH:MM format to decimal hours
+const timeStringToDecimal = (timeStr: string): number => {
+  if (!timeStr || timeStr.trim() === '') return 0
+  // Remove any spaces
+  const cleaned = timeStr.trim().replace(/\s/g, '')
+  // Match patterns like "5:55", "5:5", "5", "5.5", etc.
+  const match = cleaned.match(/^(\d+)(?:[:.](\d+))?$/)
+  if (!match) return 0
+  
+  const hours = parseInt(match[1]) || 0
+  const minutesStr = match[2] || '0'
+  
+  // Handle minutes - if it's 1-2 digits, treat as minutes; if 3+ digits, treat as decimal
+  let minutes = 0
+  if (minutesStr.length <= 2) {
+    minutes = parseInt(minutesStr) || 0
+  } else {
+    // If it's like "5.55" or "5:55" where 55 is actually decimal minutes
+    minutes = parseFloat('0.' + minutesStr) * 60
+  }
+  
+  // Clamp to valid range
+  const totalHours = hours + (minutes / 60)
+  return Math.max(0, Math.min(24, totalHours))
+}
 
 export default function Schedule() {
   const { user } = useAuth()
   const { dialog, showAlert, closeDialog } = useDialog()
+  // Store display values as strings in HH:MM format
+  const [scheduleDisplay, setScheduleDisplay] = useState<Record<string, string>>({
+    monday: '0:00',
+    tuesday: '0:00',
+    wednesday: '0:00',
+    thursday: '0:00',
+    friday: '0:00',
+    saturday: '0:00',
+    sunday: '0:00'
+  })
+  // Store decimal values for calculations and saving
   const [schedule, setSchedule] = useState<WeeklySchedule>({
     monday: 0,
     tuesday: 0,
@@ -32,6 +69,12 @@ export default function Schedule() {
       setLoading(true)
       const data = await userAPI.getSchedule()
       setSchedule(data)
+      // Convert decimal hours to HH:MM format for display
+      const display: Record<string, string> = {}
+      ;(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).forEach((day) => {
+        display[day] = formatHours(data[day] || 0)
+      })
+      setScheduleDisplay(display)
     } catch (error) {
       console.error('Failed to load schedule:', error)
     } finally {
@@ -39,8 +82,13 @@ export default function Schedule() {
     }
   }
 
-  const handleScheduleChange = (day: keyof WeeklySchedule, value: number) => {
-    setSchedule({ ...schedule, [day]: Math.max(0, Math.min(24, value)) })
+  const handleScheduleChange = (day: keyof WeeklySchedule, value: string) => {
+    // Update display value
+    setScheduleDisplay({ ...scheduleDisplay, [day]: value })
+    
+    // Convert to decimal and update schedule
+    const decimal = timeStringToDecimal(value)
+    setSchedule({ ...schedule, [day]: decimal })
   }
 
   const handleSaveSchedule = async () => {
@@ -64,6 +112,10 @@ export default function Schedule() {
            (schedule.friday || 0) + 
            (schedule.saturday || 0) + 
            (schedule.sunday || 0)
+  }
+
+  const getTotalWeeklyHoursDisplay = () => {
+    return formatHours(getTotalWeeklyHours())
   }
 
   if (loading) {
@@ -104,12 +156,17 @@ export default function Schedule() {
                 </label>
                 <div className="flex items-center space-x-3">
                   <input
-                    type="number"
-                    min="0"
-                    max="24"
-                    step="0.25"
-                    value={schedule[day] || 0}
-                    onChange={(e) => handleScheduleChange(day, parseFloat(e.target.value) || 0)}
+                    type="text"
+                    placeholder="0:00"
+                    value={scheduleDisplay[day] || '0:00'}
+                    onChange={(e) => handleScheduleChange(day, e.target.value)}
+                    onBlur={(e) => {
+                      // Format on blur to ensure proper format
+                      const decimal = timeStringToDecimal(e.target.value)
+                      const formatted = formatHours(decimal)
+                      setScheduleDisplay({ ...scheduleDisplay, [day]: formatted })
+                      setSchedule({ ...schedule, [day]: decimal })
+                    }}
                     className="w-28 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg"
                   />
                   <span className="text-sm text-gray-600 dark:text-gray-400 w-10">hours</span>
@@ -124,7 +181,7 @@ export default function Schedule() {
                     Total Weekly Hours
                   </div>
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {getTotalWeeklyHours().toFixed(2)}
+                    {getTotalWeeklyHoursDisplay()}
                   </div>
                 </div>
                 {user?.hourlyRate && getTotalWeeklyHours() > 0 && (
