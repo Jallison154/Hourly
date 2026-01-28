@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard'
 import ClockInOut from './pages/ClockInOut'
 import Timesheet from './pages/Timesheet'
 import Profile from './pages/Profile'
+import Schedule from './pages/Schedule'
 import Import from './pages/Import'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -41,6 +42,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/clock" element={<ProtectedRoute><ClockInOut /></ProtectedRoute>} />
       <Route path="/timesheet" element={<ProtectedRoute><Timesheet /></ProtectedRoute>} />
+      <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/import" element={<ProtectedRoute><Import /></ProtectedRoute>} />
     </Routes>

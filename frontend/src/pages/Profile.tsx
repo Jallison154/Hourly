@@ -6,7 +6,6 @@ import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
 import PullToRefresh from '../components/PullToRefresh'
 import { userAPI, timeEntriesAPI } from '../services/api'
-import type { WeeklySchedule } from '../types'
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuth()
@@ -34,16 +33,6 @@ export default function Profile() {
   })
   const [changingPassword, setChangingPassword] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [schedule, setSchedule] = useState<WeeklySchedule>({
-    monday: 0,
-    tuesday: 0,
-    wednesday: 0,
-    thursday: 0,
-    friday: 0,
-    saturday: 0,
-    sunday: 0
-  })
-  const [scheduleLoading, setScheduleLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -62,44 +51,7 @@ export default function Profile() {
       })
       setImagePreview(user.profileImage || null)
     }
-    loadSchedule()
   }, [user])
-
-  const loadSchedule = async () => {
-    try {
-      const data = await userAPI.getSchedule()
-      setSchedule(data)
-    } catch (error) {
-      console.error('Failed to load schedule:', error)
-    }
-  }
-
-  const handleScheduleChange = (day: keyof WeeklySchedule, value: number) => {
-    setSchedule({ ...schedule, [day]: Math.max(0, Math.min(24, value)) })
-  }
-
-  const handleSaveSchedule = async () => {
-    setScheduleLoading(true)
-    try {
-      await userAPI.updateSchedule(schedule)
-      await showAlert('Success', 'Weekly schedule updated successfully!')
-    } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } }
-      await showAlert('Error', axiosError.response?.data?.error || 'Failed to update schedule')
-    } finally {
-      setScheduleLoading(false)
-    }
-  }
-
-  const getTotalWeeklyHours = () => {
-    return (schedule.monday || 0) + 
-           (schedule.tuesday || 0) + 
-           (schedule.wednesday || 0) + 
-           (schedule.thursday || 0) + 
-           (schedule.friday || 0) + 
-           (schedule.saturday || 0) + 
-           (schedule.sunday || 0)
-  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -607,70 +559,6 @@ export default function Profile() {
                   <span className="text-gray-900 dark:text-white font-medium">0.9% (over $200,000/year)</span>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Weekly Schedule Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              Weekly Schedule
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              Set your estimated hours for each day of the week. This helps estimate your weekly and pay period totals.
-            </p>
-            
-            <div className="space-y-4">
-              {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
-                <div key={day} className="flex items-center justify-between">
-                  <label className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-                    {day}
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="number"
-                      min="0"
-                      max="24"
-                      step="0.25"
-                      value={schedule[day] || 0}
-                      onChange={(e) => handleScheduleChange(day, parseFloat(e.target.value) || 0)}
-                      className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-                    />
-                    <span className="text-sm text-gray-600 dark:text-gray-400 w-8">hrs</span>
-                  </div>
-                </div>
-              ))}
-              
-              <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Total Weekly Hours:
-                  </span>
-                  <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                    {getTotalWeeklyHours().toFixed(2)} hrs
-                  </span>
-                </div>
-                {user?.hourlyRate && getTotalWeeklyHours() > 0 && (
-                  <div className="mt-2 flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Estimated Weekly Pay:
-                    </span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      ${(getTotalWeeklyHours() * user.hourlyRate).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              <motion.button
-                type="button"
-                onClick={handleSaveSchedule}
-                disabled={scheduleLoading}
-                whileHover={{ scale: scheduleLoading ? 1 : 1.02 }}
-                whileTap={{ scale: scheduleLoading ? 1 : 0.98 }}
-                className="w-full mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow transition-colors"
-              >
-                {scheduleLoading ? 'Saving...' : 'Save Schedule'}
-              </motion.button>
             </div>
           </div>
 

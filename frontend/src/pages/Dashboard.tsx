@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { metricsAPI, userAPI } from '../services/api'
+import { metricsAPI } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
 import { formatCurrency, formatHours } from '../utils/date'
-import type { Metrics, WeeklySchedule } from '../types'
+import type { Metrics } from '../types'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import PullToRefresh from '../components/PullToRefresh'
 
@@ -13,21 +13,10 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [chartView, setChartView] = useState<'daily' | 'weekly' | 'yearly'>('daily')
-  const [schedule, setSchedule] = useState<WeeklySchedule | null>(null)
 
   useEffect(() => {
     loadMetrics()
-    loadSchedule()
   }, [])
-
-  const loadSchedule = async () => {
-    try {
-      const data = await userAPI.getSchedule()
-      setSchedule(data)
-    } catch (error) {
-      console.error('Failed to load schedule:', error)
-    }
-  }
 
   const loadMetrics = async () => {
     try {
@@ -167,71 +156,6 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
-
-      {/* Estimated Weekly Hours Section */}
-      {schedule && (() => {
-        const totalWeeklyHours = (schedule.monday || 0) + 
-                                 (schedule.tuesday || 0) + 
-                                 (schedule.wednesday || 0) + 
-                                 (schedule.thursday || 0) + 
-                                 (schedule.friday || 0) + 
-                                 (schedule.saturday || 0) + 
-                                 (schedule.sunday || 0)
-        if (totalWeeklyHours === 0) return null
-        
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="bg-blue-50 dark:bg-blue-900/20 rounded-lg shadow p-6 mb-6 border border-blue-200 dark:border-blue-800"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                📅 Estimated Weekly Schedule
-              </h2>
-              <Link
-                to="/profile"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Edit Schedule
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Total Weekly Hours</div>
-                <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                  {formatHours(totalWeeklyHours)}
-                </div>
-              </div>
-              {user?.hourlyRate && (
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Est. Weekly Pay</div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                    {formatCurrency(totalWeeklyHours * user.hourlyRate)}
-                  </div>
-                </div>
-              )}
-              {user?.payPeriodType === 'monthly' && (
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Est. Monthly Hours</div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                    {formatHours(totalWeeklyHours * 4.33)}
-                  </div>
-                </div>
-              )}
-              {user?.payPeriodType === 'monthly' && user?.hourlyRate && (
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Est. Monthly Pay</div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                    {formatCurrency(totalWeeklyHours * 4.33 * user.hourlyRate)}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )
-      })()}
 
       {/* Pay Breakdown Section */}
       <motion.div
