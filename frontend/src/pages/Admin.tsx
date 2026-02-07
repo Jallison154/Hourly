@@ -5,7 +5,7 @@ import { adminAPI, type AdminDashboard, type AdminDashboardUser } from '../servi
 import { formatHours } from '../utils/date'
 import { format, parseISO } from 'date-fns'
 import PullToRefresh from '../components/PullToRefresh'
-import { UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline'
+import { UserGroupIcon } from '@heroicons/react/24/outline'
 import { UserGroupIcon as UserGroupIconSolid } from '@heroicons/react/24/solid'
 
 const ADMIN_STORAGE_KEY = 'hourly_admin_token'
