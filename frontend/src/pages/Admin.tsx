@@ -23,6 +23,13 @@ export default function Admin() {
     }
   }, [adminToken])
 
+  // Auto-refresh dashboard every 15 seconds when viewing
+  useEffect(() => {
+    if (!adminToken) return
+    const interval = setInterval(loadDashboard, 15000)
+    return () => clearInterval(interval)
+  }, [adminToken])
+
   const loadDashboard = async () => {
     if (!adminToken) return
     setDashboardError('')
@@ -128,22 +135,13 @@ export default function Admin() {
                 Work week (Sun–Sat): {weekStart} – {weekEnd}
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={loadDashboard}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Refresh
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
-              >
-                Log out
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+            >
+              Log out
+            </button>
           </div>
 
           {dashboardError && (
