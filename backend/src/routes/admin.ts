@@ -5,19 +5,18 @@ import { requireAdmin } from '../middleware/adminAuth'
 
 const router = express.Router()
 
-// Get Monday 00:00:00 and Sunday 23:59:59 of the current ISO week
+// Use Sunday–Saturday week to match the app (WeeklySummary / Clock page "Hours Left")
 function getCurrentWorkWeek(): { start: Date; end: Date } {
   const now = new Date()
   const day = now.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  // Monday = 1, so days back to Monday: if Sun(0) -> 6, Mon(1) -> 0, Tue(2) -> 1, ...
-  const daysToMonday = day === 0 ? 6 : day - 1
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - daysToMonday)
-  monday.setHours(0, 0, 0, 0)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  sunday.setHours(23, 59, 59, 999)
-  return { start: monday, end: sunday }
+  const daysToSunday = day === 0 ? 0 : day
+  const sunday = new Date(now)
+  sunday.setDate(now.getDate() - daysToSunday)
+  sunday.setHours(0, 0, 0, 0)
+  const saturday = new Date(sunday)
+  saturday.setDate(sunday.getDate() + 6)
+  saturday.setHours(23, 59, 59, 999)
+  return { start: sunday, end: saturday }
 }
 
 function entryHoursInRange(
