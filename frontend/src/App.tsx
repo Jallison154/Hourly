@@ -7,6 +7,7 @@ import Schedule from './pages/Schedule'
 import Import from './pages/Import'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Admin from './pages/Admin'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import Navigation from './components/Navigation'
 import MobileBottomNav from './components/MobileBottomNav'
@@ -38,6 +39,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/admin" element={<Admin />} />
       <Route path="/" element={<ProtectedRoute><ClockInOut /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/clock" element={<ProtectedRoute><ClockInOut /></ProtectedRoute>} />

@@ -8,6 +8,7 @@ import timesheetRoutes from './routes/timesheet'
 import paycheckRoutes from './routes/paycheck'
 import metricsRoutes from './routes/metrics'
 import importRoutes from './routes/import'
+import adminRoutes from './routes/admin'
 
 dotenv.config()
 
@@ -47,6 +48,7 @@ app.use('/api/timesheet', timesheetRoutes)
 app.use('/api/paycheck', paycheckRoutes)
 app.use('/api/metrics', metricsRoutes)
 app.use('/api/import', importRoutes)
+app.use('/api/admin', adminRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })

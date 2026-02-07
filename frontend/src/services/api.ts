@@ -393,6 +393,35 @@ export const importAPI = {
   }
 }
 
+// Admin API - uses admin password as token, no user JWT
+export interface AdminDashboardUser {
+  id: string
+  name: string
+  email: string
+  isClockedIn: boolean
+  clockedInSince: string | null
+  currentWeekHours: number
+  hoursLeft: number
+}
+
+export interface AdminDashboard {
+  workWeek: { start: string; end: string }
+  users: AdminDashboardUser[]
+}
+
+export const adminAPI = {
+  login: async (password: string): Promise<{ success: boolean }> => {
+    const { data } = await api.post('/admin/login', { password })
+    return data
+  },
+  getDashboard: async (adminToken: string): Promise<AdminDashboard> => {
+    const { data } = await api.get('/admin/dashboard', {
+      headers: { 'x-admin-token': adminToken }
+    })
+    return data
+  }
+}
+
 export default api
 
 
