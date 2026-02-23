@@ -25,14 +25,11 @@ export default function Import() {
   const [clearResult, setClearResult] = useState<{ deletedCount: number } | null>(null)
   const { dialog, showConfirm, closeDialog } = useDialog()
 
-  // Set default dates to last year through today (use local date so timezone doesn't cut off today/last month)
+  // Default: one year ago through end of next month (so exports that include recent/future dates aren't cut off)
   useEffect(() => {
     const today = new Date()
     const y = today.getFullYear()
-    const m = String(today.getMonth() + 1).padStart(2, '0')
-    const d = String(today.getDate()).padStart(2, '0')
-    const todayLocal = `${y}-${m}-${d}`
-
+    const m = today.getMonth()
     const oneYearAgo = new Date(today)
     oneYearAgo.setFullYear(y - 1)
     const y1 = oneYearAgo.getFullYear()
@@ -40,8 +37,14 @@ export default function Import() {
     const d1 = String(oneYearAgo.getDate()).padStart(2, '0')
     const oneYearAgoLocal = `${y1}-${m1}-${d1}`
 
+    const endOfNextMonth = new Date(y, m + 2, 0)
+    const endY = endOfNextMonth.getFullYear()
+    const endM = String(endOfNextMonth.getMonth() + 1).padStart(2, '0')
+    const endD = String(endOfNextMonth.getDate()).padStart(2, '0')
+    const endDateLocal = `${endY}-${endM}-${endD}`
+
     setStartDate(oneYearAgoLocal)
-    setEndDate(todayLocal)
+    setEndDate(endDateLocal)
   }, [])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,7 +204,7 @@ export default function Import() {
                   <li>Create time entries for each record</li>
                   <li>Skip entries that already exist (based on date)</li>
                   <li>Apply your time rounding settings</li>
-                  <li>Filter by date range if provided (defaults to last year)</li>
+                  <li>Filter by date range if provided (default: one year ago through end of next month)</li>
                 </ul>
               </div>
             </div>
