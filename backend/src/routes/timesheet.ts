@@ -2,7 +2,7 @@ import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
-import { getWeekBoundsInTimezone, toLocalDayKey } from '../utils/timezone'
+import { getWeekBoundsInTimezone, toLocalDayKey, formatInTimezone } from '../utils/timezone'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
 
@@ -180,6 +180,35 @@ async function getTimesheetData(
     })
     
     const weeks = getWeeksInPayPeriodTz(payPeriod, userTimezone)
+
+    // --- DIAGNOSTIC: week grouping (no business logic change) ---
+    const WEEK_GROUPING_DIAG = true
+    if (WEEK_GROUPING_DIAG && entries.length > 0 && weeks.length > 0) {
+      console.log('[TIMESHEET WEEK DIAG] userTimezone=%s', userTimezone)
+      weeks.forEach((w) => {
+        const full = getWeekBoundsInTimezone(w.start, userTimezone)
+        const startLocal = formatInTimezone(full.start, userTimezone, 'yyyy-MM-dd', 'HH:mm:ss')
+        const endExclusiveLocal = formatInTimezone(full.endExclusive, userTimezone, 'yyyy-MM-dd', 'HH:mm:ss')
+        const weekKey = toLocalDayKey(full.start, userTimezone)
+        console.log(`  Week ${w.weekNumber}: weekStart(local)=${startLocal} weekEndExclusive(local)=${endExclusiveLocal} weekKey=${weekKey} | UTC [${full.start.toISOString()}, ${full.endExclusive.toISOString()})`)
+      })
+      console.log('[TIMESHEET WEEK DIAG] Per-entry: id, clockIn(raw), clockIn(user TZ), entryDayKey, assignedWeek, weekKey')
+      entries.forEach((entry) => {
+        const clockInRaw = entry.clockIn.toISOString()
+        const clockInLocal = formatInTimezone(entry.clockIn, userTimezone)
+        const entryDayKey = toLocalDayKey(entry.clockIn, userTimezone)
+        let assignedWeek: number | null = null
+        let assignedWeekKey: string | null = null
+        weeks.forEach((w) => {
+          const full = getWeekBoundsInTimezone(w.start, userTimezone)
+          if (entry.clockIn >= full.start && entry.clockIn < full.endExclusive) {
+            assignedWeek = w.weekNumber
+            assignedWeekKey = toLocalDayKey(full.start, userTimezone)
+          }
+        })
+        console.log(`  entry.id=${entry.id} | clockIn(raw)=${clockInRaw} | clockIn(local)=${clockInLocal} | entryDayKey=${entryDayKey} | assignedWeek=${assignedWeek} | weekKey=${assignedWeekKey}`)
+      })
+    }
 
     const completedEntries = entries.filter(e => e.clockOut !== null)
     const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
