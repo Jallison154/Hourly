@@ -405,14 +405,16 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     let skippedInvalid = 0
     let rangeStartUtc: Date | null = null
     let rangeEndUtc: Date | null = null
-    if (startDate && endDate) {
-      const range = getDateRangeUtc(startDate, endDate, userTimezone)
+    const hasStart = typeof startDate === 'string' && startDate.trim() !== ''
+    const hasEnd = typeof endDate === 'string' && endDate.trim() !== ''
+    if (hasStart && hasEnd) {
+      const range = getDateRangeUtc(startDate!, endDate!, userTimezone)
       rangeStartUtc = range.start
       rangeEndUtc = range.end
-    } else if (startDate) {
-      rangeStartUtc = getDateRangeUtc(startDate, startDate, userTimezone).start
-    } else if (endDate) {
-      rangeEndUtc = getDateRangeUtc(endDate, endDate, userTimezone).end
+    } else if (hasStart) {
+      rangeStartUtc = getDateRangeUtc(startDate!, startDate!, userTimezone).start
+    } else if (hasEnd) {
+      rangeEndUtc = getDateRangeUtc(endDate!, endDate!, userTimezone).end
     }
 
     for (const importEntry of importEntries) {
