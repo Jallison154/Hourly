@@ -113,16 +113,17 @@ api.interceptors.response.use(
     }
     
     const msg = error.response?.data?.error || error.response?.data?.message
+    const err = error as { userMessage?: string; isSessionExpired?: boolean }
     if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-      (error as { userMessage?: string }).userMessage = 'Cannot reach server. Please check your connection.'
+      err.userMessage = 'Cannot reach server. Please check your connection.'
     } else if (error.response?.status === 401) {
       const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register')
-      (error as { userMessage?: string }).userMessage = isAuthEndpoint ? 'Invalid email or password' : 'Session expired. Please log in again.'
-      if (!isAuthEndpoint) (error as { isSessionExpired?: boolean }).isSessionExpired = true
+      err.userMessage = isAuthEndpoint ? 'Invalid email or password' : 'Session expired. Please log in again.'
+      if (!isAuthEndpoint) err.isSessionExpired = true
     } else if (error.response?.status === 0) {
-      (error as { userMessage?: string }).userMessage = 'Connection error. Check your network or CORS.'
+      err.userMessage = 'Connection error. Check your network or CORS.'
     } else if (error.response?.status && error.response.status >= 400) {
-      (error as { userMessage?: string }).userMessage = typeof msg === 'string' ? msg : 'Something went wrong. Please try again.'
+      err.userMessage = typeof msg === 'string' ? msg : 'Something went wrong. Please try again.'
     }
     return Promise.reject(error)
   }
