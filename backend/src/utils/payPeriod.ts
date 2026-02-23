@@ -10,9 +10,12 @@ export interface PayPeriod {
   end: Date
 }
 
+/** Canonical Sun–Sat week: start = Sunday 00:00, endExclusive = next Sunday 00:00, endDisplay = Saturday 23:59:59.999 (for labels). */
 export interface Week {
   start: Date
-  end: Date
+  endExclusive: Date
+  endDisplay: Date
+  weekKey: string
   weekNumber: number
 }
 
@@ -124,50 +127,44 @@ export function getWeeksInPayPeriodTz(
 ): Week[] {
   const tz = timezone && timezone.trim() ? timezone.trim() : 'UTC'
   const weeks: Week[] = getWeeksInPayPeriodInTimezone(payPeriod.start, payPeriod.end, tz).map(
-    (w: WeekBounds) => ({ start: w.start, end: w.end, weekNumber: w.weekNumber })
+    (w: WeekBounds) => ({
+      start: w.start,
+      endExclusive: w.endExclusive,
+      endDisplay: w.endDisplay,
+      weekKey: w.weekKey,
+      weekNumber: w.weekNumber
+    })
   )
   return weeks
 }
 
 /**
- * Split pay period into weeks (Sunday-Saturday, 7 days each)
+ * Split pay period into weeks (Sunday-Saturday, 7 days each). Legacy: uses server local time.
+ * Returns canonical Sun–Sat weeks: start = Sunday 00:00, endExclusive = next Sunday 00:00, endDisplay = Saturday 23:59:59.999.
  */
 export function getWeeksInPayPeriod(payPeriod: PayPeriod): Week[] {
   const weeks: Week[] = []
-  const start = new Date(payPeriod.start)
   const end = new Date(payPeriod.end)
-  
-  // Find the Sunday of the week containing the start date
-  const startSunday = getWeekStartSunday(start)
-  
-  // If the pay period starts after Sunday, use the pay period start
-  // Otherwise, use the Sunday
-  const firstWeekStart = start > startSunday ? new Date(start) : new Date(startSunday)
-  
-  let currentWeekStart = getWeekStartSunday(firstWeekStart)
+  let currentWeekStart = getWeekStartSunday(payPeriod.start)
   let weekNumber = 1
-  
+
   while (currentWeekStart <= end) {
-    const weekEnd = getWeekEndSaturday(currentWeekStart)
-    
-    // Don't extend beyond pay period end
-    const actualWeekEnd = weekEnd > end ? new Date(end) : new Date(weekEnd)
-    
-    // Don't start before pay period start
-    const actualWeekStart = currentWeekStart < start ? new Date(start) : new Date(currentWeekStart)
-    
+    const weekEndSat = getWeekEndSaturday(currentWeekStart)
+    const nextSunday = new Date(currentWeekStart)
+    nextSunday.setDate(nextSunday.getDate() + 7)
+    const weekKey = currentWeekStart.getFullYear() + '-' + String(currentWeekStart.getMonth() + 1).padStart(2, '0') + '-' + String(currentWeekStart.getDate()).padStart(2, '0')
     weeks.push({
-      start: actualWeekStart,
-      end: actualWeekEnd,
+      start: new Date(currentWeekStart.getTime()),
+      endExclusive: nextSunday,
+      endDisplay: weekEndSat,
+      weekKey,
       weekNumber
     })
-    
-    // Move to next Sunday (7 days later)
     currentWeekStart = new Date(currentWeekStart)
     currentWeekStart.setDate(currentWeekStart.getDate() + 7)
     weekNumber++
   }
-  
+
   return weeks
 }
 

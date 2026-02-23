@@ -140,16 +140,17 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     // Get weekly breakdown (weeks in user timezone: Sun–Sat, UTC instants)
     const weeks = getWeeksInPayPeriodTz(payPeriod, tz)
     const weeklyBreakdown = await Promise.all(weeks.map(async (week) => {
-      console.log(`Paycheck Week ${week.weekNumber}: Week range ${week.start.toISOString()} to ${week.end.toISOString()}`)
+      console.log(`Paycheck Week ${week.weekNumber}: Week range ${week.start.toISOString()} to ${week.endExclusive.toISOString()} (display end ${week.endDisplay.toISOString()})`)
       
-      // Get entries for this week, but ONLY those within the pay period
-      // Only count hours that are in the pay period, even if week spans pay period boundaries
+      // Get entries in this week [week.start, week.endExclusive) that also fall in the pay period
+      const clipStart = week.start.getTime() > payPeriod.start.getTime() ? week.start : payPeriod.start
+      const clipEndMs = Math.min(week.endExclusive.getTime(), payPeriod.end.getTime() + 1)
       const weekEntries = await prisma.timeEntry.findMany({
         where: {
           userId: req.userId!,
           clockIn: {
-            gte: week.start, // Use pay period start, not actualSunday
-            lte: week.end    // Use pay period end, not actualSaturday
+            gte: clipStart,
+            lt: new Date(clipEndMs)
           },
           clockOut: { not: null }
         },
@@ -214,7 +215,7 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       return {
         weekNumber: week.weekNumber,
         start: week.start.toISOString(),
-        end: week.end.toISOString(),
+        end: week.endDisplay.toISOString(),
         entries: weekEntries.map(e => {
           const breakMin = getEffectiveBreakMinutes(e)
           const hours = e.clockOut ? (e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60) - breakMin / 60 : 0

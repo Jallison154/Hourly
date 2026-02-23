@@ -146,6 +146,49 @@ function testWeekBucketSaturday2359_staysInWeek() {
   console.log('  [PASS] Saturday up to 23:59:59.999 stays in same week')
 }
 
+// --- getWeeksInPayPeriodInTimezone: canonical Sun–Sat weeks ---
+function testWeeksInPayPeriodSaturdayReturnsPriorSunday() {
+  const tz = 'America/Denver'
+  // Pay period that includes Saturday Feb 21, 2026: period e.g. Feb 11 – Mar 10
+  const periodStart = new Date('2026-02-11T07:00:00.000Z')   // Feb 11 00:00 Denver
+  const periodEnd = new Date('2026-03-11T06:59:59.999Z')    // Mar 10 23:59:59 Denver
+  const weeks = getWeeksInPayPeriodInTimezone(periodStart, periodEnd, tz)
+  const weekContainingSatFeb21 = weeks.find(w => w.weekKey === '2026-02-15')
+  assert.ok(weekContainingSatFeb21, 'Week with key 2026-02-15 (Sun Feb 15) should exist')
+  assert.strictEqual(toLocalDayKey(weekContainingSatFeb21!.start, tz), '2026-02-15', 'weekStart is Sunday Feb 15 local')
+  assert.strictEqual(toLocalDayKey(weekContainingSatFeb21!.endExclusive, tz), '2026-02-22', 'weekEndExclusive is next Sunday Feb 22 local')
+  const satFeb21_645pm = new Date('2026-02-22T01:45:00.000Z') // Feb 21 18:45 Denver
+  assert.ok(satFeb21_645pm.getTime() >= weekContainingSatFeb21!.start.getTime() && satFeb21_645pm.getTime() < weekContainingSatFeb21!.endExclusive.getTime(), 'Feb 21 18:45 local in week 2026-02-15')
+  console.log('  [PASS] Date on Saturday: weekStart = prior Sunday, weekKey 2026-02-15')
+}
+
+function testWeeksInPayPeriodEndExclusiveIsNextSunday() {
+  const tz = 'America/Denver'
+  const periodStart = new Date('2026-02-15T07:00:00.000Z')
+  const periodEnd = new Date('2026-02-22T06:59:59.999Z')
+  const weeks = getWeeksInPayPeriodInTimezone(periodStart, periodEnd, tz)
+  assert.strictEqual(weeks.length, 1, 'One full week')
+  assert.strictEqual(weeks[0].weekKey, '2026-02-15')
+  assert.strictEqual(toLocalDayKey(weeks[0].endExclusive, tz), '2026-02-22', 'endExclusive is next Sunday')
+  assert.strictEqual(toLocalDayKey(weeks[0].endDisplay, tz), '2026-02-21', 'endDisplay is Saturday')
+  console.log('  [PASS] weekEndExclusive is next Sunday, endDisplay is Saturday')
+}
+
+function testWeeksInPayPeriodDSTWeekNoWrongDay() {
+  const tz = 'America/Denver'
+  // DST spring forward 2025: March 9. Week containing March 9 is Sun Mar 2 – Sat Mar 8 (or Mar 9 is Sunday? No, Mar 9 2025 is Sunday.)
+  // So week containing March 9 starts March 9 00:00. Next week starts March 16.
+  const periodStart = new Date('2025-03-01T07:00:00.000Z')   // Mar 1 00:00 Denver
+  const periodEnd = new Date('2025-03-31T06:59:59.999Z')     // Mar 30 23:59 Denver
+  const weeks = getWeeksInPayPeriodInTimezone(periodStart, periodEnd, tz)
+  const weekMar9 = weeks.find(w => toLocalDayKey(w.start, tz) === '2025-03-09')
+  assert.ok(weekMar9, 'Week starting March 9 (Sunday) exists')
+  assert.strictEqual(toLocalDayKey(weekMar9!.start, tz), '2025-03-09', 'weekStart is Sunday March 9 local')
+  assert.strictEqual(toLocalDayKey(weekMar9!.endExclusive, tz), '2025-03-16', 'weekEndExclusive is Sunday March 16 local')
+  assert.strictEqual(toLocalDayKey(weekMar9!.endDisplay, tz), '2025-03-15', 'endDisplay is Saturday March 15')
+  console.log('  [PASS] DST week: weekStart/End remain on correct days')
+}
+
 // --- d) DST transition week does not mis-bucket entries ---
 function testDSTTransition() {
   // Spring forward 2025: March 9, 2:00 AM → 3:00 AM in America/Denver
@@ -174,6 +217,9 @@ function run() {
   testWeekBucketFeb21_1845_local()
   testWeekBucketFeb22_0000_local()
   testWeekBucketSaturday2359_staysInWeek()
+  testWeeksInPayPeriodSaturdayReturnsPriorSunday()
+  testWeeksInPayPeriodEndExclusiveIsNextSunday()
+  testWeeksInPayPeriodDSTWeekNoWrongDay()
   console.log('\nAll timezone tests passed.')
 }
 

@@ -2,7 +2,6 @@ import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
-import { getWeekBucketForInstant, getWeekBoundsInTimezone, toLocalDayKey } from '../utils/timezone'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
 
@@ -200,21 +199,13 @@ async function getTimesheetData(
     // Use pay period's annual estimate for all weekly tax calculations
     const payPeriodAnnualGrossPay = payPeriodPay.grossPay * 24
     
-    // Calculate weekly breakdowns (single canonical week bucket: getWeekBucketForInstant)
+    // Calculate weekly breakdowns: use canonical week bounds (Sun–Sat) from getWeeksInPayPeriodTz
     const weeklyData = await Promise.all(weeks.map(async (week) => {
-      const bucket = getWeekBucketForInstant(week.start, userTimezone)
-      const actualSunday = bucket.startUtc
-      const actualEndExclusive = bucket.endExclusiveUtc
-      const fullWeekDisplay = getWeekBoundsInTimezone(week.start, userTimezone)
-      const weekStartDay = bucket.bucketKey
-      const weekEndDay = toLocalDayKey(fullWeekDisplay.endDisplay, userTimezone)
-
       const weekEntries = entries
         .filter(e => {
-          const entryBucket = getWeekBucketForInstant(e.clockIn, userTimezone)
-          const inWeekBucket = entryBucket.bucketKey === bucket.bucketKey
-          const inPayPeriodRange = e.clockIn >= week.start && e.clockIn <= week.end
-          return inWeekBucket && inPayPeriodRange
+          const inWeek = e.clockIn >= week.start && e.clockIn < week.endExclusive
+          const inPayPeriod = e.clockIn >= payPeriod.start && e.clockIn <= payPeriod.end
+          return inWeek && inPayPeriod
         })
         .sort((a, b) => a.clockIn.getTime() - b.clockIn.getTime())
 
@@ -222,8 +213,8 @@ async function getTimesheetData(
         where: {
           userId: req.userId!,
           clockIn: {
-            gte: actualSunday,
-            lt: actualEndExclusive
+            gte: week.start,
+            lt: week.endExclusive
           },
           clockOut: { not: null }
         },
@@ -324,8 +315,8 @@ async function getTimesheetData(
       
       return {
         weekNumber: week.weekNumber,
-        start: actualSunday.toISOString(),
-        end: fullWeekDisplay.endDisplay.toISOString(),
+        start: week.start.toISOString(),
+        end: week.endDisplay.toISOString(),
         entries: weekEntriesWithHours,
         totalHours: weekHours,
         previousPayPeriodHours: previousPayPeriodHours, // Hours from previous pay period in this week

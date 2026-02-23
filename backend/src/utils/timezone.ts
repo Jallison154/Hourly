@@ -180,15 +180,25 @@ export function getPayPeriodBoundsInTimezone(
 }
 
 /**
- * Split a pay period (UTC start/end) into weeks (Sun–Sat) in user timezone.
- * Each week's start/end are UTC instants of Sunday 00:00 and Saturday 23:59:59 in user TZ.
+ * Canonical week (Sun–Sat) in user timezone. Weeks NEVER start on a non-Sunday.
+ * - start: Sunday 00:00:00 local → UTC
+ * - endExclusive: next Sunday 00:00:00 local → UTC (use for filtering: clockIn < endExclusive)
+ * - endDisplay: Saturday 23:59:59.999 local → UTC (for UI label "Feb 15 – Feb 21")
+ * - weekKey: YYYY-MM-DD of Sunday in local (stable bucket key)
  */
 export interface WeekBounds {
   start: Date
-  end: Date
+  endExclusive: Date
+  endDisplay: Date
+  weekKey: string
   weekNumber: number
 }
 
+/**
+ * Split a pay period into canonical Sun–Sat weeks in user timezone.
+ * Returns only full weeks (no clipping): each week is [Sunday 00:00 local, next Sunday 00:00 local).
+ * A week is included if it overlaps the pay period at all.
+ */
 export function getWeeksInPayPeriodInTimezone(
   payPeriodStartUtc: Date,
   payPeriodEndUtc: Date,
@@ -196,25 +206,31 @@ export function getWeeksInPayPeriodInTimezone(
 ): WeekBounds[] {
   const tz = normalizeTimezone(timezone)
   const weeks: WeekBounds[] = []
+  // First Sunday at or before pay period start (in user TZ)
   const startDt = DateTime.fromJSDate(payPeriodStartUtc, { zone: 'utc' }).setZone(tz)
-  let current = startDt.weekday === 7 ? startDt.startOf('day') : startDt.minus({ days: startDt.weekday }).startOf('day')
-  const periodEnd = DateTime.fromJSDate(payPeriodEndUtc, { zone: 'utc' }).setZone(tz)
+  const firstSunday = startDt.weekday === 7 ? startDt.startOf('day') : startDt.minus({ days: startDt.weekday }).startOf('day')
+  let current = firstSunday
+  const periodEndUtc = payPeriodEndUtc.getTime()
   let weekNumber = 1
 
-  while (current <= periodEnd) {
-    const weekStartLocal = current
-    const weekEndLocal = current.plus({ days: 6 }).endOf('day')
-    const weekStartUtc = weekStartLocal.toUTC().toJSDate()
-    const weekEndUtc = weekEndLocal.toUTC().toJSDate()
-    const clipStart = payPeriodStartUtc.getTime() > weekStartUtc.getTime() ? payPeriodStartUtc : weekStartUtc
-    const clipEnd = payPeriodEndUtc.getTime() < weekEndUtc.getTime() ? payPeriodEndUtc : weekEndUtc
-    weeks.push({
-      start: clipStart,
-      end: clipEnd,
-      weekNumber
-    })
+  while (current.toUTC().toMillis() < periodEndUtc) {
+    const weekStartUtc = current.toUTC().toJSDate()
+    const weekEndExclusiveDt = current.plus({ days: 7 })
+    const weekEndExclusiveUtc = weekEndExclusiveDt.toUTC().toJSDate()
+    // Include this week if it overlaps the pay period: [weekStart, weekEndExclusive) ∩ [periodStart, periodEnd]
+    if (weekEndExclusiveUtc.getTime() > payPeriodStartUtc.getTime()) {
+      const weekEndDisplayDt = current.plus({ days: 6 }).endOf('day')
+      const weekKey = current.toISODate() ?? current.toFormat('yyyy-MM-dd')
+      weeks.push({
+        start: weekStartUtc,
+        endExclusive: weekEndExclusiveUtc,
+        endDisplay: weekEndDisplayDt.toUTC().toJSDate(),
+        weekKey,
+        weekNumber
+      })
+      weekNumber++
+    }
     current = current.plus({ days: 7 })
-    weekNumber++
   }
 
   return weeks
