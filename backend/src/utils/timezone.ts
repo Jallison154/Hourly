@@ -111,6 +111,18 @@ export function getWeekBoundsInTimezone(referenceUtc: Date, timezone: string): {
 }
 
 /**
+ * Canonical week-bucket helper: [Sunday 00:00 local, next Sunday 00:00 local).
+ * Use this as the single source of truth for "which week does this instant belong to?"
+ * and for the UTC bounds of that week.
+ */
+export function getWeekBucketForInstant(clockInUtc: Date, timezone: string): { bucketKey: string; startUtc: Date; endExclusiveUtc: Date } {
+  const startUtc = getWeekStartSundayUtc(clockInUtc, timezone)
+  const endExclusiveUtc = getNextWeekStartSundayUtc(clockInUtc, timezone)
+  const bucketKey = toLocalDayKey(startUtc, timezone)
+  return { bucketKey, startUtc, endExclusiveUtc }
+}
+
+/**
  * Pay period boundaries in user timezone.
  * Weekly: Sun–Sat of current week.
  * Monthly: (payPeriodEndDay+1) 00:00 to payPeriodEndDay 23:59:59 of next month, in user TZ, returned as UTC.

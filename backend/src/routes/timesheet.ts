@@ -2,7 +2,7 @@ import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
-import { getWeekBoundsInTimezone, toLocalDayKey, formatInTimezone } from '../utils/timezone'
+import { getWeekBucketForInstant, getWeekBoundsInTimezone, toLocalDayKey } from '../utils/timezone'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
 
@@ -181,35 +181,6 @@ async function getTimesheetData(
     
     const weeks = getWeeksInPayPeriodTz(payPeriod, userTimezone)
 
-    // --- DIAGNOSTIC: week grouping (no business logic change) ---
-    const WEEK_GROUPING_DIAG = true
-    if (WEEK_GROUPING_DIAG && entries.length > 0 && weeks.length > 0) {
-      console.log('[TIMESHEET WEEK DIAG] userTimezone=%s', userTimezone)
-      weeks.forEach((w) => {
-        const full = getWeekBoundsInTimezone(w.start, userTimezone)
-        const startLocal = formatInTimezone(full.start, userTimezone, 'yyyy-MM-dd', 'HH:mm:ss')
-        const endExclusiveLocal = formatInTimezone(full.endExclusive, userTimezone, 'yyyy-MM-dd', 'HH:mm:ss')
-        const weekKey = toLocalDayKey(full.start, userTimezone)
-        console.log(`  Week ${w.weekNumber}: weekStart(local)=${startLocal} weekEndExclusive(local)=${endExclusiveLocal} weekKey=${weekKey} | UTC [${full.start.toISOString()}, ${full.endExclusive.toISOString()})`)
-      })
-      console.log('[TIMESHEET WEEK DIAG] Per-entry: id, clockIn(raw), clockIn(user TZ), entryDayKey, assignedWeek, weekKey')
-      entries.forEach((entry) => {
-        const clockInRaw = entry.clockIn.toISOString()
-        const clockInLocal = formatInTimezone(entry.clockIn, userTimezone)
-        const entryDayKey = toLocalDayKey(entry.clockIn, userTimezone)
-        let assignedWeek: number | null = null
-        let assignedWeekKey: string | null = null
-        weeks.forEach((w) => {
-          const full = getWeekBoundsInTimezone(w.start, userTimezone)
-          if (entry.clockIn >= full.start && entry.clockIn < full.endExclusive) {
-            assignedWeek = w.weekNumber
-            assignedWeekKey = toLocalDayKey(full.start, userTimezone)
-          }
-        })
-        console.log(`  entry.id=${entry.id} | clockIn(raw)=${clockInRaw} | clockIn(local)=${clockInLocal} | entryDayKey=${entryDayKey} | assignedWeek=${assignedWeek} | weekKey=${assignedWeekKey}`)
-      })
-    }
-
     const completedEntries = entries.filter(e => e.clockOut !== null)
     const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
     const payPeriodPay = calculatePayForEntries(
@@ -229,22 +200,21 @@ async function getTimesheetData(
     // Use pay period's annual estimate for all weekly tax calculations
     const payPeriodAnnualGrossPay = payPeriodPay.grossPay * 24
     
-    // Calculate weekly breakdowns
+    // Calculate weekly breakdowns (single canonical week bucket: getWeekBucketForInstant)
     const weeklyData = await Promise.all(weeks.map(async (week) => {
-      const fullWeek = getWeekBoundsInTimezone(week.start, userTimezone)
-      const actualSunday = fullWeek.start
-      const actualEndExclusive = fullWeek.endExclusive
-      const actualSaturdayDisplay = fullWeek.endDisplay
-      const weekStartDay = toLocalDayKey(actualSunday, userTimezone)
-      const weekEndDay = toLocalDayKey(actualSaturdayDisplay, userTimezone)
-
-      console.log(`Week ${week.weekNumber}: Full week range [${actualSunday.toISOString()}, ${actualEndExclusive.toISOString()}) (pay period clip: ${week.start.toISOString()} to ${week.end.toISOString()})`)
+      const bucket = getWeekBucketForInstant(week.start, userTimezone)
+      const actualSunday = bucket.startUtc
+      const actualEndExclusive = bucket.endExclusiveUtc
+      const fullWeekDisplay = getWeekBoundsInTimezone(week.start, userTimezone)
+      const weekStartDay = bucket.bucketKey
+      const weekEndDay = toLocalDayKey(fullWeekDisplay.endDisplay, userTimezone)
 
       const weekEntries = entries
         .filter(e => {
-          const inWeekRange = e.clockIn >= actualSunday && e.clockIn < actualEndExclusive
+          const entryBucket = getWeekBucketForInstant(e.clockIn, userTimezone)
+          const inWeekBucket = entryBucket.bucketKey === bucket.bucketKey
           const inPayPeriodRange = e.clockIn >= week.start && e.clockIn <= week.end
-          return inWeekRange && inPayPeriodRange
+          return inWeekBucket && inPayPeriodRange
         })
         .sort((a, b) => a.clockIn.getTime() - b.clockIn.getTime())
 
@@ -261,8 +231,6 @@ async function getTimesheetData(
           breaks: true
         }
       })
-
-      console.log(`Week ${week.weekNumber}: Found ${allWeekEntries.length} total entries (${weekEntries.length} from current pay period)`)
       
       // Calculate total hours for DISPLAY - only from entries in current pay period
       let weekHours = 0

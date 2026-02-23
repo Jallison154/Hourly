@@ -10,6 +10,7 @@ import {
   getWeekEndSaturdayUtc,
   getNextWeekStartSundayUtc,
   getWeekBoundsInTimezone,
+  getWeekBucketForInstant,
   getPayPeriodBoundsInTimezone,
   getWeeksInPayPeriodInTimezone
 } from '../timezone'
@@ -115,6 +116,36 @@ function testMidnightSaturdaySplit() {
   console.log('  [PASS] Entry crossing midnight Saturday split correctly')
 }
 
+// --- Canonical getWeekBucketForInstant: acceptance cases ---
+function testWeekBucketFeb21_1845_local() {
+  const tz = 'America/Denver'
+  // Feb 21 2026 18:45 local Denver = Feb 22 01:45 UTC (MST UTC-7)
+  const utc = new Date('2026-02-22T01:45:00.000Z')
+  const bucket = getWeekBucketForInstant(utc, tz)
+  assert.strictEqual(bucket.bucketKey, '2026-02-15', 'Feb 21 18:45 local => bucket starting Feb 15 (Sunday)')
+  assert.strictEqual(toLocalDayKey(bucket.endExclusiveUtc, tz), '2026-02-22', 'Week ends exclusive Feb 22 (next Sunday 00:00 local)')
+  console.log('  [PASS] Feb 21 2026 18:45 local => bucket Feb 15–Feb 22 (exclusive)')
+}
+
+function testWeekBucketFeb22_0000_local() {
+  const tz = 'America/Denver'
+  // Feb 22 2026 00:00 local = next week bucket (Sunday 00:00)
+  const utc = new Date('2026-02-22T07:00:00.000Z')
+  const bucket = getWeekBucketForInstant(utc, tz)
+  assert.strictEqual(bucket.bucketKey, '2026-02-22', 'Feb 22 00:00 local => next week bucket (Feb 22)')
+  console.log('  [PASS] Feb 22 2026 00:00 local => next week bucket')
+}
+
+function testWeekBucketSaturday2359_staysInWeek() {
+  const tz = 'America/Denver'
+  // Saturday 23:59:59.999 local = Feb 22 06:59:59.999 UTC (Feb 21 23:59:59.999 Denver)
+  const utc = new Date('2026-02-22T06:59:59.999Z')
+  const bucket = getWeekBucketForInstant(utc, tz)
+  assert.strictEqual(bucket.bucketKey, '2026-02-15', 'Saturday 23:59:59.999 local stays in week starting Feb 15')
+  assert.ok(utc.getTime() >= bucket.startUtc.getTime() && utc.getTime() < bucket.endExclusiveUtc.getTime(), 'Instant within [start, endExclusive)')
+  console.log('  [PASS] Saturday up to 23:59:59.999 stays in same week')
+}
+
 // --- d) DST transition week does not mis-bucket entries ---
 function testDSTTransition() {
   // Spring forward 2025: March 9, 2:00 AM → 3:00 AM in America/Denver
@@ -140,6 +171,9 @@ function run() {
   testSaturday2359StaysInWeek()
   testSundayMidnightNextWeek()
   testMidnightSaturdaySplit()
+  testWeekBucketFeb21_1845_local()
+  testWeekBucketFeb22_0000_local()
+  testWeekBucketSaturday2359_staysInWeek()
   console.log('\nAll timezone tests passed.')
 }
 
