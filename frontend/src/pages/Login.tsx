@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { motion } from 'framer-motion'
@@ -7,9 +7,19 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('sessionExpired')) {
+        sessionStorage.removeItem('sessionExpired')
+        setSessionExpiredMessage('Session expired. Please log in again.')
+      }
+    } catch (_) {}
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,6 +71,11 @@ export default function Login() {
             Sign in to your account
           </p>
 
+          {sessionExpiredMessage && (
+            <div className="mb-4 p-3 bg-amber-100 dark:bg-amber-900 border border-amber-400 text-amber-800 dark:text-amber-200 rounded">
+              {sessionExpiredMessage}
+            </div>
+          )}
           {error && (
             <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-200 rounded">
               {error}

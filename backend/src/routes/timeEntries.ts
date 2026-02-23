@@ -2,7 +2,7 @@ import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import { z } from 'zod'
 import prisma from '../utils/prisma'
-import { getCurrentPayPeriod, isDateInPayPeriod } from '../utils/payPeriod'
+import { getCurrentPayPeriodInTimezone, isDateInPayPeriod } from '../utils/payPeriod'
 import { applyClockInRounding, applyClockOutRounding } from '../utils/timeRounding'
 
 const router = express.Router()
@@ -68,19 +68,17 @@ router.post('/clock-in', authenticate, async (req: AuthRequest, res) => {
       console.log(`Clock-in rounded: ${originalClockIn.toISOString()} -> ${clockIn.toISOString()}`)
     }
     
-    // Check if there's an open entry
+    // Idempotent: if already have an open entry, return it (200) instead of 400
     const openEntry = await prisma.timeEntry.findFirst({
       where: {
         userId: req.userId!,
         clockOut: null
-      }
+      },
+      include: { breaks: true }
     })
-    
     if (openEntry) {
-      return res.status(400).json({ error: 'You already have an open time entry. Please clock out first.' })
+      return res.status(200).json(openEntry)
     }
-    
-    // Create new entry
     const entry = await prisma.timeEntry.create({
       data: {
         userId: req.userId!,
@@ -91,7 +89,6 @@ router.post('/clock-in', authenticate, async (req: AuthRequest, res) => {
         breaks: true
       }
     })
-    
     res.status(201).json(entry)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -130,9 +127,17 @@ router.post('/clock-out', authenticate, async (req: AuthRequest, res) => {
     })
     
     if (!openEntry) {
-      return res.status(400).json({ error: 'No open time entry found' })
+      // Idempotent: already clocked out — return last closed entry (200) or null
+      const lastClosed = await prisma.timeEntry.findFirst({
+        where: {
+          userId: req.userId!,
+          clockOut: { not: null }
+        },
+        orderBy: { clockOut: 'desc' },
+        include: { breaks: true }
+      })
+      return res.status(200).json(lastClosed ?? null)
     }
-    
     if (clockOut <= openEntry.clockIn) {
       return res.status(400).json({ error: 'Clock out time must be after clock in time' })
     }
@@ -330,6 +335,9 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     if (startDate && endDate) {
       const start = new Date(startDate as string)
       const end = new Date(endDate as string)
+      if (start.getTime() > end.getTime()) {
+        return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+      }
       
       console.log('Fetching entries across pay period boundaries:', {
         start: start.toISOString(),
@@ -390,15 +398,16 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       return res.json(entries)
     }
     
-    // If no dates provided, default to current pay period
+    // If no dates provided, default to current pay period (in user timezone)
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { payPeriodType: true, payPeriodEndDay: true }
+      select: { payPeriodType: true, payPeriodEndDay: true, timezone: true }
     })
-    const payPeriod = getCurrentPayPeriod(
+    const payPeriod = getCurrentPayPeriodInTimezone(
       new Date(),
       user?.payPeriodType || 'monthly',
-      user?.payPeriodEndDay || 10
+      user?.payPeriodEndDay ?? 10,
+      user?.timezone ?? 'UTC'
     )
     
     const start = payPeriod.start
@@ -438,7 +447,13 @@ router.get('/export', authenticate, async (req: AuthRequest, res) => {
       userId: req.userId!
     }
     
-    // Add date filter if provided
+    if (startDate && endDate) {
+      const start = new Date(startDate as string)
+      const end = new Date(endDate as string)
+      if (start.getTime() > end.getTime()) {
+        return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+      }
+    }
     if (startDate || endDate) {
       where.clockIn = {}
       if (startDate) {
@@ -501,17 +516,12 @@ router.get('/export', authenticate, async (req: AuthRequest, res) => {
     csv += '\n'
     csv += '"Client Name","Start Time","End Time","Break Time","Worked Hours","Rate/h","Amount","Note"\n'
     
+    const { getEffectiveBreakMinutes } = await import('../utils/breakMinutes')
     entries.forEach((entry) => {
       const clockInStr = entry.clockIn ? formatDateTimeForCSV(entry.clockIn) : ''
-      const clockOutStr = entry.clockOut ? formatDateTimeForCSV(entry.clockOut) : ''
-      
-      // Calculate total break minutes from breaks array
-      const totalBreakMinutes = entry.breaks.reduce((sum, b) => {
-        return sum + (b.duration || 0)
-      }, 0)
+      const clockOutStr = entry.clockOut ? formatDateTimeForCSV(entry.clockOut) : 'Open'
+      const totalBreakMinutes = getEffectiveBreakMinutes(entry)
       const breakTimeStr = totalBreakMinutes > 0 ? formatBreakTime(totalBreakMinutes) : '0h 00m'
-      
-      // Calculate worked hours
       let workedHours = '0:00'
       if (entry.clockIn && entry.clockOut) {
         const diffMs = entry.clockOut.getTime() - entry.clockIn.getTime()
@@ -520,10 +530,7 @@ router.get('/export', authenticate, async (req: AuthRequest, res) => {
         const minutes = diffMinutes % 60
         workedHours = `${hours}:${minutes.toString().padStart(2, '0')}`
       }
-      
-      // Escape quotes in notes
       const notes = (entry.notes || '').replace(/"/g, '""')
-      
       csv += `"","${clockInStr}","${clockOutStr}","${breakTimeStr}","${workedHours}","","","${notes}"\n`
     })
     
@@ -616,24 +623,43 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
     if (!existing) {
       return res.status(404).json({ error: 'Time entry not found' })
     }
-    
-    // Validate times
+    if (updateData.clockOut === null) {
+      const otherOpen = await prisma.timeEntry.findFirst({
+        where: {
+          userId: req.userId!,
+          clockOut: null,
+          id: { not: req.params.id }
+        }
+      })
+      if (otherOpen) {
+        return res.status(409).json({
+          error: 'You already have an open time entry. Close it or use that entry before opening another.'
+        })
+      }
+    }
     const clockIn = updateData.clockIn || existing.clockIn
     const clockOut = updateData.clockOut !== undefined ? updateData.clockOut : existing.clockOut
-    
     if (clockOut && clockOut <= clockIn) {
       return res.status(400).json({ error: 'Clock out time must be after clock in time' })
     }
-    
-    const entry = await prisma.timeEntry.update({
-      where: { id: req.params.id },
-      data: updateData,
-      include: {
-        breaks: true
+    try {
+        const entry = await prisma.timeEntry.update({
+        where: { id: req.params.id },
+        data: updateData,
+        include: {
+          breaks: true
+        }
+      })
+      res.json(entry)
+    } catch (dbError: unknown) {
+      const prismaError = dbError as { code?: string }
+      if (prismaError.code === 'P2002') {
+        return res.status(409).json({
+          error: 'You already have an open time entry. Close it or use that entry before opening another.'
+        })
       }
-    })
-    
-    res.json(entry)
+      throw dbError
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors })
@@ -853,7 +879,6 @@ router.delete('/breaks/:breakId', authenticate, async (req: AuthRequest, res) =>
 router.post('/bulk-delete', authenticate, async (req: AuthRequest, res) => {
   try {
     const { startDate, endDate } = req.body
-
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Start date and end date are required' })
     }
@@ -862,7 +887,6 @@ router.post('/bulk-delete', authenticate, async (req: AuthRequest, res) => {
     const end = new Date(endDate)
     end.setHours(23, 59, 59, 999) // Include the entire end date
 
-    // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return res.status(400).json({ error: 'Invalid date format' })
     }

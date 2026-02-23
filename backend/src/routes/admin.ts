@@ -84,7 +84,7 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
 
     const entriesInWeek = await prisma.timeEntry.findMany({
       where: {
-        clockIn: { lte: weekEnd }
+        clockIn: { gte: weekStart, lte: weekEnd }
       },
       select: {
         userId: true,

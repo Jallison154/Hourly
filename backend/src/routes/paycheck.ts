@@ -2,7 +2,8 @@ import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import { z } from 'zod'
 import prisma from '../utils/prisma'
-import { getCurrentPayPeriod, getWeeksInPayPeriod } from '../utils/payPeriod'
+import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz } from '../utils/payPeriod'
+import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePay, calculatePayForEntries } from '../utils/payCalculator'
 
 const router = express.Router()
@@ -30,7 +31,8 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         stateTaxRate: true,
         payPeriodType: true,
         payPeriodEndDay: true,
-        filingStatus: true
+        filingStatus: true,
+        timezone: true
       }
     })
     
@@ -62,14 +64,21 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     }
     
     // Otherwise, calculate from time entries
+    const tz = user.timezone ?? 'UTC'
     let payPeriod
     if (startDate && endDate) {
-      payPeriod = { start: new Date(startDate), end: new Date(endDate) }
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      if (start.getTime() > end.getTime()) {
+        return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+      }
+      payPeriod = { start, end }
     } else {
-      payPeriod = getCurrentPayPeriod(
+      payPeriod = getCurrentPayPeriodInTimezone(
         new Date(),
         user.payPeriodType || 'monthly',
-        user.payPeriodEndDay || 10
+        user.payPeriodEndDay ?? 10,
+        tz
       )
     }
     
@@ -95,54 +104,25 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     console.log(`Found ${entries.length} completed entries`)
     console.log(`Hourly rate: $${rate}, Overtime rate: ${overtimeRate}x, Adjustment: $${adjustment}`)
     
-    // Log all entries for debugging and recalculate breaks from breaks array
     entries.forEach((e, idx) => {
-      // Recalculate break minutes from breaks array to ensure accuracy
-      const calculatedBreakMinutes = e.breaks.reduce((total, b) => {
-        if (b.duration) return total + b.duration
-        if (b.endTime) {
-          const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
-          return total + dur
-        }
-        return total
-      }, 0)
-      
+      const breakMin = getEffectiveBreakMinutes(e)
       const hours = e.clockOut ? (e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60) : 0
-      const breakHours = calculatedBreakMinutes / 60
-      const workedHours = hours - breakHours
-      
-      console.log(`Entry ${idx + 1}: ${e.clockIn.toISOString()} to ${e.clockOut?.toISOString() || 'N/A'}`)
-      console.log(`  Total hours: ${hours.toFixed(4)}, Breaks: ${breakHours.toFixed(4)} (${calculatedBreakMinutes} min from ${e.breaks.length} breaks, stored: ${e.totalBreakMinutes} min), Worked: ${workedHours.toFixed(4)}`)
-      if (calculatedBreakMinutes !== e.totalBreakMinutes) {
-        console.log(`  ⚠️ WARNING: Stored break minutes (${e.totalBreakMinutes}) doesn't match calculated (${calculatedBreakMinutes})`)
-      }
+      const workedHours = hours - breakMin / 60
+      console.log(`Entry ${idx + 1}: ${e.clockIn.toISOString()} to ${e.clockOut?.toISOString() || 'N/A'}, worked: ${workedHours.toFixed(4)}h`)
     })
-    
-    // Use calculated break minutes from breaks array for accuracy
     const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
     const calculation = calculatePayForEntries(
-      entries.map(e => {
-        // Recalculate break minutes from breaks array
-        const calculatedBreakMinutes = e.breaks.reduce((total, b) => {
-          if (b.duration) return total + b.duration
-          if (b.endTime) {
-            const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
-            return total + dur
-          }
-          return total
-        }, 0)
-        
-        return {
-          clockIn: e.clockIn,
-          clockOut: e.clockOut,
-          totalBreakMinutes: calculatedBreakMinutes
-        }
-      }),
+      entries.map(e => ({
+        clockIn: e.clockIn,
+        clockOut: e.clockOut,
+        totalBreakMinutes: getEffectiveBreakMinutes(e)
+      })),
       rate,
       overtimeRate,
       user.state,
       user.stateTaxRate,
-      filingStatus
+      filingStatus,
+      tz
     )
     
     console.log(`Before adjustment: Gross = $${calculation.grossPay.toFixed(2)}, Net = $${calculation.netPay.toFixed(2)}`)
@@ -157,27 +137,10 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     // Calculate the pay period's annual income estimate (use this for all weekly tax calculations)
     const payPeriodAnnualGrossPay = calculation.grossPay * 24 // Monthly pay periods
     
-    // Get weekly breakdown
-    // For accurate weekly overtime, we need ALL entries in each week, even if they're from previous pay period
-    const weeks = getWeeksInPayPeriod(payPeriod)
+    // Get weekly breakdown (weeks in user timezone: Sun–Sat, UTC instants)
+    const weeks = getWeeksInPayPeriodTz(payPeriod, tz)
     const weeklyBreakdown = await Promise.all(weeks.map(async (week) => {
-      // Calculate the actual Sunday-Saturday range for this week
-      // This is important because week.start/end might be clipped to pay period boundaries
-      // We need the full week to get all entries, including from previous pay period
-      const weekStartDate = new Date(week.start)
-      const dayOfWeek = weekStartDate.getDay()
-      // Calculate days to subtract to get to Sunday (0=Sunday, 1=Monday, ..., 6=Saturday)
-      // If it's Sunday (0), go back 0 days. Otherwise, go back dayOfWeek days.
-      const daysToSunday = dayOfWeek === 0 ? 0 : dayOfWeek
-      const actualSunday = new Date(weekStartDate)
-      actualSunday.setDate(weekStartDate.getDate() - daysToSunday)
-      actualSunday.setHours(0, 0, 0, 0)
-      
-      const actualSaturday = new Date(actualSunday)
-      actualSaturday.setDate(actualSunday.getDate() + 6) // Saturday is 6 days after Sunday (7 days total: Sun to Sat)
-      actualSaturday.setHours(23, 59, 59, 999)
-      
-      console.log(`Paycheck Week ${week.weekNumber}: Actual week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period range: ${week.start.toISOString()} to ${week.end.toISOString()})`)
+      console.log(`Paycheck Week ${week.weekNumber}: Week range ${week.start.toISOString()} to ${week.end.toISOString()}`)
       
       // Get entries for this week, but ONLY those within the pay period
       // Only count hours that are in the pay period, even if week spans pay period boundaries
@@ -206,19 +169,9 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       
       weekEntries.forEach(e => {
         if (!e.clockOut) return
-        
-        const calculatedBreakMinutes = e.breaks.reduce((total, b) => {
-          if (b.duration) return total + b.duration
-          if (b.endTime) {
-            const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
-            return total + dur
-          }
-          return total
-        }, 0)
-        
+        const breakMin = getEffectiveBreakMinutes(e)
         const hours = (e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = calculatedBreakMinutes / 60
-        const workedHours = hours - breakHours
+        const workedHours = hours - breakMin / 60
         
         weekHours += workedHours
       })
@@ -262,33 +215,19 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         weekNumber: week.weekNumber,
         start: week.start.toISOString(),
         end: week.end.toISOString(),
-        entries: weekEntries.map(e => ({
-          id: e.id,
-          clockIn: e.clockIn.toISOString(),
-          clockOut: e.clockOut?.toISOString() || null,
-          totalBreakMinutes: e.breaks.reduce((total, b) => {
-            if (b.duration) return total + b.duration
-            if (b.endTime) {
-              const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
-              return total + dur
-            }
-            return total
-          }, 0),
-          notes: e.notes,
-          breaks: e.breaks,
-          hours: e.clockOut ? (() => {
-            const hours = (e.clockOut!.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60)
-            const breakHours = e.breaks.reduce((total, b) => {
-              if (b.duration) return total + b.duration
-              if (b.endTime) {
-                const dur = Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60000)
-                return total + dur
-              }
-              return total
-            }, 0) / 60
-            return hours - breakHours
-          })() : 0
-        })),
+        entries: weekEntries.map(e => {
+          const breakMin = getEffectiveBreakMinutes(e)
+          const hours = e.clockOut ? (e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60) - breakMin / 60 : 0
+          return {
+            id: e.id,
+            clockIn: e.clockIn.toISOString(),
+            clockOut: e.clockOut?.toISOString() || null,
+            totalBreakMinutes: breakMin,
+            notes: e.notes,
+            breaks: e.breaks,
+            hours
+          }
+        }),
         ...weekCalculation
       }
     }))

@@ -1,3 +1,10 @@
+import {
+  getPayPeriodBoundsInTimezone,
+  getWeeksInPayPeriodInTimezone,
+  getPayPeriodsForRangeInTimezone as getPayPeriodsForRangeTz,
+  type WeekBounds
+} from './timezone'
+
 export interface PayPeriod {
   start: Date
   end: Date
@@ -94,6 +101,35 @@ export function getPayPeriodForDate(
 }
 
 /**
+ * Get current pay period boundaries in user timezone (returns UTC Date instants for DB queries).
+ * Prefer this when user timezone is available.
+ */
+export function getCurrentPayPeriodInTimezone(
+  referenceUtc: Date,
+  payPeriodType: string,
+  payPeriodEndDay: number,
+  timezone: string | null | undefined
+): PayPeriod {
+  const tz = timezone && timezone.trim() ? timezone.trim() : 'UTC'
+  const { start, end } = getPayPeriodBoundsInTimezone(referenceUtc, payPeriodType, payPeriodEndDay, tz)
+  return { start, end }
+}
+
+/**
+ * Split pay period into weeks (Sun–Sat) in user timezone. Returns UTC instants for each week's bounds.
+ */
+export function getWeeksInPayPeriodTz(
+  payPeriod: PayPeriod,
+  timezone: string | null | undefined
+): Week[] {
+  const tz = timezone && timezone.trim() ? timezone.trim() : 'UTC'
+  const weeks: Week[] = getWeeksInPayPeriodInTimezone(payPeriod.start, payPeriod.end, tz).map(
+    (w: WeekBounds) => ({ start: w.start, end: w.end, weekNumber: w.weekNumber })
+  )
+  return weeks
+}
+
+/**
  * Split pay period into weeks (Sunday-Saturday, 7 days each)
  */
 export function getWeeksInPayPeriod(payPeriod: PayPeriod): Week[] {
@@ -143,7 +179,7 @@ export function isDateInPayPeriod(date: Date, payPeriod: PayPeriod): boolean {
 }
 
 /**
- * Get all pay periods for a user (for history)
+ * Get all pay periods for a user (for history). Uses server local time (legacy).
  */
 export function getPayPeriodsForRange(startDate: Date, endDate: Date): PayPeriod[] {
   const periods: PayPeriod[] = []
@@ -167,4 +203,18 @@ export function getPayPeriodsForRange(startDate: Date, endDate: Date): PayPeriod
   }
   
   return periods.sort((a, b) => a.start.getTime() - b.start.getTime())
+}
+
+/**
+ * Get all pay periods overlapping a date range in user timezone (UTC instants).
+ */
+export function getPayPeriodsForRangeInTimezone(
+  startDate: Date,
+  endDate: Date,
+  payPeriodType: string,
+  payPeriodEndDay: number,
+  timezone: string | null | undefined
+): PayPeriod[] {
+  const tz = timezone && timezone.trim() ? timezone.trim() : 'UTC'
+  return getPayPeriodsForRangeTz(startDate, endDate, payPeriodType, payPeriodEndDay, tz)
 }

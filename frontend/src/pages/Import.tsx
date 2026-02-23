@@ -13,6 +13,7 @@ export default function Import() {
     success: boolean
     imported: number
     skipped: number
+    skippedInvalid?: number
     total: number
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +71,7 @@ export default function Import() {
       setResult(data)
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: string } } }
-      setError(axiosError.response?.data?.error || 'Failed to import data')
+      setError((axiosError as { userMessage?: string }).userMessage || axiosError.response?.data?.error || 'Failed to import data')
     } finally {
       setLoading(false)
     }
@@ -103,7 +104,7 @@ export default function Import() {
       setClearEndDate('')
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: string } } }
-      setError(axiosError.response?.data?.error || 'Failed to clear data')
+      setError((axiosError as { userMessage?: string }).userMessage || axiosError.response?.data?.error || 'Failed to clear data')
     } finally {
       setClearing(false)
     }
@@ -210,6 +211,9 @@ export default function Import() {
                 <ul className="text-sm text-green-700 dark:text-green-400 space-y-1">
                   <li>✓ Imported: {result.imported} entries</li>
                   <li>⊘ Skipped (duplicates): {result.skipped} entries</li>
+                  {result.skippedInvalid != null && result.skippedInvalid > 0 && (
+                    <li>⊘ Skipped (invalid): {result.skippedInvalid} row(s)</li>
+                  )}
                   <li>Total processed: {result.total} entries</li>
                 </ul>
               </div>

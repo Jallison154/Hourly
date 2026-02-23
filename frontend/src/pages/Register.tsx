@@ -28,7 +28,7 @@ export default function Register() {
       navigate('/')
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { error?: string } } }
-      setError(axiosError.response?.data?.error || 'Registration failed')
+      setError((axiosError as { userMessage?: string }).userMessage || axiosError.response?.data?.error || 'Registration failed')
     } finally {
       setLoading(false)
     }

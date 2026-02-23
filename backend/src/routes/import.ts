@@ -390,30 +390,32 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       })
     }
 
-    // Convert to time entries
     const timeEntries: Array<{ clockIn: Date; clockOut: Date; totalBreakMinutes: number; notes: string | null }> = []
-    
+    let skippedInvalid = 0
     for (const importEntry of importEntries) {
       const entry = await convertToTimeEntry(importEntry, req.userId!, roundingInterval)
-      if (entry) {
-        // Filter by date range if provided
-        if (startDate) {
-          const start = new Date(startDate)
-          start.setHours(0, 0, 0, 0)
-          if (entry.clockIn < start) continue
-        }
-        if (endDate) {
-          const end = new Date(endDate)
-          end.setHours(23, 59, 59, 999)
-          if (entry.clockIn > end) continue
-        }
-        
-        timeEntries.push(entry)
+      if (!entry) {
+        skippedInvalid++
+        continue
       }
+      if (startDate) {
+        const start = new Date(startDate)
+        start.setHours(0, 0, 0, 0)
+        if (entry.clockIn < start) continue
+      }
+      if (endDate) {
+        const end = new Date(endDate)
+        end.setHours(23, 59, 59, 999)
+        if (entry.clockIn > end) continue
+      }
+      timeEntries.push(entry)
     }
-
     if (timeEntries.length === 0) {
-      return res.status(400).json({ error: 'No valid time entries could be created' })
+      return res.status(400).json({
+        error: skippedInvalid > 0
+          ? `No valid time entries. ${skippedInvalid} row(s) skipped (invalid dates or clock out before clock in).`
+          : 'No valid time entries could be created from the date range.'
+      })
     }
 
     // Import entries (skip duplicates based on clock in time within same day)
@@ -457,6 +459,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     res.json({
       success: true,
       imported,
+      skippedInvalid: skippedInvalid > 0 ? skippedInvalid : undefined,
       skipped,
       total: timeEntries.length
     })

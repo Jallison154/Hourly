@@ -1,7 +1,9 @@
 import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
-import { getCurrentPayPeriod } from '../utils/payPeriod'
+import { getCurrentPayPeriodInTimezone } from '../utils/payPeriod'
+import { toLocalDayKey, getWeekStartSundayUtc } from '../utils/timezone'
+import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
 
 const router = express.Router()
@@ -18,36 +20,36 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         payPeriodType: true,
         payPeriodEndDay: true,
         state: true,
-        stateTaxRate: true
+        stateTaxRate: true,
+        filingStatus: true,
+        timezone: true
       }
     })
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
     }
-    const payPeriod = getCurrentPayPeriod(
+    const tz = user.timezone ?? 'UTC'
+    const payPeriod = getCurrentPayPeriodInTimezone(
       new Date(),
-      user?.payPeriodType || 'monthly',
-      user?.payPeriodEndDay || 10
+      user.payPeriodType || 'monthly',
+      user.payPeriodEndDay ?? 10,
+      tz
     )
     
-    // Get entries for current pay period (for currentPeriod calculations)
     const entries = await prisma.timeEntry.findMany({
       where: {
         userId: req.userId!,
-        clockIn: {
-          gte: payPeriod.start,
-          lte: payPeriod.end
-        }
-      }
+        clockIn: { gte: payPeriod.start, lte: payPeriod.end }
+      },
+      include: { breaks: true }
     })
-    
-    // Get all completed entries for weekly and yearly views
     const allEntries = await prisma.timeEntry.findMany({
       where: {
         userId: req.userId!,
         clockOut: { not: null }
-      }
+      },
+      include: { breaks: true }
     })
     
     // Calculate totals for current period
@@ -58,14 +60,14 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     entries.forEach(entry => {
       if (entry.clockOut) {
         const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = entry.totalBreakMinutes / 60
+        const breakHours = getEffectiveBreakMinutes(entry) / 60
         const workedHours = hours - breakHours
         
         totalHours += workedHours
         completedEntries++
         
-        // Group by date (for current period)
-        const dateKey = entry.clockIn.toISOString().split('T')[0]
+        // Group by local date in user timezone (YYYY-MM-DD)
+        const dateKey = toLocalDayKey(entry.clockIn, tz)
         dailyHours[dateKey] = (dailyHours[dateKey] || 0) + workedHours
       }
     })
@@ -77,21 +79,16 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     allEntries.forEach(entry => {
       if (entry.clockOut) {
         const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = entry.totalBreakMinutes / 60
+        const breakHours = getEffectiveBreakMinutes(entry) / 60
         const workedHours = hours - breakHours
         
-        // Group by week (start of week is Sunday)
-        const entryDate = new Date(entry.clockIn)
-        const year = entryDate.getFullYear()
-        const startOfYear = new Date(year, 0, 1)
-        const daysSinceStart = Math.floor((entryDate.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000))
-        const dayOfWeek = entryDate.getDay() // 0 = Sunday, 6 = Saturday
-        const weekNumber = Math.floor((daysSinceStart + startOfYear.getDay()) / 7) + 1
-        const weekKey = `${year}-W${String(weekNumber).padStart(2, '0')}`
+        // Group by week and month in user timezone
+        const dayKey = toLocalDayKey(entry.clockIn, tz)
+        const [y, m] = dayKey.split('-')
+        const sundayUtc = getWeekStartSundayUtc(entry.clockIn, tz)
+        const weekKey = toLocalDayKey(sundayUtc, tz)
         weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + workedHours
-        
-        // Group by month (YYYY-MM)
-        const monthKey = `${year}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`
+        const monthKey = `${y}-${m}`
         yearlyHours[monthKey] = (yearlyHours[monthKey] || 0) + workedHours
       }
     })
@@ -102,12 +99,14 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       completed.map(e => ({
         clockIn: e.clockIn,
         clockOut: e.clockOut!,
-        totalBreakMinutes: e.totalBreakMinutes
+        totalBreakMinutes: getEffectiveBreakMinutes(e)
       })),
       user.hourlyRate || 0,
       user.overtimeRate || 1.5,
       user.state,
-      user.stateTaxRate
+      user.stateTaxRate,
+      user.filingStatus ?? 'single',
+      tz
     )
     
     // Get average hours per day
@@ -144,17 +143,15 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     const recentEntries = await prisma.timeEntry.findMany({
       where: {
         userId: req.userId!,
-        clockIn: {
-          gte: thirtyDaysAgo
-        },
+        clockIn: { gte: thirtyDaysAgo },
         clockOut: { not: null }
-      }
+      },
+      include: { breaks: true }
     })
-    
     const recentHours = recentEntries.reduce((total, entry) => {
       if (!entry.clockOut) return total
       const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-      const breakHours = entry.totalBreakMinutes / 60
+      const breakHours = getEffectiveBreakMinutes(entry) / 60
       return total + (hours - breakHours)
     }, 0)
     

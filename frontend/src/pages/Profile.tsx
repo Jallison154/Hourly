@@ -23,7 +23,8 @@ export default function Profile() {
     paycheckAdjustment: user?.paycheckAdjustment || 0,
     state: user?.state || '',
     stateTaxRate: user?.stateTaxRate || null,
-    filingStatus: (user?.filingStatus || 'single') as 'single' | 'married'
+    filingStatus: (user?.filingStatus || 'single') as 'single' | 'married',
+    timezone: user?.timezone ?? (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : '')
   })
   const [imagePreview, setImagePreview] = useState<string | null>(user?.profileImage || null)
   const [passwordData, setPasswordData] = useState({
@@ -47,7 +48,8 @@ export default function Profile() {
         paycheckAdjustment: user.paycheckAdjustment || 0,
         state: user.state || '',
         stateTaxRate: user.stateTaxRate || null,
-        filingStatus: (user.filingStatus || 'single') as 'single' | 'married'
+        filingStatus: (user.filingStatus || 'single') as 'single' | 'married',
+        timezone: user.timezone ?? (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : '')
       })
       setImagePreview(user.profileImage || null)
     }
@@ -76,7 +78,7 @@ export default function Profile() {
       await showAlert('Success', 'Profile updated successfully!')
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
-      await showAlert('Error', axiosError.response?.data?.error || 'Failed to update profile')
+      await showAlert('Error', (axiosError as { userMessage?: string }).userMessage || axiosError.response?.data?.error || 'Failed to update profile')
     } finally {
       setLoading(false)
     }
@@ -105,7 +107,7 @@ export default function Profile() {
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (error: unknown) {
       const axiosError = error as { response?: { data?: { error?: string } } }
-      await showAlert('Error', axiosError.response?.data?.error || 'Failed to change password')
+      await showAlert('Error', (axiosError as { userMessage?: string }).userMessage || axiosError.response?.data?.error || 'Failed to change password')
     } finally {
       setChangingPassword(false)
     }
@@ -440,6 +442,34 @@ export default function Profile() {
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 This amount will be added to your gross and net pay calculations. Use negative values to subtract.
+              </p>
+            </div>
+          </div>
+
+          {/* Time zone */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Time zone
+            </h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Time zone (for day/week/pay period boundaries)
+              </label>
+              <input
+                type="text"
+                value={formData.timezone ?? ''}
+                onChange={(e) => setFormData({ ...formData, timezone: e.target.value || null })}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder={typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'e.g. America/Denver'}
+                list="tz-suggestions"
+              />
+              <datalist id="tz-suggestions">
+                {['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'UTC', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo'].map((tz) => (
+                  <option key={tz} value={tz} />
+                ))}
+              </datalist>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                IANA timezone (e.g. America/Denver). Defaults to your browser. Used to group entries by day and week and to compute pay period boundaries.
               </p>
             </div>
           </div>

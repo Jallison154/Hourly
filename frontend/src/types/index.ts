@@ -23,6 +23,7 @@ export interface User {
   stateTaxRate?: number | null
   filingStatus?: 'single' | 'married'
   weeklySchedule?: string | null // JSON string
+  timezone?: string | null // IANA timezone e.g. America/Denver
 }
 
 export interface TimeEntry {

@@ -22,8 +22,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       userAPI.getProfile()
         .then(setUser)
-        .catch(() => {
+        .catch((err: { response?: { status?: number }; isSessionExpired?: boolean }) => {
+          if (err?.response?.status === 401 || (err as { isSessionExpired?: boolean }).isSessionExpired) {
+            try {
+              sessionStorage.setItem('sessionExpired', '1')
+            } catch (_) {}
+          }
           localStorage.removeItem('token')
+          setUser(null)
         })
         .finally(() => setLoading(false))
     } else {

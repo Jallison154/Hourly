@@ -1,7 +1,9 @@
 import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
-import { getCurrentPayPeriod, getWeeksInPayPeriod, getPayPeriodForDate, type PayPeriod } from '../utils/payPeriod'
+import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
+import { getWeekBoundsInTimezone } from '../utils/timezone'
+import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
 
 const router = express.Router()
@@ -15,12 +17,14 @@ router.get('/periods', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { payPeriodType: true, payPeriodEndDay: true }
+      select: { payPeriodType: true, payPeriodEndDay: true, timezone: true }
     })
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
     }
+
+    const tz = user.timezone ?? 'UTC'
 
     // Get the earliest time entry to determine start date
     const earliestEntry = await prisma.timeEntry.findFirst({
@@ -30,11 +34,11 @@ router.get('/periods', authenticate, async (req: AuthRequest, res) => {
     })
 
     if (!earliestEntry) {
-      // No entries yet, return current period only
-      const currentPeriod = getCurrentPayPeriod(
+      const currentPeriod = getCurrentPayPeriodInTimezone(
         new Date(),
         user.payPeriodType || 'monthly',
-        user.payPeriodEndDay || 10
+        user.payPeriodEndDay ?? 10,
+        tz
       )
       return res.json([{
         start: currentPeriod.start.toISOString(),
@@ -42,69 +46,15 @@ router.get('/periods', authenticate, async (req: AuthRequest, res) => {
       }])
     }
 
-    // Generate pay periods from earliest entry to now
-    const periods: PayPeriod[] = []
     const startDate = new Date(earliestEntry.clockIn)
     const endDate = new Date()
-    
-    // Get current period
-    const currentPeriod = getCurrentPayPeriod(
+    const periods = getPayPeriodsForRangeInTimezone(
+      startDate,
       endDate,
       user.payPeriodType || 'monthly',
-      user.payPeriodEndDay || 10
+      user.payPeriodEndDay ?? 10,
+      tz
     )
-    periods.push(currentPeriod)
-
-    // Go backwards to get all periods since first entry
-    if (user.payPeriodType === 'weekly') {
-      // Weekly: go back week by week
-      let current = new Date(currentPeriod.start)
-      current.setDate(current.getDate() - 7) // Go back one week
-      
-      while (current >= startDate) {
-        const period = getPayPeriodForDate(
-          current,
-          user.payPeriodType,
-          user.payPeriodEndDay || 10
-        )
-        
-        // Avoid duplicates
-        const exists = periods.some(p => 
-          p.start.getTime() === period.start.getTime() &&
-          p.end.getTime() === period.end.getTime()
-        )
-        
-        if (!exists) {
-          periods.push(period)
-        }
-        
-        current.setDate(current.getDate() - 7)
-      }
-    } else {
-      // Monthly: go back month by month
-      let current = new Date(currentPeriod.start)
-      current.setMonth(current.getMonth() - 1) // Go back one month
-      
-      while (current >= startDate) {
-        const period = getPayPeriodForDate(
-          current,
-          user.payPeriodType,
-          user.payPeriodEndDay || 10
-        )
-        
-        // Avoid duplicates
-        const exists = periods.some(p => 
-          p.start.getTime() === period.start.getTime() &&
-          p.end.getTime() === period.end.getTime()
-        )
-        
-        if (!exists) {
-          periods.push(period)
-        }
-        
-        current.setMonth(current.getMonth() - 1)
-      }
-    }
 
     // Sort by date (newest first)
     periods.sort((a, b) => b.start.getTime() - a.start.getTime())
@@ -124,14 +74,16 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { payPeriodType: true, payPeriodEndDay: true }
+      select: { payPeriodType: true, payPeriodEndDay: true, timezone: true }
     })
-    const payPeriod = getCurrentPayPeriod(
+    const tz = user?.timezone ?? 'UTC'
+    const payPeriod = getCurrentPayPeriodInTimezone(
       new Date(),
       user?.payPeriodType || 'monthly',
-      user?.payPeriodEndDay || 10
+      user?.payPeriodEndDay ?? 10,
+      tz
     )
-    return getTimesheetData(req, res, payPeriod)
+    return getTimesheetData(req, res, payPeriod, tz)
   } catch (error: any) {
     console.error('Get timesheet error:', error)
     console.error('Error details:', error?.message, error?.stack)
@@ -160,9 +112,15 @@ router.get('/:startDate/:endDate', authenticate, async (req: AuthRequest, res) =
       console.error('Invalid date format:', startDateStr, endDateStr)
       return res.status(400).json({ error: 'Invalid date format' })
     }
-    
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+    }
     const payPeriod = { start: startDate, end: endDate }
-    return getTimesheetData(req, res, payPeriod)
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { timezone: true }
+    })
+    return getTimesheetData(req, res, payPeriod, user?.timezone ?? 'UTC')
   } catch (error: any) {
     console.error('Get timesheet error:', error)
     console.error('Error details:', error?.message, error?.stack)
@@ -176,14 +134,15 @@ router.get('/:startDate/:endDate', authenticate, async (req: AuthRequest, res) =
 async function getTimesheetData(
   req: AuthRequest,
   res: express.Response,
-  payPeriod: { start: Date; end: Date }
+  payPeriod: { start: Date; end: Date },
+  userTimezone: string = 'UTC'
 ) {
   try {
     console.log('Getting timesheet data for period:', {
       start: payPeriod.start.toISOString(),
-      end: payPeriod.end.toISOString()
+      end: payPeriod.end.toISOString(),
+      timezone: userTimezone
     })
-    // Get user
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
       select: {
@@ -220,23 +179,22 @@ async function getTimesheetData(
       }
     })
     
-    // Get weeks in pay period
-    const weeks = getWeeksInPayPeriod(payPeriod)
-    
-    // Calculate pay period totals FIRST (needed for weekly tax calculations)
+    const weeks = getWeeksInPayPeriodTz(payPeriod, userTimezone)
+
     const completedEntries = entries.filter(e => e.clockOut !== null)
     const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
     const payPeriodPay = calculatePayForEntries(
       completedEntries.map(e => ({
         clockIn: e.clockIn,
         clockOut: e.clockOut!,
-        totalBreakMinutes: e.totalBreakMinutes
+        totalBreakMinutes: getEffectiveBreakMinutes(e)
       })),
       user.hourlyRate,
       user.overtimeRate || 1.5,
       user.state,
       user.stateTaxRate,
-      filingStatus
+      filingStatus,
+      userTimezone
     )
     
     // Use pay period's annual estimate for all weekly tax calculations
@@ -244,42 +202,20 @@ async function getTimesheetData(
     
     // Calculate weekly breakdowns
     const weeklyData = await Promise.all(weeks.map(async (week) => {
-      // Calculate the actual Sunday-Saturday range for this week FIRST
-      // This is important because week.start/end might be clipped to pay period boundaries
-      // We need the full week to get all entries, including from previous pay period
-      // Use the week.start date to find which Sunday-Saturday week it belongs to
-      // If week.start is clipped (e.g., pay period starts on Wednesday), we need to find the Sunday of that week
-      const weekStartDate = new Date(week.start)
-      const dayOfWeek = weekStartDate.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
-      
-      // Calculate days to subtract to get to Sunday
-      // If it's Sunday (0), go back 0 days. Otherwise, go back dayOfWeek days.
-      const daysToSunday = dayOfWeek === 0 ? 0 : dayOfWeek
-      const actualSunday = new Date(weekStartDate)
-      actualSunday.setDate(weekStartDate.getDate() - daysToSunday)
-      actualSunday.setHours(0, 0, 0, 0)
-      
-      const actualSaturday = new Date(actualSunday)
-      actualSaturday.setDate(actualSunday.getDate() + 6) // Saturday is 6 days after Sunday (7 days total: Sun to Sat)
-      actualSaturday.setHours(23, 59, 59, 999)
-      
-      console.log(`Week ${week.weekNumber}: Actual week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period range: ${week.start.toISOString()} to ${week.end.toISOString()})`)
-      
-      // Get entries from current pay period that fall in this ACTUAL week (Sunday-Saturday)
-      // But also respect pay period boundaries (week.start and week.end) for the first/last week
-      // Sort by clockIn time for proper chronological order
+      const fullWeek = getWeekBoundsInTimezone(week.start, userTimezone)
+      const actualSunday = fullWeek.start
+      const actualSaturday = fullWeek.end
+
+      console.log(`Week ${week.weekNumber}: Full week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period clip: ${week.start.toISOString()} to ${week.end.toISOString()})`)
+
       const weekEntries = entries
         .filter(e => {
-          // Must be within the actual week range (Sunday-Saturday)
           const inWeekRange = e.clockIn >= actualSunday && e.clockIn <= actualSaturday
-          // Also must be within the pay period boundaries for this week (clipped to pay period)
           const inPayPeriodRange = e.clockIn >= week.start && e.clockIn <= week.end
           return inWeekRange && inPayPeriodRange
         })
         .sort((a, b) => a.clockIn.getTime() - b.clockIn.getTime())
-      
-      // Get ALL entries for this week (full Sunday-Saturday), even if they're outside the current pay period
-      // This ensures weekly hours and overtime calculations are accurate
+
       const allWeekEntries = await prisma.timeEntry.findMany({
         where: {
           userId: req.userId!,
@@ -293,7 +229,7 @@ async function getTimesheetData(
           breaks: true
         }
       })
-      
+
       console.log(`Week ${week.weekNumber}: Found ${allWeekEntries.length} total entries (${weekEntries.length} from current pay period)`)
       
       // Calculate total hours for DISPLAY - only from entries in current pay period
@@ -301,19 +237,16 @@ async function getTimesheetData(
       weekEntries.forEach(entry => {
         if (entry.clockOut) {
           const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-          const breakHours = entry.totalBreakMinutes / 60
+          const breakHours = getEffectiveBreakMinutes(entry) / 60
           const workedHours = hours - breakHours
           weekHours += workedHours
         }
       })
-      
-      // Calculate hours from previous pay period entries (entries not in current pay period)
-      // This is needed for accurate overtime calculation
       const previousPayPeriodHours = allWeekEntries
         .filter(e => !weekEntries.some(we => we.id === e.id))
         .reduce((sum, entry) => {
           const hours = (entry.clockOut!.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-          const breakHours = entry.totalBreakMinutes / 60
+          const breakHours = getEffectiveBreakMinutes(entry) / 60
           return sum + (hours - breakHours)
         }, 0)
       
@@ -332,16 +265,14 @@ async function getTimesheetData(
         }
         
         const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = entry.totalBreakMinutes / 60
+        const breakHours = getEffectiveBreakMinutes(entry) / 60
         const workedHours = hours - breakHours
-        
         return {
           ...entry,
           hours: workedHours,
           breakHours
         }
       })
-      
       // Calculate pay for DISPLAYED entries only (matching the displayed hours)
       // Only count hours within the pay period, even if week spans pay period boundaries
       const hourlyRate = user.hourlyRate
@@ -407,7 +338,7 @@ async function getTimesheetData(
     entries.forEach(entry => {
       if (entry.clockOut) {
         const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = entry.totalBreakMinutes / 60
+        const breakHours = getEffectiveBreakMinutes(entry) / 60
         totalHours += hours - breakHours
       }
     })
@@ -434,7 +365,7 @@ async function getTimesheetData(
         }
         
         const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = entry.totalBreakMinutes / 60
+        const breakHours = getEffectiveBreakMinutes(entry) / 60
         
         return {
           ...entry,

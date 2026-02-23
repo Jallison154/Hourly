@@ -112,15 +112,18 @@ api.interceptors.response.use(
       console.error('API Error:', error.response?.status || error.code, error.config?.url)
     }
     
-    // Provide better error messages for common issues
+    const msg = error.response?.data?.error || error.response?.data?.message
     if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-      error.userMessage = `Network error: Cannot reach server at ${error.config?.baseURL}. Please check your connection and that the server is running.`
+      (error as { userMessage?: string }).userMessage = 'Cannot reach server. Please check your connection.'
     } else if (error.response?.status === 401) {
-      error.userMessage = 'Invalid email or password'
+      const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register')
+      (error as { userMessage?: string }).userMessage = isAuthEndpoint ? 'Invalid email or password' : 'Session expired. Please log in again.'
+      if (!isAuthEndpoint) (error as { isSessionExpired?: boolean }).isSessionExpired = true
     } else if (error.response?.status === 0) {
-      error.userMessage = `CORS error: The server may not be allowing requests from this origin. Check CORS configuration.`
+      (error as { userMessage?: string }).userMessage = 'Connection error. Check your network or CORS.'
+    } else if (error.response?.status && error.response.status >= 400) {
+      (error as { userMessage?: string }).userMessage = typeof msg === 'string' ? msg : 'Something went wrong. Please try again.'
     }
-    
     return Promise.reject(error)
   }
 )
@@ -227,7 +230,7 @@ export const timeEntriesAPI = {
     return data
   },
   
-  clockOut: async (clockOutTime?: string, breakMinutes?: number): Promise<TimeEntry> => {
+  clockOut: async (clockOutTime?: string, breakMinutes?: number): Promise<TimeEntry | null> => {
     const { data } = await api.post('/time-entries/clock-out', { clockOutTime, breakMinutes })
     return data
   },

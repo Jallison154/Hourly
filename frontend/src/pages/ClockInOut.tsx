@@ -23,6 +23,8 @@ export default function ClockInOut() {
   const [useCustomTime, setUseCustomTime] = useState(false)
   const [showBreakDialog, setShowBreakDialog] = useState(false)
   const [customBreakMinutes, setCustomBreakMinutes] = useState('')
+  const [isClockingIn, setIsClockingIn] = useState(false)
+  const [isClockingOut, setIsClockingOut] = useState(false)
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
 
   useEffect(() => {
@@ -43,6 +45,8 @@ export default function ClockInOut() {
   }
 
   const handleClockIn = async () => {
+    if (isClockingIn) return
+    setIsClockingIn(true)
     try {
       const time = useCustomTime ? clockInTime.toISOString() : undefined
       await timeEntriesAPI.clockIn(time)
@@ -50,8 +54,13 @@ export default function ClockInOut() {
       setUseCustomTime(false)
       setShowTimePicker(false)
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } }
-      await showAlert('Error', axiosError.response?.data?.error || 'Failed to clock in')
+      const axiosError = error as { response?: { data?: { error?: string }; status?: number }; message?: string }
+      const message =
+        axiosError.response?.data?.error ||
+        (axiosError.response?.status === 500 ? 'Server error. Please try again.' : 'Failed to clock in. Please try again.')
+      await showAlert('Error', message)
+    } finally {
+      setIsClockingIn(false)
     }
   }
 
@@ -62,6 +71,8 @@ export default function ClockInOut() {
 
   const handleBreakSelected = async (minutes: number | null) => {
     setShowBreakDialog(false)
+    if (isClockingOut) return
+    setIsClockingOut(true)
     try {
       const time = useCustomTime ? clockOutTime.toISOString() : undefined
       await timeEntriesAPI.clockOut(time, minutes || undefined)
@@ -70,8 +81,13 @@ export default function ClockInOut() {
       setShowTimePicker(false)
       setCustomBreakMinutes('')
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } }
-      await showAlert('Error', axiosError.response?.data?.error || 'Failed to clock out')
+      const axiosError = error as { response?: { data?: { error?: string }; status?: number } }
+      const message =
+        axiosError.response?.data?.error ||
+        (axiosError.response?.status === 500 ? 'Server error. Please try again.' : 'Failed to clock out. Please try again.')
+      await showAlert('Error', message)
+    } finally {
+      setIsClockingOut(false)
     }
   }
 
@@ -170,13 +186,15 @@ export default function ClockInOut() {
 
             {/* Clock In Button */}
             <motion.button
+              type="button"
               onClick={handleClockIn}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97, opacity: 0.9 }}
+              disabled={isClockingIn}
+              whileHover={isClockingIn ? undefined : { scale: 1.02 }}
+              whileTap={isClockingIn ? undefined : { scale: 0.97, opacity: 0.9 }}
               transition={{ duration: 0.1 }}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
+              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
             >
-              Clock In
+              {isClockingIn ? 'Clocking in…' : 'Clock In'}
             </motion.button>
           </motion.div>
         )}
@@ -228,13 +246,15 @@ export default function ClockInOut() {
 
             {/* Clock Out Button */}
             <motion.button
+              type="button"
               onClick={handleClockOut}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97, opacity: 0.9 }}
+              disabled={isClockingOut}
+              whileHover={isClockingOut ? undefined : { scale: 1.02 }}
+              whileTap={isClockingOut ? undefined : { scale: 0.97, opacity: 0.9 }}
               transition={{ duration: 0.1 }}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
+              className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
             >
-              Clock Out
+              {isClockingOut ? 'Clocking out…' : 'Clock Out'}
             </motion.button>
 
             {/* Cancel Clock In Button */}

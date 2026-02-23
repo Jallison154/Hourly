@@ -1,4 +1,5 @@
 import { calculateNetPay } from './taxCalculator'
+import { getWeekStartSundayUtc, toLocalDayKey, normalizeTimezone } from './timezone'
 
 export interface PayCalculation {
   regularHours: number
@@ -52,7 +53,8 @@ export function calculatePay(
 }
 
 /**
- * Calculate pay for multiple entries with weekly overtime tracking
+ * Calculate pay for multiple entries with weekly overtime tracking.
+ * timezone: IANA timezone for week boundaries (Sunday–Saturday). If omitted, uses UTC.
  */
 export function calculatePayForEntries(
   entries: Array<{ clockIn: Date; clockOut: Date | null; totalBreakMinutes: number }>,
@@ -60,40 +62,30 @@ export function calculatePayForEntries(
   overtimeRate: number = 1.5,
   state?: string | null,
   stateTaxRate?: number | null,
-  filingStatus: 'single' | 'married' = 'single'
+  filingStatus: 'single' | 'married' = 'single',
+  timezone?: string | null
 ): PayCalculation {
-  // Group entries by week
+  const tz = normalizeTimezone(timezone ?? 'UTC')
   const weeks: { [key: string]: number } = {}
-  
   let totalHours = 0
-  
+
   console.log(`\n=== PAY CALCULATION DEBUG ===`)
-  console.log(`Processing ${entries.length} entries`)
+  console.log(`Processing ${entries.length} entries, timezone: ${tz}`)
   console.log(`Hourly Rate: $${hourlyRate}, Overtime Rate: ${overtimeRate}x`)
-  
+
   for (const entry of entries) {
     if (!entry.clockOut) continue
-    
+
     const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
     const breakHours = entry.totalBreakMinutes / 60
     const workedHours = hours - breakHours
-    
-    // Get week key (Sunday of the week)
-    // A week runs Sunday to Saturday (7 days)
-    const date = new Date(entry.clockIn)
-    const dayOfWeek = date.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
-    // Calculate days to subtract to get to Sunday
-    // If it's Sunday (0), go back 0 days
-    // Otherwise, go back dayOfWeek days
-    const daysToSunday = dayOfWeek === 0 ? 0 : dayOfWeek
-    const sunday = new Date(date)
-    sunday.setDate(date.getDate() - daysToSunday)
-    sunday.setHours(0, 0, 0, 0)
-    const weekKey = sunday.toISOString()
-    
+
+    const sundayUtc = getWeekStartSundayUtc(entry.clockIn, tz)
+    const weekKey = toLocalDayKey(sundayUtc, tz)
+
     weeks[weekKey] = (weeks[weekKey] || 0) + workedHours
     totalHours += workedHours
-    
+
     console.log(`Entry: ${entry.clockIn.toISOString()} to ${entry.clockOut.toISOString()}`)
     console.log(`  Total hours: ${hours.toFixed(4)}, Break hours: ${breakHours.toFixed(4)}, Worked hours: ${workedHours.toFixed(4)}`)
     console.log(`  Week: ${weekKey}, Week total so far: ${weeks[weekKey].toFixed(4)}`)

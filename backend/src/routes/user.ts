@@ -18,7 +18,8 @@ const updateProfileSchema = z.object({
   state: z.union([z.string().max(2), z.literal('')]).optional().nullable(),
   stateTaxRate: z.number().min(0).max(1).optional().nullable(),
   filingStatus: z.enum(['single', 'married']).optional(),
-  weeklySchedule: z.string().optional().nullable() // JSON string
+  weeklySchedule: z.string().optional().nullable(), // JSON string
+  timezone: z.string().max(64).optional().nullable() // IANA timezone e.g. America/Denver
 })
 
 // Get user profile
@@ -41,6 +42,7 @@ router.get('/profile', authenticate, async (req: AuthRequest, res) => {
         stateTaxRate: true,
         filingStatus: true,
         weeklySchedule: true,
+        timezone: true,
         createdAt: true
       }
     })
@@ -69,6 +71,9 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
     if (normalizedData.state === '') {
       normalizedData.state = null
     }
+    if (normalizedData.timezone === '') {
+      normalizedData.timezone = null
+    }
     
     const user = await prisma.user.update({
       where: { id: req.userId },
@@ -87,7 +92,8 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
         state: true,
         stateTaxRate: true,
         filingStatus: true,
-        weeklySchedule: true
+        weeklySchedule: true,
+        timezone: true
       }
     })
     
