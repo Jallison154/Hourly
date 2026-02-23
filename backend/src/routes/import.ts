@@ -435,23 +435,21 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       })
     }
 
-    // Import entries (skip duplicates based on clock in time within same day)
+    // Import entries (skip only true duplicates: same clock-in within 2 minutes)
     let imported = 0
     let skipped = 0
+    const duplicateWindowMs = 2 * 60 * 1000
 
     for (const entry of timeEntries) {
-      const dayStart = new Date(entry.clockIn)
-      dayStart.setHours(0, 0, 0, 0)
-      const dayEnd = new Date(entry.clockIn)
-      dayEnd.setHours(23, 59, 59, 999)
+      const windowStart = new Date(entry.clockIn.getTime() - duplicateWindowMs)
+      const windowEnd = new Date(entry.clockIn.getTime() + duplicateWindowMs)
 
-      // Check if entry already exists for this day
       const existing = await prisma.timeEntry.findFirst({
         where: {
           userId: req.userId!,
           clockIn: {
-            gte: dayStart,
-            lte: dayEnd
+            gte: windowStart,
+            lte: windowEnd
           }
         }
       })
