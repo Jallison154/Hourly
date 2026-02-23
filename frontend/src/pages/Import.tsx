@@ -25,14 +25,23 @@ export default function Import() {
   const [clearResult, setClearResult] = useState<{ deletedCount: number } | null>(null)
   const { dialog, showConfirm, closeDialog } = useDialog()
 
-  // Set default dates to last year
+  // Set default dates to last year through today (use local date so timezone doesn't cut off today/last month)
   useEffect(() => {
     const today = new Date()
+    const y = today.getFullYear()
+    const m = String(today.getMonth() + 1).padStart(2, '0')
+    const d = String(today.getDate()).padStart(2, '0')
+    const todayLocal = `${y}-${m}-${d}`
+
     const oneYearAgo = new Date(today)
-    oneYearAgo.setFullYear(today.getFullYear() - 1)
-    
-    setStartDate(oneYearAgo.toISOString().split('T')[0])
-    setEndDate(today.toISOString().split('T')[0])
+    oneYearAgo.setFullYear(y - 1)
+    const y1 = oneYearAgo.getFullYear()
+    const m1 = String(oneYearAgo.getMonth() + 1).padStart(2, '0')
+    const d1 = String(oneYearAgo.getDate()).padStart(2, '0')
+    const oneYearAgoLocal = `${y1}-${m1}-${d1}`
+
+    setStartDate(oneYearAgoLocal)
+    setEndDate(todayLocal)
   }, [])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

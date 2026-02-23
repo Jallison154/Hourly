@@ -1,7 +1,9 @@
 import express from 'express'
+import { DateTime } from 'luxon'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
 import { applyClockInRounding, applyClockOutRounding } from '../utils/timeRounding'
+import { getDateRangeUtc, normalizeTimezone } from '../utils/timezone'
 
 const router = express.Router()
 
@@ -188,58 +190,65 @@ function parseHoursKeeperCSV(csvContent: string): ImportEntry[] {
 }
 
 /**
- * Parse Hours Keeper datetime string like "December 10, 2025 at 11:10:00 AM"
+ * Parse Hours Keeper datetime string like "December 10, 2025 at 11:10:00 AM".
+ * If timezone is provided, the string is interpreted in that timezone and returned as UTC.
  */
-function parseHoursKeeperDateTime(dateTimeStr: string): Date | null {
+function parseHoursKeeperDateTime(dateTimeStr: string, timezone?: string | null): Date | null {
   try {
     if (!dateTimeStr || !dateTimeStr.trim()) {
       return null
     }
-    
-    // Format: "December 10, 2025 at 11:10:00 AM"
-    // Try manual parsing first (more reliable)
+
     const match = dateTimeStr.match(/(\w+)\s+(\d+),\s+(\d+)\s+at\s+(\d+):(\d+):(\d+)\s+(AM|PM)/i)
     if (match) {
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December']
       const monthName = match[1]
-      const month = monthNames.indexOf(monthName)
-      const day = parseInt(match[2])
-      const year = parseInt(match[3])
-      let hour = parseInt(match[4])
-      const minute = parseInt(match[5])
-      const second = parseInt(match[6])
+      const month = monthNames.indexOf(monthName) + 1 // Luxon uses 1–12
+      const day = parseInt(match[2], 10)
+      const year = parseInt(match[3], 10)
+      let hour = parseInt(match[4], 10)
+      const minute = parseInt(match[5], 10)
+      const second = parseInt(match[6], 10)
       const ampm = match[7].toUpperCase()
-      
-      if (month === -1) {
+
+      if (month === 0) {
         console.error('Invalid month:', monthName)
         return null
       }
-      
-      // Convert to 24-hour format
+
       if (ampm === 'PM' && hour !== 12) {
         hour += 12
       } else if (ampm === 'AM' && hour === 12) {
         hour = 0
       }
-      
-      const date = new Date(year, month, day, hour, minute, second)
+
+      if (timezone && normalizeTimezone(timezone) !== 'UTC') {
+        const tz = normalizeTimezone(timezone)
+        const dt = DateTime.fromObject(
+          { year, month, day, hour, minute, second },
+          { zone: tz }
+        )
+        if (!dt.isValid) {
+          console.error('Invalid date from Luxon:', dt.invalidReason, dt.invalidExplanation)
+          return null
+        }
+        return dt.toUTC().toJSDate()
+      }
+
+      const date = new Date(year, month - 1, day, hour, minute, second)
       if (isNaN(date.getTime())) {
         console.error('Invalid date created:', year, month, day, hour, minute, second)
         return null
       }
-      
       return date
     }
-    
-    // Fallback: try parsing with Date constructor
+
     const normalized = dateTimeStr.replace(' at ', ', ')
     const date = new Date(normalized)
-    
     if (!isNaN(date.getTime())) {
       return date
     }
-    
     console.error('Could not parse datetime:', dateTimeStr)
     return null
   } catch (error) {
@@ -253,8 +262,9 @@ function parseHoursKeeperDateTime(dateTimeStr: string): Date | null {
  */
 async function convertToTimeEntry(
   importEntry: ImportEntry & { breakMinutes?: number },
-  userId: string,
-  roundingInterval: number = 5
+  _userId: string,
+  roundingInterval: number = 5,
+  timezone?: string | null
 ): Promise<{ clockIn: Date; clockOut: Date; totalBreakMinutes: number; notes: string | null } | null> {
   try {
     let clockIn: Date | null = null
@@ -262,8 +272,8 @@ async function convertToTimeEntry(
 
     // Method 1: Hours Keeper format with full datetime strings
     if (importEntry.clockIn && importEntry.clockOut) {
-      clockIn = parseHoursKeeperDateTime(importEntry.clockIn)
-      clockOut = parseHoursKeeperDateTime(importEntry.clockOut)
+      clockIn = parseHoursKeeperDateTime(importEntry.clockIn, timezone)
+      clockOut = parseHoursKeeperDateTime(importEntry.clockOut, timezone)
     }
     // Method 2: Direct clock in/out times (HH:MM format)
     else if (importEntry.clockIn && importEntry.clockOut && !importEntry.clockIn.includes('at')) {
@@ -363,10 +373,10 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'CSV content is required' })
     }
 
-    // Get user settings
+    // Get user settings (including timezone for date range and CSV parsing)
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { timeRoundingInterval: true }
+      select: { timeRoundingInterval: true, timezone: true }
     })
 
     if (!user) {
@@ -374,6 +384,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     }
 
     const roundingInterval = user?.timeRoundingInterval || 5
+    const userTimezone = user?.timezone ?? 'UTC'
 
     // Parse CSV
     console.log('Starting CSV parse, content length:', csvContent.length)
@@ -392,22 +403,26 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 
     const timeEntries: Array<{ clockIn: Date; clockOut: Date; totalBreakMinutes: number; notes: string | null }> = []
     let skippedInvalid = 0
+    let rangeStartUtc: Date | null = null
+    let rangeEndUtc: Date | null = null
+    if (startDate && endDate) {
+      const range = getDateRangeUtc(startDate, endDate, userTimezone)
+      rangeStartUtc = range.start
+      rangeEndUtc = range.end
+    } else if (startDate) {
+      rangeStartUtc = getDateRangeUtc(startDate, startDate, userTimezone).start
+    } else if (endDate) {
+      rangeEndUtc = getDateRangeUtc(endDate, endDate, userTimezone).end
+    }
+
     for (const importEntry of importEntries) {
-      const entry = await convertToTimeEntry(importEntry, req.userId!, roundingInterval)
+      const entry = await convertToTimeEntry(importEntry, req.userId!, roundingInterval, userTimezone)
       if (!entry) {
         skippedInvalid++
         continue
       }
-      if (startDate) {
-        const start = new Date(startDate)
-        start.setHours(0, 0, 0, 0)
-        if (entry.clockIn < start) continue
-      }
-      if (endDate) {
-        const end = new Date(endDate)
-        end.setHours(23, 59, 59, 999)
-        if (entry.clockIn > end) continue
-      }
+      if (rangeStartUtc != null && entry.clockIn < rangeStartUtc) continue
+      if (rangeEndUtc != null && entry.clockIn > rangeEndUtc) continue
       timeEntries.push(entry)
     }
     if (timeEntries.length === 0) {

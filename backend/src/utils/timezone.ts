@@ -32,6 +32,26 @@ export function toLocalDayKey(utcDate: Date, timezone: string): string {
 }
 
 /**
+ * Return UTC instants for start-of-day and end-of-day of the given YYYY-MM-DD dates in the given timezone.
+ * Used for import date-range filtering so "today" and "last month" match the user's calendar.
+ */
+export function getDateRangeUtc(
+  startDateStr: string,
+  endDateStr: string,
+  timezone: string
+): { start: Date; end: Date } {
+  const tz = normalizeTimezone(timezone)
+  const [sy, sm, sd] = startDateStr.split('-').map(Number)
+  const [ey, em, ed] = endDateStr.split('-').map(Number)
+  const startLocal = DateTime.fromObject({ year: sy, month: sm, day: sd }, { zone: tz }).startOf('day')
+  const endLocal = DateTime.fromObject({ year: ey, month: em, day: ed }, { zone: tz }).endOf('day')
+  return {
+    start: startLocal.toUTC().toJSDate(),
+    end: endLocal.toUTC().toJSDate()
+  }
+}
+
+/**
  * Return the UTC instant for Sunday 00:00:00 in the given timezone on the week containing the given UTC date.
  * Week is Sunday–Saturday (Luxon's default week is Monday–Sunday, so we compute Sunday explicitly).
  */
