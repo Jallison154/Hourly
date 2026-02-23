@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { timesheetAPI, timeEntriesAPI, paycheckAPI } from '../services/api'
@@ -137,6 +137,42 @@ export default function Timesheet() {
       }
     }
   }
+
+  const refetchPayPeriodsAndTimesheet = useCallback(async () => {
+    try {
+      setLoading(true)
+      const periods = await timesheetAPI.getPayPeriods()
+      setPayPeriods(periods)
+      if (periods.length > 0) {
+        setSelectedPeriod((current) => {
+          const stillValid = current && periods.some(
+            p => p.start === current.start && p.end === current.end
+          )
+          return stillValid ? current : periods[0]
+        })
+        const current = selectedPeriod
+        const stillValid = current && periods.some(
+          p => p.start === current.start && p.end === current.end
+        )
+        const periodToLoad = stillValid ? current : periods[0]
+        await loadTimesheet(periodToLoad.start, periodToLoad.end, true)
+      }
+    } catch (error) {
+      console.error('Failed to refetch pay periods:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedPeriod])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refetchPayPeriodsAndTimesheet()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [refetchPayPeriodsAndTimesheet])
 
   const handleEditEntry = async (entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null }) => {
     try {
@@ -323,8 +359,8 @@ export default function Timesheet() {
   }, [selectedPeriod])
 
   const handleRefresh = async () => {
+    await refetchPayPeriodsAndTimesheet()
     if (selectedPeriod) {
-      await loadTimesheet(selectedPeriod.start, selectedPeriod.end)
       await loadPaycheckCalculation(selectedPeriod.start, selectedPeriod.end)
     }
   }
