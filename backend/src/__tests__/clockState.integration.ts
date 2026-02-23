@@ -14,7 +14,7 @@ async function login(): Promise<string> {
     body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD })
   })
   if (!res.ok) throw new Error(`Login failed: ${res.status} ${await res.text()}`)
-  const data = await res.json()
+  const data = (await res.json()) as { token?: string }
   if (!data.token) throw new Error('No token in login response')
   return data.token
 }
@@ -25,7 +25,7 @@ async function clockIn(token: string): Promise<{ status: number; body: { id?: st
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({})
   })
-  const body = await res.json().catch(() => ({}))
+  const body = (await res.json().catch(() => ({}))) as { id?: string }
   return { status: res.status, body }
 }
 

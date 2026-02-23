@@ -192,7 +192,7 @@ export function getPayPeriodsForRangeInTimezone(
         seen.add(key)
         periods.push({ start: new Date(current), end: weekEnd })
       }
-      current = new Date(current).getTime() + 7 * 24 * 60 * 60 * 1000
+      current = new Date(new Date(current).getTime() + 7 * 24 * 60 * 60 * 1000)
     }
     return periods.sort((a, b) => a.start.getTime() - b.start.getTime())
   }

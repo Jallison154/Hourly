@@ -105,7 +105,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       user.overtimeRate || 1.5,
       user.state,
       user.stateTaxRate,
-      user.filingStatus ?? 'single',
+      (user.filingStatus === 'married' ? 'married' : 'single'),
       tz
     )
     
