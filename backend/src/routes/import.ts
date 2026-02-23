@@ -403,6 +403,8 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 
     const timeEntries: Array<{ clockIn: Date; clockOut: Date; totalBreakMinutes: number; notes: string | null }> = []
     let skippedInvalid = 0
+    let skippedBeforeStart = 0
+    let skippedAfterEnd = 0
     let rangeStartUtc: Date | null = null
     let rangeEndUtc: Date | null = null
     const hasStart = typeof startDate === 'string' && startDate.trim() !== ''
@@ -423,8 +425,14 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
         skippedInvalid++
         continue
       }
-      if (rangeStartUtc != null && entry.clockIn < rangeStartUtc) continue
-      if (rangeEndUtc != null && entry.clockIn > rangeEndUtc) continue
+      if (rangeStartUtc != null && entry.clockIn < rangeStartUtc) {
+        skippedBeforeStart++
+        continue
+      }
+      if (rangeEndUtc != null && entry.clockIn > rangeEndUtc) {
+        skippedAfterEnd++
+        continue
+      }
       timeEntries.push(entry)
     }
     if (timeEntries.length === 0) {
@@ -475,8 +483,11 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       success: true,
       imported,
       skippedInvalid: skippedInvalid > 0 ? skippedInvalid : undefined,
+      skippedBeforeStart: skippedBeforeStart > 0 ? skippedBeforeStart : undefined,
+      skippedAfterEnd: skippedAfterEnd > 0 ? skippedAfterEnd : undefined,
       skipped,
-      total: timeEntries.length
+      total: timeEntries.length,
+      parsed: importEntries.length
     })
   } catch (error) {
     console.error('Import error:', error)

@@ -14,7 +14,10 @@ export default function Import() {
     imported: number
     skipped: number
     skippedInvalid?: number
+    skippedBeforeStart?: number
+    skippedAfterEnd?: number
     total: number
+    parsed?: number
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
@@ -25,16 +28,9 @@ export default function Import() {
   const [clearResult, setClearResult] = useState<{ deletedCount: number } | null>(null)
   const { dialog, showConfirm, closeDialog } = useDialog()
 
-  // Default: start = one year ago, end = empty so all entries in the file are included (no cutoff)
+  // Default: no date filter so every row in the file is included
   useEffect(() => {
-    const today = new Date()
-    const y = today.getFullYear()
-    const oneYearAgo = new Date(today)
-    oneYearAgo.setFullYear(y - 1)
-    const y1 = oneYearAgo.getFullYear()
-    const m1 = String(oneYearAgo.getMonth() + 1).padStart(2, '0')
-    const d1 = String(oneYearAgo.getDate()).padStart(2, '0')
-    setStartDate(`${y1}-${m1}-${d1}`)
+    setStartDate('')
     setEndDate('')
   }, [])
 
@@ -195,7 +191,7 @@ export default function Import() {
                   <li>Create time entries for each record</li>
                   <li>Skip entries that already exist (based on date)</li>
                   <li>Apply your time rounding settings</li>
-                  <li>Filter by date range if provided (default: from one year ago; leave End Date empty to include all entries in the file)</li>
+                  <li>Optional: set Start/End Date to limit the range; leave both empty to import every row in the file</li>
                 </ul>
               </div>
             </div>
@@ -212,12 +208,19 @@ export default function Import() {
                   Import Complete!
                 </p>
                 <ul className="text-sm text-green-700 dark:text-green-400 space-y-1">
+                  {result.parsed != null && <li>Rows in file: {result.parsed}</li>}
                   <li>✓ Imported: {result.imported} entries</li>
                   <li>⊘ Skipped (duplicates): {result.skipped} entries</li>
                   {result.skippedInvalid != null && result.skippedInvalid > 0 && (
                     <li>⊘ Skipped (invalid): {result.skippedInvalid} row(s)</li>
                   )}
-                  <li>Total processed: {result.total} entries</li>
+                  {result.skippedBeforeStart != null && result.skippedBeforeStart > 0 && (
+                    <li>⊘ Before start date: {result.skippedBeforeStart}</li>
+                  )}
+                  {result.skippedAfterEnd != null && result.skippedAfterEnd > 0 && (
+                    <li>⊘ After end date: {result.skippedAfterEnd}</li>
+                  )}
+                  <li>Total in range: {result.total} entries</li>
                 </ul>
               </div>
             )}
