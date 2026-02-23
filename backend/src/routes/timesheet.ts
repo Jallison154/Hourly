@@ -325,7 +325,7 @@ async function getTimesheetData(
       return {
         weekNumber: week.weekNumber,
         start: actualSunday.toISOString(),
-        end: actualSaturdayDisplay.toISOString(),
+        end: fullWeekDisplay.endDisplay.toISOString(),
         entries: weekEntriesWithHours,
         totalHours: weekHours,
         previousPayPeriodHours: previousPayPeriodHours, // Hours from previous pay period in this week
