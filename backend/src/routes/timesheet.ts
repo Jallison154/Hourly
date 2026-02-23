@@ -2,7 +2,7 @@ import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
-import { getWeekBoundsInTimezone } from '../utils/timezone'
+import { getWeekBoundsInTimezone, toLocalDayKey } from '../utils/timezone'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
 
@@ -205,12 +205,15 @@ async function getTimesheetData(
       const fullWeek = getWeekBoundsInTimezone(week.start, userTimezone)
       const actualSunday = fullWeek.start
       const actualSaturday = fullWeek.end
+      const weekStartDay = toLocalDayKey(actualSunday, userTimezone)
+      const weekEndDay = toLocalDayKey(actualSaturday, userTimezone)
 
       console.log(`Week ${week.weekNumber}: Full week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period clip: ${week.start.toISOString()} to ${week.end.toISOString()})`)
 
       const weekEntries = entries
         .filter(e => {
-          const inWeekRange = e.clockIn >= actualSunday && e.clockIn <= actualSaturday
+          const entryDay = toLocalDayKey(e.clockIn, userTimezone)
+          const inWeekRange = entryDay >= weekStartDay && entryDay <= weekEndDay
           const inPayPeriodRange = e.clockIn >= week.start && e.clockIn <= week.end
           return inWeekRange && inPayPeriodRange
         })
