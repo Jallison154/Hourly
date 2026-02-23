@@ -8,6 +8,7 @@ import {
   toLocalDayKey,
   getWeekStartSundayUtc,
   getWeekEndSaturdayUtc,
+  getNextWeekStartSundayUtc,
   getWeekBoundsInTimezone,
   getPayPeriodBoundsInTimezone,
   getWeeksInPayPeriodInTimezone
@@ -58,7 +59,6 @@ function testPayPeriodBoundary() {
 
 // --- c) Entry on Sunday boundary lands in correct week for overtime ---
 function testSundayBoundary() {
-  // Sunday 00:00 in Denver: 2025-01-12 07:00 UTC (MST)
   const sundayMidnightUtc = new Date('2025-01-12T07:00:00.000Z')
   const weekBounds = getWeekBoundsInTimezone(sundayMidnightUtc, tzDenver)
   const dayKeySunday = toLocalDayKey(sundayMidnightUtc, tzDenver)
@@ -68,17 +68,51 @@ function testSundayBoundary() {
     '2025-01-12',
     'Week start should be Sunday 2025-01-12 in local'
   )
-  // Saturday 23:59:59 Denver = 2025-01-19 06:59:59 UTC (next day UTC)
   assert.strictEqual(
-    toLocalDayKey(weekBounds.end, tzDenver),
+    toLocalDayKey(weekBounds.endDisplay, tzDenver),
     '2025-01-18',
-    'Week end should be Saturday 2025-01-18 in local'
+    'Week endDisplay should be Saturday 2025-01-18 in local'
   )
-  // Entry Saturday 23:30 local (Sunday 06:30 UTC) should still be in week ending Saturday
   const sat2330Utc = new Date('2025-01-19T06:30:00.000Z')
   const weekStartSat = getWeekStartSundayUtc(sat2330Utc, tzDenver)
   assert.strictEqual(toLocalDayKey(weekStartSat, tzDenver), '2025-01-12', 'Sat 23:30 local still in Jan 12–18 week')
   console.log('  [PASS] Sunday boundary: week boundaries correct for overtime')
+}
+
+// --- e) [start, nextSunday) exclusive: Saturday 23:59 stays in that week ---
+function testSaturday2359StaysInWeek() {
+  const tz = 'America/Denver'
+  const sat2359Local = new Date('2026-02-22T06:59:59.999Z') // Denver: Feb 21 23:59:59
+  const weekBounds = getWeekBoundsInTimezone(sat2359Local, tz)
+  assert.ok(sat2359Local.getTime() >= weekBounds.start.getTime(), 'Sat 23:59 >= week start')
+  assert.ok(sat2359Local.getTime() < weekBounds.endExclusive.getTime(), 'Sat 23:59 < next Sunday 00:00')
+  console.log('  [PASS] Saturday 23:59 stays in that week ([start, endExclusive))')
+}
+
+// --- f) Sunday 00:00 belongs to next week ---
+function testSundayMidnightNextWeek() {
+  const tz = 'America/Denver'
+  const sun0000Local = new Date('2026-02-22T07:00:00.000Z') // Denver: Feb 22 00:00 (Sunday)
+  const weekBounds = getWeekBoundsInTimezone(sun0000Local, tz)
+  assert.strictEqual(toLocalDayKey(weekBounds.start, tz), '2026-02-22', 'Week containing Sun 00:00 starts Feb 22')
+  assert.ok(sun0000Local.getTime() >= weekBounds.start.getTime() && sun0000Local.getTime() < weekBounds.endExclusive.getTime(), 'Sun 00:00 in its week')
+  const prevWeekSun = new Date(weekBounds.start.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const prevBounds = getWeekBoundsInTimezone(prevWeekSun, tz)
+  assert.ok(sun0000Local.getTime() >= prevBounds.endExclusive.getTime(), 'Sun 00:00 is not in previous week')
+  console.log('  [PASS] Sunday 00:00 belongs to next week')
+}
+
+// --- g) Entry crossing midnight Saturday: clockIn Saturday stays in week ---
+function testMidnightSaturdaySplit() {
+  const tz = 'America/Denver'
+  const sat1159pm = new Date('2026-02-22T06:59:00.000Z') // Sat Feb 21 23:59 local
+  const sun001am = new Date('2026-02-22T08:01:00.000Z')  // Sun Feb 22 01:01 local
+  const weekBoundsSat = getWeekBoundsInTimezone(sat1159pm, tz)
+  const weekBoundsSun = getWeekBoundsInTimezone(sun001am, tz)
+  assert.ok(sat1159pm.getTime() >= weekBoundsSat.start.getTime() && sat1159pm.getTime() < weekBoundsSat.endExclusive.getTime(), 'Sat 23:59 in week')
+  assert.ok(sun001am.getTime() >= weekBoundsSun.start.getTime() && sun001am.getTime() < weekBoundsSun.endExclusive.getTime(), 'Sun 01:01 in next week')
+  assert.notStrictEqual(weekBoundsSat.start.getTime(), weekBoundsSun.start.getTime(), 'Different weeks')
+  console.log('  [PASS] Entry crossing midnight Saturday split correctly')
 }
 
 // --- d) DST transition week does not mis-bucket entries ---
@@ -103,6 +137,9 @@ function run() {
   testPayPeriodBoundary()
   testSundayBoundary()
   testDSTTransition()
+  testSaturday2359StaysInWeek()
+  testSundayMidnightNextWeek()
+  testMidnightSaturdaySplit()
   console.log('\nAll timezone tests passed.')
 }
 

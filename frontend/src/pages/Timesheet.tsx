@@ -6,6 +6,7 @@ import { formatDate, formatDateWithDay, formatTime, formatHours, formatCurrency 
 import { formatTimesheetAsText } from '../utils/timesheetFormatter'
 import Dialog from '../components/Dialog'
 import { useDialog } from '../hooks/useDialog'
+import { useAuth } from '../hooks/useAuth'
 import TimePicker from '../components/TimePicker'
 import PullToRefresh from '../components/PullToRefresh'
 import type { TimesheetData, Break } from '../types'
@@ -25,8 +26,9 @@ export default function Timesheet() {
   // Pay Summary state
   const [calculation, setCalculation] = useState<any>(null)
   
+  const { user } = useAuth()
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
-  // Use ref to track previous clock status for transition detection
+  const tz = user?.timezone ?? undefined
   const prevClockedInRef = useRef<boolean>(false)
 
   useEffect(() => {
@@ -483,7 +485,7 @@ export default function Timesheet() {
                     const isCurrent = index === 0
                     return (
                       <option key={`${period.start}|${period.end}`} value={`${period.start}|${period.end}`}>
-                        {formatDate(startDate)} - {formatDate(endDate)} {isCurrent ? '(Current)' : ''}
+                        {formatDate(startDate, tz)} - {formatDate(endDate, tz)} {isCurrent ? '(Current)' : ''}
                       </option>
                     )
                   })}
@@ -520,7 +522,7 @@ export default function Timesheet() {
               </div>
 
               <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                {formatDate(week.start)} - {formatDate(week.end)}
+                {formatDate(week.start, tz)} - {formatDate(week.end, tz)}
               </div>
 
               {/* Week Entries */}
@@ -579,13 +581,13 @@ export default function Timesheet() {
                       return (
                         <tr key={entry.id} className={rowClass}>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          <div>{formatDateWithDay(entry.clockIn)}</div>
+                          <div>{formatDateWithDay(entry.clockIn, tz)}</div>
                         </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            {formatTime(entry.clockIn)}
+                            {formatTime(entry.clockIn, tz)}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                            {entry.clockOut ? formatTime(entry.clockOut) : '-'}
+                            {entry.clockOut ? formatTime(entry.clockOut, tz) : '-'}
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${isOvertime ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
                             {formatHours(entry.hours)}
@@ -735,7 +737,7 @@ export default function Timesheet() {
               </h2>
               {calculation.payPeriod && (
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {formatDate(calculation.payPeriod.start)} - {formatDate(calculation.payPeriod.end)}
+                  {formatDate(calculation.payPeriod.start, tz)} - {formatDate(calculation.payPeriod.end, tz)}
                 </div>
               )}
             </div>
@@ -823,6 +825,7 @@ export default function Timesheet() {
             </h2>
             <EditEntryForm
               entry={editingEntry}
+              timeZone={tz}
               isCreating={creatingEntry}
               onSave={handleSaveEdit}
               onCancel={() => {
@@ -852,13 +855,15 @@ export default function Timesheet() {
 }
 
 // Edit Entry Form Component
-function EditEntryForm({ 
-  entry, 
+function EditEntryForm({
+  entry,
+  timeZone,
   isCreating = false,
-  onSave, 
-  onCancel 
-}: { 
+  onSave,
+  onCancel
+}: {
   entry: { id: string; clockIn: string; clockOut: string | null; notes?: string | null; breaks?: Array<{ id: string; breakType: string; startTime: string; endTime: string | null; duration: number | null; notes: string | null }> }
+  timeZone?: string
   isCreating?: boolean
   onSave: (updates: { clockIn: string; clockOut: string | null; notes?: string | null }) => void
   onCancel: () => void
@@ -1004,8 +1009,8 @@ function EditEntryForm({
                       {b.breakType}
                     </div>
                     <div className="text-xs text-gray-600 dark:text-gray-400">
-                      {formatTime(b.startTime)}
-                      {b.endTime && ` - ${formatTime(b.endTime)}`}
+                      {formatTime(b.startTime, timeZone)}
+                      {b.endTime && ` - ${formatTime(b.endTime, timeZone)}`}
                       {b.duration !== null && b.duration !== undefined && ` (${b.duration}m)`}
                     </div>
                     {b.notes && (

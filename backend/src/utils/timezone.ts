@@ -52,6 +52,15 @@ export function getDateRangeUtc(
 }
 
 /**
+ * Format a UTC Date in the given timezone for display (e.g. "February 21, 2026 at 6:45:00 PM").
+ */
+export function formatInTimezone(utcDate: Date, timezone: string, dateFormat: string = 'MMMM d, yyyy', timeFormat: string = 'h:mm:ss a'): string {
+  const tz = normalizeTimezone(timezone)
+  const dt = DateTime.fromJSDate(utcDate, { zone: 'utc' }).setZone(tz)
+  return `${dt.toFormat(dateFormat)} at ${dt.toFormat(timeFormat)}`
+}
+
+/**
  * Return the UTC instant for Sunday 00:00:00 in the given timezone on the week containing the given UTC date.
  * Week is Sunday–Saturday (Luxon's default week is Monday–Sunday, so we compute Sunday explicitly).
  */
@@ -65,6 +74,7 @@ export function getWeekStartSundayUtc(referenceUtc: Date, timezone: string): Dat
 
 /**
  * Return the UTC instant for Saturday 23:59:59.999 in the given timezone on the week containing the given UTC date.
+ * Use for display only. For filtering, prefer [start, nextSunday) via getNextWeekStartSundayUtc.
  */
 export function getWeekEndSaturdayUtc(referenceUtc: Date, timezone: string): Date {
   const tz = normalizeTimezone(timezone)
@@ -75,13 +85,29 @@ export function getWeekEndSaturdayUtc(referenceUtc: Date, timezone: string): Dat
 }
 
 /**
- * Current week (Sun–Sat) boundaries in user timezone, as UTC instants for DB queries.
+ * Return the UTC instant for the next Sunday 00:00:00 in the given timezone (exclusive end of the week).
+ * Week is [weekStart, nextWeekStart): entries with clockIn < nextWeekStart belong to this week.
  */
-export function getWeekBoundsInTimezone(referenceUtc: Date, timezone: string): { start: Date; end: Date } {
-  return {
-    start: getWeekStartSundayUtc(referenceUtc, timezone),
-    end: getWeekEndSaturdayUtc(referenceUtc, timezone)
-  }
+export function getNextWeekStartSundayUtc(referenceUtc: Date, timezone: string): Date {
+  const tz = normalizeTimezone(timezone)
+  const weekStart = getWeekStartSundayUtc(referenceUtc, timezone)
+  const weekStartDt = DateTime.fromJSDate(weekStart, { zone: 'utc' }).setZone(tz)
+  const nextSunday = weekStartDt.plus({ days: 7 })
+  return nextSunday.toUTC().toJSDate()
+}
+
+/**
+ * Week boundaries in user timezone: [start inclusive, end exclusive).
+ * - start: local Sunday 00:00:00
+ * - end: next Sunday 00:00:00 (exclusive); entries with clockIn < end belong to this week.
+ * Use endExclusive for filtering (clockIn >= start && clockIn < endExclusive).
+ * endDisplay is Saturday 23:59:59.999 for display (e.g. "Feb 14 – Feb 21").
+ */
+export function getWeekBoundsInTimezone(referenceUtc: Date, timezone: string): { start: Date; endExclusive: Date; endDisplay: Date } {
+  const start = getWeekStartSundayUtc(referenceUtc, timezone)
+  const endExclusive = getNextWeekStartSundayUtc(referenceUtc, timezone)
+  const endDisplay = getWeekEndSaturdayUtc(referenceUtc, timezone)
+  return { start, endExclusive, endDisplay }
 }
 
 /**
@@ -99,7 +125,8 @@ export function getPayPeriodBoundsInTimezone(
   const ref = DateTime.fromJSDate(referenceUtc, { zone: 'utc' }).setZone(tz)
 
   if (payPeriodType === 'weekly') {
-    return getWeekBoundsInTimezone(referenceUtc, timezone)
+    const week = getWeekBoundsInTimezone(referenceUtc, timezone)
+    return { start: week.start, end: week.endDisplay }
   }
 
   // Monthly: period runs (endDay+1) 00:00 to endDay 23:59:59 next month

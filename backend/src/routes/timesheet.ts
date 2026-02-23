@@ -204,16 +204,16 @@ async function getTimesheetData(
     const weeklyData = await Promise.all(weeks.map(async (week) => {
       const fullWeek = getWeekBoundsInTimezone(week.start, userTimezone)
       const actualSunday = fullWeek.start
-      const actualSaturday = fullWeek.end
+      const actualEndExclusive = fullWeek.endExclusive
+      const actualSaturdayDisplay = fullWeek.endDisplay
       const weekStartDay = toLocalDayKey(actualSunday, userTimezone)
-      const weekEndDay = toLocalDayKey(actualSaturday, userTimezone)
+      const weekEndDay = toLocalDayKey(actualSaturdayDisplay, userTimezone)
 
-      console.log(`Week ${week.weekNumber}: Full week range ${actualSunday.toISOString()} to ${actualSaturday.toISOString()} (pay period clip: ${week.start.toISOString()} to ${week.end.toISOString()})`)
+      console.log(`Week ${week.weekNumber}: Full week range [${actualSunday.toISOString()}, ${actualEndExclusive.toISOString()}) (pay period clip: ${week.start.toISOString()} to ${week.end.toISOString()})`)
 
       const weekEntries = entries
         .filter(e => {
-          const entryDay = toLocalDayKey(e.clockIn, userTimezone)
-          const inWeekRange = entryDay >= weekStartDay && entryDay <= weekEndDay
+          const inWeekRange = e.clockIn >= actualSunday && e.clockIn < actualEndExclusive
           const inPayPeriodRange = e.clockIn >= week.start && e.clockIn <= week.end
           return inWeekRange && inPayPeriodRange
         })
@@ -224,7 +224,7 @@ async function getTimesheetData(
           userId: req.userId!,
           clockIn: {
             gte: actualSunday,
-            lte: actualSaturday
+            lt: actualEndExclusive
           },
           clockOut: { not: null }
         },
@@ -327,8 +327,8 @@ async function getTimesheetData(
       
       return {
         weekNumber: week.weekNumber,
-        start: actualSunday.toISOString(), // Return full Sunday-Saturday range, not clipped pay period
-        end: actualSaturday.toISOString(),
+        start: actualSunday.toISOString(),
+        end: actualSaturdayDisplay.toISOString(),
         entries: weekEntriesWithHours,
         totalHours: weekHours,
         previousPayPeriodHours: previousPayPeriodHours, // Hours from previous pay period in this week

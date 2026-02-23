@@ -4,6 +4,7 @@ import { z } from 'zod'
 import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, isDateInPayPeriod } from '../utils/payPeriod'
 import { applyClockInRounding, applyClockOutRounding } from '../utils/timeRounding'
+import { getDateRangeUtc, formatInTimezone } from '../utils/timezone'
 
 const router = express.Router()
 
@@ -330,15 +331,30 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const { startDate, endDate } = req.query
     
-    // If startDate and endDate are provided, use them directly (for weekly calculations, etc.)
-    // This allows fetching entries across pay period boundaries
     if (startDate && endDate) {
-      const start = new Date(startDate as string)
-      const end = new Date(endDate as string)
+      const startStr = (startDate as string).trim()
+      const endStr = (endDate as string).trim()
+      const isDateOnly = startStr.length === 10 && !startStr.includes('T') && endStr.length === 10 && !endStr.includes('T')
+
+      let start: Date
+      let end: Date
+      if (isDateOnly) {
+        const user = await prisma.user.findUnique({
+          where: { id: req.userId! },
+          select: { timezone: true }
+        })
+        const tz = user?.timezone ?? 'UTC'
+        const range = getDateRangeUtc(startStr, endStr, tz)
+        start = range.start
+        end = range.end
+      } else {
+        start = new Date(startStr)
+        end = new Date(endStr)
+      }
       if (start.getTime() > end.getTime()) {
         return res.status(400).json({ error: 'Start date must be before or equal to end date' })
       }
-      
+
       console.log('Fetching entries across pay period boundaries:', {
         start: start.toISOString(),
         end: end.toISOString(),
@@ -441,32 +457,36 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 router.get('/export', authenticate, async (req: AuthRequest, res) => {
   try {
     const { startDate, endDate } = req.query
-    
-    // Build where clause
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { timezone: true }
+    })
+    const tz = user?.timezone ?? 'UTC'
+
     const where: any = {
       userId: req.userId!
     }
-    
+
     if (startDate && endDate) {
-      const start = new Date(startDate as string)
-      const end = new Date(endDate as string)
-      if (start.getTime() > end.getTime()) {
-        return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+      const startStr = startDate as string
+      const endStr = endDate as string
+      const isDateOnly = startStr.length === 10 && !startStr.includes('T') && endStr.length === 10 && !endStr.includes('T')
+      if (isDateOnly) {
+        const { start, end } = getDateRangeUtc(startStr, endStr, tz)
+        if (start.getTime() > end.getTime()) {
+          return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+        }
+        where.clockIn = { gte: start, lte: end }
+      } else {
+        const start = new Date(startStr)
+        const end = new Date(endStr)
+        if (start.getTime() > end.getTime()) {
+          return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+        }
+        where.clockIn = { gte: start, lte: end }
       }
     }
-    if (startDate || endDate) {
-      where.clockIn = {}
-      if (startDate) {
-        where.clockIn.gte = new Date(startDate as string)
-      }
-      if (endDate) {
-        const end = new Date(endDate as string)
-        end.setHours(23, 59, 59, 999)
-        where.clockIn.lte = end
-      }
-    }
-    
-    // Get all time entries with breaks
+
     const entries = await prisma.timeEntry.findMany({
       where,
       include: {
@@ -476,50 +496,34 @@ router.get('/export', authenticate, async (req: AuthRequest, res) => {
         clockIn: 'asc'
       }
     })
-    
-    // Format date for CSV (e.g., "December 10, 2025")
-    function formatDateForCSV(date: Date): string {
-      const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                     'July', 'August', 'September', 'October', 'November', 'December']
-      return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
-    }
-    
-    // Format time for CSV (e.g., "11:10:00 AM")
-    function formatTimeForCSV(date: Date): string {
-      const hours = date.getHours()
-      const minutes = date.getMinutes()
-      const seconds = date.getSeconds()
-      const ampm = hours >= 12 ? 'PM' : 'AM'
-      const displayHours = hours % 12 || 12
-      return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${ampm}`
-    }
-    
-    // Format full datetime for CSV (e.g., "December 10, 2025 at 11:10:00 AM")
-    function formatDateTimeForCSV(date: Date): string {
-      return `${formatDateForCSV(date)} at ${formatTimeForCSV(date)}`
-    }
-    
-    // Format break time (e.g., "0h 15m")
+
     function formatBreakTime(minutes: number): string {
       const hours = Math.floor(minutes / 60)
       const mins = minutes % 60
       return `${hours}h ${mins.toString().padStart(2, '0')}m`
     }
-    
-    // Build CSV content
+
     let csv = 'Date Range\n'
     if (startDate && endDate) {
-      csv += `${formatDateForCSV(new Date(startDate as string))} - ${formatDateForCSV(new Date(endDate as string))}\n`
+      const startStr = startDate as string
+      const endStr = endDate as string
+      const isDateOnly = startStr.length === 10 && !startStr.includes('T')
+      if (isDateOnly) {
+        const { start, end } = getDateRangeUtc(startStr, endStr, tz)
+        csv += `${formatInTimezone(start, tz, 'MMMM d, yyyy')} - ${formatInTimezone(end, tz, 'MMMM d, yyyy')}\n`
+      } else {
+        csv += `${formatInTimezone(new Date(startStr), tz)} - ${formatInTimezone(new Date(endStr), tz)}\n`
+      }
     } else {
       csv += 'All Entries\n'
     }
     csv += '\n'
     csv += '"Client Name","Start Time","End Time","Break Time","Worked Hours","Rate/h","Amount","Note"\n'
-    
+
     const { getEffectiveBreakMinutes } = await import('../utils/breakMinutes')
     entries.forEach((entry) => {
-      const clockInStr = entry.clockIn ? formatDateTimeForCSV(entry.clockIn) : ''
-      const clockOutStr = entry.clockOut ? formatDateTimeForCSV(entry.clockOut) : 'Open'
+      const clockInStr = entry.clockIn ? formatInTimezone(entry.clockIn, tz) : ''
+      const clockOutStr = entry.clockOut ? formatInTimezone(entry.clockOut, tz) : 'Open'
       const totalBreakMinutes = getEffectiveBreakMinutes(entry)
       const breakTimeStr = totalBreakMinutes > 0 ? formatBreakTime(totalBreakMinutes) : '0h 00m'
       let workedHours = '0:00'
@@ -883,9 +887,27 @@ router.post('/bulk-delete', authenticate, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Start date and end date are required' })
     }
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    end.setHours(23, 59, 59, 999) // Include the entire end date
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { timezone: true }
+    })
+    const tz = user?.timezone ?? 'UTC'
+
+    const startStr = String(startDate).trim()
+    const endStr = String(endDate).trim()
+    const isDateOnly = startStr.length === 10 && !startStr.includes('T') && endStr.length === 10 && !endStr.includes('T')
+
+    let start: Date
+    let end: Date
+    if (isDateOnly) {
+      const range = getDateRangeUtc(startStr, endStr, tz)
+      start = range.start
+      end = range.end
+    } else {
+      start = new Date(startDate)
+      end = new Date(endDate)
+      end.setHours(23, 59, 59, 999)
+    }
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return res.status(400).json({ error: 'Invalid date format' })
@@ -895,7 +917,6 @@ router.post('/bulk-delete', authenticate, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Start date must be before end date' })
     }
 
-    // Delete entries in the date range for this user
     const result = await prisma.timeEntry.deleteMany({
       where: {
         userId: req.userId!,
