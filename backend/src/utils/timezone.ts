@@ -232,5 +232,14 @@ export function getPayPeriodsForRangeInTimezone(
     current = current.plus({ months: 1 })
   }
 
+  // Ensure the period that contains rangeEndUtc (e.g. "today") is included.
+  // The month-step loop may stop before adding it when rangeEnd is mid-period.
+  const periodContainingEnd = getPayPeriodBoundsInTimezone(rangeEndUtc, 'monthly', payPeriodEndDay, timezone)
+  const endKey = `${periodContainingEnd.start.getTime()}-${periodContainingEnd.end.getTime()}`
+  if (!seen.has(endKey)) {
+    seen.add(endKey)
+    periods.push(periodContainingEnd)
+  }
+
   return periods.sort((a, b) => a.start.getTime() - b.start.getTime())
 }
