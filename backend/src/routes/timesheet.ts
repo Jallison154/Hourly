@@ -133,9 +133,6 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       }
     })
 
-    type DailyTotals = { [dayKey: string]: number }
-    const dailyTotals: DailyTotals = {}
-
     const csvEscape = (value: string | number | null | undefined): string => {
       const str = value === null || value === undefined ? '' : String(value)
       if (/[",\n]/.test(str)) {
@@ -156,9 +153,9 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     // Title row + blank line, then header
     rows.push(csvEscape(title))
     rows.push('')
-    rows.push('Date,Clock In,Clock Out,Break Minutes,Hours Worked,Daily Total Hours')
+    rows.push('Date,Clock In,Clock Out,Hours Worked')
 
-    // First pass: compute per-entry hours and daily totals
+    // First pass: compute per-entry hours
     const entrySummaries = entries
       .filter(e => e.clockOut) // only completed entries for export
       .map(e => {
@@ -166,26 +163,22 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
         const hours = (e.clockOut!.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60)
         const workedHours = hours - breakMinutes / 60
         const dayKey = toLocalDayKey(e.clockIn, userTimezone)
-        dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + workedHours
         return { entry: e, breakMinutes, workedHours, dayKey }
       })
 
-    // Second pass: emit rows with daily totals
+    // Second pass: emit rows
     let grandTotalHours = 0
     entrySummaries.forEach(({ entry, breakMinutes, workedHours, dayKey }) => {
       const clockInLocal = formatInTimezone(entry.clockIn, userTimezone, 'yyyy-MM-dd', 'HH:mm')
       const clockOutLocal = entry.clockOut
         ? formatInTimezone(entry.clockOut, userTimezone, 'yyyy-MM-dd', 'HH:mm')
         : ''
-      const dailyTotal = dailyTotals[dayKey] ?? workedHours
       grandTotalHours += workedHours
       rows.push([
         csvEscape(dayKey),
         csvEscape(clockInLocal),
         csvEscape(clockOutLocal),
-        csvEscape(breakMinutes),
-        csvEscape(workedHours.toFixed(2)),
-        csvEscape(dailyTotal.toFixed(2))
+        csvEscape(workedHours.toFixed(2))
       ].join(','))
     })
 
@@ -195,9 +188,8 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       'Totals',
       '',
       '',
-      '',
-      csvEscape(grandTotalHours.toFixed(2)),
       ''
+      csvEscape(grandTotalHours.toFixed(2))
     ].join(','))
 
     const csv = rows.join('\n')
