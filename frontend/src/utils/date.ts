@@ -9,7 +9,12 @@ function toDate(d: DateInput): Date {
 export function formatDateTime(date: DateInput, timeZone?: string | null): string {
   const d = toDate(date)
   if (timeZone) {
-    return new Intl.DateTimeFormat('en-US', { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(d)
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone, dateStyle: 'medium', timeStyle: 'short' }).format(d)
+    } catch {
+      // Fallback if timezone is invalid
+      return format(d, 'MMM d, yyyy h:mm a')
+    }
   }
   return format(d, 'MMM d, yyyy h:mm a')
 }
@@ -17,7 +22,11 @@ export function formatDateTime(date: DateInput, timeZone?: string | null): strin
 export function formatDate(date: DateInput, timeZone?: string | null): string {
   const d = toDate(date)
   if (timeZone) {
-    return new Intl.DateTimeFormat('en-US', { timeZone, dateStyle: 'medium' }).format(d)
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone, dateStyle: 'medium' }).format(d)
+    } catch {
+      return format(d, 'MMM d, yyyy')
+    }
   }
   return format(d, 'MMM d, yyyy')
 }
@@ -25,7 +34,11 @@ export function formatDate(date: DateInput, timeZone?: string | null): string {
 export function formatDateWithDay(date: DateInput, timeZone?: string | null): string {
   const d = toDate(date)
   if (timeZone) {
-    return new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'long', dateStyle: 'medium' }).format(d)
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'long', dateStyle: 'medium' }).format(d)
+    } catch {
+      return format(d, 'EEEE, MMM d, yyyy')
+    }
   }
   return format(d, 'EEEE, MMM d, yyyy')
 }
@@ -33,7 +46,11 @@ export function formatDateWithDay(date: DateInput, timeZone?: string | null): st
 export function formatTime(date: DateInput, timeZone?: string | null): string {
   const d = toDate(date)
   if (timeZone) {
-    return new Intl.DateTimeFormat('en-US', { timeZone, timeStyle: 'short' }).format(d)
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone, timeStyle: 'short' }).format(d)
+    } catch {
+      return format(d, 'h:mm a')
+    }
   }
   return format(d, 'h:mm a')
 }
@@ -47,7 +64,11 @@ export function formatHours(hours: number): string {
 export function formatDateWithDayShort(date: DateInput, timeZone?: string | null): string {
   const d = toDate(date)
   if (timeZone) {
-    return new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric', weekday: 'short' }).format(d)
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric', weekday: 'short' }).format(d)
+    } catch {
+      return format(d, 'MMM d (EEE)')
+    }
   }
   return format(d, 'MMM d (EEE)')
 }
