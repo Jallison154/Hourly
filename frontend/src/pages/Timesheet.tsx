@@ -313,6 +313,28 @@ export default function Timesheet() {
     }
   }
 
+  const handleExportCsv = async () => {
+    if (!selectedPeriod) return
+    try {
+      const blob = await timesheetAPI.exportCsv(selectedPeriod.start, selectedPeriod.end)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const start = new Date(selectedPeriod.start)
+      const end = new Date(selectedPeriod.end)
+      const startStr = start.toISOString().slice(0, 10)
+      const endStr = end.toISOString().slice(0, 10)
+      a.href = url
+      a.download = `timesheet-${startStr}_to_${endStr}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to export CSV:', error)
+      await showAlert('Error', 'Failed to export CSV. Please try again.')
+    }
+  }
+
   const handleEmailTimesheet = () => {
     if (!timesheet || !selectedPeriod) return
     
@@ -449,6 +471,16 @@ export default function Timesheet() {
                       >
                         <EnvelopeIcon className="h-5 w-5" />
                         <span>Email</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await handleExportCsv()
+                          setShowMenu(false)
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <span>⬇️</span>
+                        <span>Export CSV</span>
                       </button>
                       <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
                       <Link

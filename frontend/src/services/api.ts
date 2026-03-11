@@ -350,6 +350,14 @@ export const timesheetAPI = {
   getPayPeriods: async (): Promise<Array<{ start: string; end: string }>> => {
     const { data } = await api.get('/timesheet/periods')
     return data
+  },
+  exportCsv: async (startDate: string, endDate: string): Promise<Blob> => {
+    const encodedStart = encodeURIComponent(startDate)
+    const encodedEnd = encodeURIComponent(endDate)
+    const response = await api.get(`/timesheet/export/${encodedStart}/${encodedEnd}`, {
+      responseType: 'blob'
+    })
+    return response.data
   }
 }
 

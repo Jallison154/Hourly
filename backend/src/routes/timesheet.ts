@@ -4,6 +4,7 @@ import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
+import { toLocalDayKey, formatInTimezone } from '../utils/timezone'
 
 const router = express.Router()
 
@@ -90,6 +91,100 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       error: 'Internal server error',
       message: error?.message || 'Unknown error'
     })
+  }
+})
+
+// Export timesheet for specific pay period as CSV (daily clock-in/out with daily totals)
+router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const startDateStr = decodeURIComponent(req.params.startDate)
+    const endDateStr = decodeURIComponent(req.params.endDate)
+
+    const startDate = new Date(startDateStr)
+    const endDate = new Date(endDateStr)
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' })
+    }
+    if (startDate > endDate) {
+      return res.status(400).json({ error: 'Start date must be before or equal to end date' })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { timezone: true }
+    })
+    const userTimezone = user?.timezone ?? 'UTC'
+
+    const entries = await prisma.timeEntry.findMany({
+      where: {
+        userId: req.userId!,
+        clockIn: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      include: {
+        breaks: true
+      },
+      orderBy: {
+        clockIn: 'asc'
+      }
+    })
+
+    type DailyTotals = { [dayKey: string]: number }
+    const dailyTotals: DailyTotals = {}
+
+    const rows: string[] = []
+    rows.push('Date,Clock In,Clock Out,Break Minutes,Hours Worked,Daily Total Hours')
+
+    const csvEscape = (value: string | number | null | undefined): string => {
+      const str = value === null || value === undefined ? '' : String(value)
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    // First pass: compute per-entry hours and daily totals
+    const entrySummaries = entries
+      .filter(e => e.clockOut) // only completed entries for export
+      .map(e => {
+        const breakMinutes = getEffectiveBreakMinutes(e)
+        const hours = (e.clockOut!.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60)
+        const workedHours = hours - breakMinutes / 60
+        const dayKey = toLocalDayKey(e.clockIn, userTimezone)
+        dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + workedHours
+        return { entry: e, breakMinutes, workedHours, dayKey }
+      })
+
+    // Second pass: emit rows with daily totals
+    entrySummaries.forEach(({ entry, breakMinutes, workedHours, dayKey }) => {
+      const clockInLocal = formatInTimezone(entry.clockIn, userTimezone, 'yyyy-MM-dd', 'HH:mm')
+      const clockOutLocal = entry.clockOut
+        ? formatInTimezone(entry.clockOut, userTimezone, 'yyyy-MM-dd', 'HH:mm')
+        : ''
+      const dailyTotal = dailyTotals[dayKey] ?? workedHours
+      rows.push([
+        csvEscape(dayKey),
+        csvEscape(clockInLocal),
+        csvEscape(clockOutLocal),
+        csvEscape(breakMinutes),
+        csvEscape(workedHours.toFixed(2)),
+        csvEscape(dailyTotal.toFixed(2))
+      ].join(','))
+    })
+
+    const csv = rows.join('\n')
+
+    const safeStart = startDate.toISOString().slice(0, 10)
+    const safeEnd = endDate.toISOString().slice(0, 10)
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="timesheet-${safeStart}_to_${safeEnd}.csv"`)
+    res.send(csv)
+  } catch (error) {
+    console.error('Export timesheet CSV error:', error)
+    res.status(500).json({ error: 'Internal server error' })
   }
 })
 
