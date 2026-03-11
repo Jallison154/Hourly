@@ -323,8 +323,10 @@ export default function Timesheet() {
       const end = new Date(selectedPeriod.end)
       const startStr = start.toISOString().slice(0, 10)
       const endStr = end.toISOString().slice(0, 10)
+      const rawName = user?.name || 'user'
+      const safeName = rawName.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'user'
       a.href = url
-      a.download = `timesheet-${startStr}_to_${endStr}.csv`
+      a.download = `${safeName}-timesheet-${startStr}_to_${endStr}.csv`
       document.body.appendChild(a)
       a.click()
       a.remove()
