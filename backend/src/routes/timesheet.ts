@@ -146,6 +146,12 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       return str
     }
 
+    const formatHours = (hours: number): string => {
+      const h = Math.floor(hours)
+      const m = Math.round((hours - h) * 60)
+      return `${h}:${m.toString().padStart(2, '0')}`
+    }
+
     const rows: string[] = []
     // Header row only (no title row)
     rows.push('Date,Clock In,Clock Out,Hours Worked')
@@ -175,7 +181,7 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
         csvEscape(dayKey),
         csvEscape(clockInLocal),
         csvEscape(clockOutLocal),
-        csvEscape(workedHours.toFixed(2))
+        csvEscape(formatHours(workedHours))
       ].join(','))
     })
 
@@ -185,7 +191,7 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       'Totals',
       '',
       '',
-      csvEscape(grandTotalHours.toFixed(2))
+      csvEscape(formatHours(grandTotalHours))
     ].join(','))
 
     const csv = rows.join('\n')
