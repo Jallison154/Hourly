@@ -136,6 +136,14 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     type DailyTotals = { [dayKey: string]: number }
     const dailyTotals: DailyTotals = {}
 
+    const csvEscape = (value: string | number | null | undefined): string => {
+      const str = value === null || value === undefined ? '' : String(value)
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
     const rows: string[] = []
 
     const safeStart = startDate.toISOString().slice(0, 10)
@@ -149,14 +157,6 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     rows.push(csvEscape(title))
     rows.push('')
     rows.push('Date,Clock In,Clock Out,Break Minutes,Hours Worked,Daily Total Hours')
-
-    const csvEscape = (value: string | number | null | undefined): string => {
-      const str = value === null || value === undefined ? '' : String(value)
-      if (/[",\n]/.test(str)) {
-        return `"${str.replace(/"/g, '""')}"`
-      }
-      return str
-    }
 
     // First pass: compute per-entry hours and daily totals
     const entrySummaries = entries
