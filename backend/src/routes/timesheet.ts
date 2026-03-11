@@ -4,6 +4,7 @@ import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
+import { toLocalDayKey, formatInTimezone, getWeekBucketForInstant } from '../utils/timezone'
 import { toLocalDayKey, formatInTimezone } from '../utils/timezone'
 
 const router = express.Router()
@@ -156,7 +157,7 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     // Header row only (no title row)
     rows.push('Date,Clock In,Clock Out,Hours Worked')
 
-    // First pass: compute per-entry hours
+    // First pass: compute per-entry hours and week buckets
     const entrySummaries = entries
       .filter(e => e.clockOut) // only completed entries for export
       .map(e => {
@@ -166,17 +167,39 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
         const isoDayKey = toLocalDayKey(e.clockIn, userTimezone) // YYYY-MM-DD
         const [year, month, day] = isoDayKey.split('-')
         const dayKey = `${month}-${day}-${year}` // MM-DD-YYYY
-        return { entry: e, breakMinutes, workedHours, dayKey }
+        const weekBucket = getWeekBucketForInstant(e.clockIn, userTimezone)
+        const weekKey = weekBucket.bucketKey // Sunday YYYY-MM-DD
+        return { entry: e, breakMinutes, workedHours, dayKey, weekKey }
       })
 
-    // Second pass: emit rows
+    // Second pass: emit rows with per-week subtotals
     let grandTotalHours = 0
-    entrySummaries.forEach(({ entry, breakMinutes, workedHours, dayKey }) => {
+    let currentWeekKey: string | null = null
+    let currentWeekTotal = 0
+
+    entrySummaries.forEach(({ entry, workedHours, dayKey, weekKey }) => {
+      if (currentWeekKey !== null && weekKey !== currentWeekKey) {
+        // Close previous week
+        rows.push([
+          'Week Total',
+          '',
+          '',
+          csvEscape(formatHours(currentWeekTotal))
+        ].join(','))
+        rows.push('') // blank line between weeks
+        currentWeekTotal = 0
+      }
+
+      currentWeekKey = weekKey
+
       const clockInLocal = formatInTimezone(entry.clockIn, userTimezone, 'MM-dd-yyyy', 'HH:mm')
       const clockOutLocal = entry.clockOut
         ? formatInTimezone(entry.clockOut, userTimezone, 'MM-dd-yyyy', 'HH:mm')
         : ''
+
+      currentWeekTotal += workedHours
       grandTotalHours += workedHours
+
       rows.push([
         csvEscape(dayKey),
         csvEscape(clockInLocal),
@@ -184,6 +207,16 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
         csvEscape(formatHours(workedHours))
       ].join(','))
     })
+
+    // Close final week total if any entries existed
+    if (currentWeekKey !== null) {
+      rows.push([
+        'Week Total',
+        '',
+        '',
+        csvEscape(formatHours(currentWeekTotal))
+      ].join(','))
+    }
 
     // Blank line and grand total row
     rows.push('')
