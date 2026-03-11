@@ -133,6 +133,11 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       }
     })
 
+    const safeStart = startDate.toISOString().slice(0, 10)
+    const safeEnd = endDate.toISOString().slice(0, 10)
+    const safeUserName = (userName || 'user')
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '') || 'user'
     const csvEscape = (value: string | number | null | undefined): string => {
       const str = value === null || value === undefined ? '' : String(value)
       if (/[",\n]/.test(str)) {
@@ -142,17 +147,7 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     }
 
     const rows: string[] = []
-
-    const safeStart = startDate.toISOString().slice(0, 10)
-    const safeEnd = endDate.toISOString().slice(0, 10)
-    const safeUserName = (userName || 'user')
-      .replace(/[^a-z0-9]+/gi, '-')
-      .replace(/^-+|-+$/g, '') || 'user'
-    const title = `${userName} Timesheet ${safeStart} to ${safeEnd}`
-
-    // Title row + blank line, then header
-    rows.push(csvEscape(title))
-    rows.push('')
+    // Header row only (no title row)
     rows.push('Date,Clock In,Clock Out,Hours Worked')
 
     // First pass: compute per-entry hours
@@ -162,16 +157,18 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
         const breakMinutes = getEffectiveBreakMinutes(e)
         const hours = (e.clockOut!.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60)
         const workedHours = hours - breakMinutes / 60
-        const dayKey = toLocalDayKey(e.clockIn, userTimezone)
+        const isoDayKey = toLocalDayKey(e.clockIn, userTimezone) // YYYY-MM-DD
+        const [year, month, day] = isoDayKey.split('-')
+        const dayKey = `${month}-${day}-${year}` // MM-DD-YYYY
         return { entry: e, breakMinutes, workedHours, dayKey }
       })
 
     // Second pass: emit rows
     let grandTotalHours = 0
     entrySummaries.forEach(({ entry, breakMinutes, workedHours, dayKey }) => {
-      const clockInLocal = formatInTimezone(entry.clockIn, userTimezone, 'yyyy-MM-dd', 'HH:mm')
+      const clockInLocal = formatInTimezone(entry.clockIn, userTimezone, 'MM-dd-yyyy', 'HH:mm')
       const clockOutLocal = entry.clockOut
-        ? formatInTimezone(entry.clockOut, userTimezone, 'yyyy-MM-dd', 'HH:mm')
+        ? formatInTimezone(entry.clockOut, userTimezone, 'MM-dd-yyyy', 'HH:mm')
         : ''
       grandTotalHours += workedHours
       rows.push([
