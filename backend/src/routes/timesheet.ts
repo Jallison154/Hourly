@@ -112,9 +112,10 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId! },
-      select: { timezone: true }
+      select: { timezone: true, name: true }
     })
     const userTimezone = user?.timezone ?? 'UTC'
+    const userName = user?.name ?? 'Timesheet'
 
     const entries = await prisma.timeEntry.findMany({
       where: {
@@ -136,6 +137,17 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     const dailyTotals: DailyTotals = {}
 
     const rows: string[] = []
+
+    const safeStart = startDate.toISOString().slice(0, 10)
+    const safeEnd = endDate.toISOString().slice(0, 10)
+    const safeUserName = (userName || 'user')
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-+|-+$/g, '') || 'user'
+    const title = `${userName} Timesheet ${safeStart} to ${safeEnd}`
+
+    // Title row + blank line, then header
+    rows.push(csvEscape(title))
+    rows.push('')
     rows.push('Date,Clock In,Clock Out,Break Minutes,Hours Worked,Daily Total Hours')
 
     const csvEscape = (value: string | number | null | undefined): string => {
@@ -159,12 +171,14 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       })
 
     // Second pass: emit rows with daily totals
+    let grandTotalHours = 0
     entrySummaries.forEach(({ entry, breakMinutes, workedHours, dayKey }) => {
       const clockInLocal = formatInTimezone(entry.clockIn, userTimezone, 'yyyy-MM-dd', 'HH:mm')
       const clockOutLocal = entry.clockOut
         ? formatInTimezone(entry.clockOut, userTimezone, 'yyyy-MM-dd', 'HH:mm')
         : ''
       const dailyTotal = dailyTotals[dayKey] ?? workedHours
+      grandTotalHours += workedHours
       rows.push([
         csvEscape(dayKey),
         csvEscape(clockInLocal),
@@ -175,12 +189,21 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       ].join(','))
     })
 
+    // Blank line and grand total row
+    rows.push('')
+    rows.push([
+      'Totals',
+      '',
+      '',
+      '',
+      csvEscape(grandTotalHours.toFixed(2)),
+      ''
+    ].join(','))
+
     const csv = rows.join('\n')
 
-    const safeStart = startDate.toISOString().slice(0, 10)
-    const safeEnd = endDate.toISOString().slice(0, 10)
     res.setHeader('Content-Type', 'text/csv; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="timesheet-${safeStart}_to_${safeEnd}.csv"`)
+    res.setHeader('Content-Disposition', `attachment; filename="${safeUserName}-timesheet-${safeStart}_to_${safeEnd}.csv"`)
     res.send(csv)
   } catch (error) {
     console.error('Export timesheet CSV error:', error)
