@@ -5,7 +5,6 @@ import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForR
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
 import { calculatePayForEntries } from '../utils/payCalculator'
 import { toLocalDayKey, formatInTimezone, getWeekBucketForInstant } from '../utils/timezone'
-import { toLocalDayKey, formatInTimezone } from '../utils/timezone'
 
 const router = express.Router()
 
