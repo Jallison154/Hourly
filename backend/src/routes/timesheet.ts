@@ -188,7 +188,6 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       'Totals',
       '',
       '',
-      ''
       csvEscape(grandTotalHours.toFixed(2))
     ].join(','))
 
