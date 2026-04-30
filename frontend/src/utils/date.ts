@@ -6,6 +6,28 @@ function toDate(d: DateInput): Date {
   return typeof d === 'string' ? parseISO(d) : d
 }
 
+/** Calendar date in the user's local timezone (for `<input type="date">`). Avoids UTC drift from `toISOString().slice(0, 10)`. */
+export function toLocalDateInputValue(d: DateInput): string {
+  const date = toDate(d)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Local wall-clock time (for `<input type="time">`). */
+export function toLocalTimeInputValue(d: DateInput): string {
+  const date = toDate(d)
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  return `${h}:${min}`
+}
+
+/** Interpret date + time strings as local civil time (same as native date/time inputs). */
+export function fromLocalDateAndTime(dateStr: string, timeStr: string): Date {
+  return new Date(`${dateStr}T${timeStr}`)
+}
+
 export function formatDateTime(date: DateInput, timeZone?: string | null): string {
   const d = toDate(date)
   if (timeZone) {

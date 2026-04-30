@@ -49,7 +49,7 @@ export default function ActiveTimer({ entry, user }: ActiveTimerProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl p-8 mb-6 text-white"
+      className="mb-6 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 p-5 text-white shadow-2xl sm:p-8"
     >
       <div className="text-center">
         <motion.div
@@ -70,7 +70,7 @@ export default function ActiveTimer({ entry, user }: ActiveTimerProps) {
           transition={{ delay: 0.1 }}
           className="mb-6"
         >
-          <div className="text-6xl font-bold mb-2 tabular-nums">
+          <div className="mb-2 text-4xl font-bold tabular-nums sm:text-6xl">
             {String(hours).padStart(2, '0')}:
             {String(minutes).padStart(2, '0')}:
             {String(seconds).padStart(2, '0')}

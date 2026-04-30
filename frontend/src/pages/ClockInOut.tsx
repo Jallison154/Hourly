@@ -127,7 +127,7 @@ export default function ClockInOut() {
   return (
     <PullToRefresh onRefresh={loadStatus}>
       <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 sm:py-6 h-full overflow-y-auto">
+      <div className="max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 h-full overflow-y-auto overscroll-y-contain">
         {/* Weekly Summary */}
         <WeeklySummary />
 
@@ -141,10 +141,10 @@ export default function ClockInOut() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 mb-6"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-8 mb-4 sm:mb-6"
           >
-            <div className="text-center mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <div className="text-center mb-6 sm:mb-8">
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 Ready to Start?
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -153,15 +153,16 @@ export default function ClockInOut() {
             </div>
 
             {/* Custom Time Toggle */}
-            <div className="mb-3">
+            <div className="mb-3 flex justify-center sm:justify-start">
               <motion.button
+                type="button"
                 onClick={() => {
                   setShowTimePicker(!showTimePicker)
                   setUseCustomTime(!showTimePicker)
                 }}
                 whileTap={{ scale: 0.97, opacity: 0.7 }}
                 transition={{ duration: 0.1 }}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
+                className="min-h-[44px] px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 active:opacity-70 sm:text-xs sm:font-normal sm:hover:underline"
               >
                 {showTimePicker ? 'Use current time' : 'Set custom time'}
               </motion.button>
@@ -173,7 +174,7 @@ export default function ClockInOut() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mb-4"
+                  className="mb-4 overflow-hidden"
                 >
                   <TimePicker
                     value={clockInTime}
@@ -192,7 +193,7 @@ export default function ClockInOut() {
               whileHover={isClockingIn ? undefined : { scale: 1.02 }}
               whileTap={isClockingIn ? undefined : { scale: 0.97, opacity: 0.9 }}
               transition={{ duration: 0.1 }}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
+              className="w-full min-h-[52px] bg-green-600 hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
             >
               {isClockingIn ? 'Clocking in…' : 'Clock In'}
             </motion.button>
@@ -204,7 +205,7 @@ export default function ClockInOut() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 mb-6"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-8 mb-4 sm:mb-6"
           >
             <div className="text-center mb-4">
               <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
@@ -213,15 +214,16 @@ export default function ClockInOut() {
             </div>
 
             {/* Custom Time Toggle */}
-            <div className="mb-3">
+            <div className="mb-3 flex justify-center sm:justify-start">
               <motion.button
+                type="button"
                 onClick={() => {
                   setShowTimePicker(!showTimePicker)
                   setUseCustomTime(!showTimePicker)
                 }}
                 whileTap={{ scale: 0.97, opacity: 0.7 }}
                 transition={{ duration: 0.1 }}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70"
+                className="min-h-[44px] px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 active:opacity-70 sm:text-xs sm:font-normal sm:hover:underline"
               >
                 {showTimePicker ? 'Use current time' : 'Set custom time'}
               </motion.button>
@@ -233,7 +235,7 @@ export default function ClockInOut() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mb-4"
+                  className="mb-4 overflow-hidden"
                 >
                   <TimePicker
                     value={clockOutTime}
@@ -252,7 +254,7 @@ export default function ClockInOut() {
               whileHover={isClockingOut ? undefined : { scale: 1.02 }}
               whileTap={isClockingOut ? undefined : { scale: 0.97, opacity: 0.9 }}
               transition={{ duration: 0.1 }}
-              className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
+              className="w-full min-h-[52px] bg-red-600 hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
             >
               {isClockingOut ? 'Clocking out…' : 'Clock Out'}
             </motion.button>
@@ -263,7 +265,7 @@ export default function ClockInOut() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97, opacity: 0.9 }}
               transition={{ duration: 0.1 }}
-              className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg text-sm shadow-md transition-colors"
+              className="w-full min-h-[48px] bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-xl text-sm shadow-md transition-colors sm:py-2 sm:rounded-lg"
             >
               Cancel Clock In
             </motion.button>
@@ -276,10 +278,10 @@ export default function ClockInOut() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 sm:p-8"
           >
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
               Manual Entry
             </h2>
             <motion.button
@@ -287,7 +289,7 @@ export default function ClockInOut() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97, opacity: 0.9 }}
               transition={{ duration: 0.1 }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm sm:text-base transition-colors"
+              className="min-h-[44px] w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors sm:w-auto sm:rounded-lg sm:text-base sm:py-2"
             >
               {showManualEntry ? 'Cancel' : 'Add Entry'}
             </motion.button>
@@ -318,37 +320,41 @@ export default function ClockInOut() {
 
       {/* Break Selection Dialog */}
       {showBreakDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl dark:bg-gray-800 sm:rounded-2xl sm:p-6"
+            style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
           >
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl mb-4">
               Did you take a break today?
             </h2>
             <div className="space-y-3 mb-4">
               <motion.button
+                type="button"
                 onClick={() => handleBreakSelected(15)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
               >
                 15 minutes
               </motion.button>
               <motion.button
+                type="button"
                 onClick={() => handleBreakSelected(30)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
               >
                 30 minutes
               </motion.button>
               <motion.button
+                type="button"
                 onClick={() => handleBreakSelected(60)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
               >
                 1 hour
               </motion.button>
@@ -363,9 +369,10 @@ export default function ClockInOut() {
                     value={customBreakMinutes}
                     onChange={(e) => setCustomBreakMinutes(e.target.value)}
                     placeholder="Enter minutes"
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="min-h-[48px] flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:min-h-0 sm:rounded-lg sm:py-2"
                   />
                   <motion.button
+                    type="button"
                     onClick={() => {
                       const minutes = parseInt(customBreakMinutes)
                       if (!isNaN(minutes) && minutes >= 0) {
@@ -375,17 +382,18 @@ export default function ClockInOut() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     disabled={!customBreakMinutes || isNaN(parseInt(customBreakMinutes))}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="min-h-[48px] shrink-0 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:py-2"
                   >
                     Use
                   </motion.button>
                 </div>
               </div>
               <motion.button
+                type="button"
                 onClick={() => handleBreakSelected(null)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full px-4 py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors mt-2"
+                className="mt-2 min-h-[48px] w-full rounded-xl bg-gray-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-gray-700"
               >
                 No break
               </motion.button>
