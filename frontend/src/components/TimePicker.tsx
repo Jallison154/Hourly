@@ -110,7 +110,8 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             }
             transition={{ type: 'spring', damping: 30, stiffness: 320 }}
             className="
-              fixed inset-x-0 bottom-0 z-[61] flex max-h-[90dvh] flex-col
+              fixed inset-x-0 bottom-0 z-[61] box-border flex w-screen max-w-full
+              max-h-[90dvh] flex-col overflow-hidden
               rounded-t-3xl border-t border-gray-200 bg-white shadow-2xl
               dark:border-gray-700 dark:bg-gray-800
               sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto
@@ -149,13 +150,15 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
 
             {/* Body (scrolls if cramped) */}
             <div
-              className="flex-1 overflow-y-auto px-4 pt-1 sm:px-5"
+              className="box-border flex-1 overflow-y-auto px-4 pt-1 sm:px-5"
               style={{
                 paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+                paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+                paddingRight: 'max(1rem, env(safe-area-inset-right))',
               }}
             >
               <div className="space-y-3">
-                <div>
+                <div className="min-w-0">
                   <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Date
                   </label>
@@ -164,8 +167,8 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={date}
                     onChange={handleDateChange}
                     className="
-                      block h-11 w-full rounded-lg border border-gray-300
-                      bg-gray-50 px-3 text-base text-gray-900
+                      box-border block h-11 w-full min-w-0 max-w-full appearance-none
+                      rounded-lg border border-gray-300 bg-gray-50 px-3 text-base text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
@@ -173,7 +176,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     "
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Time
                   </label>
@@ -182,8 +185,8 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={time}
                     onChange={handleTimeChange}
                     className="
-                      block h-11 w-full rounded-lg border border-gray-300
-                      bg-gray-50 px-3 text-base text-gray-900
+                      box-border block h-11 w-full min-w-0 max-w-full appearance-none
+                      rounded-lg border border-gray-300 bg-gray-50 px-3 text-base text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
