@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Native date/time inputs on WebKit/iOS render their value via a pseudo-element
+   that ignores text-align. Force the value (and its inner container) to fill the
+   field and center the text both horizontally and vertically. */
+.time-picker-input::-webkit-date-and-time-value {
+  text-align: center;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-picker-input::-webkit-datetime-edit {
+  width: 100%;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-picker-input::-webkit-datetime-edit-fields-wrapper {
+  width: 100%;
+  justify-content: center;
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

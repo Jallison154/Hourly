@@ -159,7 +159,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             >
               <div className="space-y-3">
                 <div className="min-w-0">
-                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  <label className="mb-1.5 block text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Date
                   </label>
                   <input
@@ -167,8 +167,9 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={date}
                     onChange={handleDateChange}
                     className="
-                      box-border block h-11 w-full min-w-0 max-w-full appearance-none
-                      rounded-lg border border-gray-300 bg-gray-50 px-3 text-base text-gray-900
+                      time-picker-input box-border block h-11 w-full min-w-0 max-w-full
+                      appearance-none rounded-lg border border-gray-300 bg-gray-50 px-3
+                      text-center text-base leading-none text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
@@ -177,7 +178,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                   />
                 </div>
                 <div className="min-w-0">
-                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  <label className="mb-1.5 block text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Time
                   </label>
                   <input
@@ -185,8 +186,9 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={time}
                     onChange={handleTimeChange}
                     className="
-                      box-border block h-11 w-full min-w-0 max-w-full appearance-none
-                      rounded-lg border border-gray-300 bg-gray-50 px-3 text-base text-gray-900
+                      time-picker-input box-border block h-11 w-full min-w-0 max-w-full
+                      appearance-none rounded-lg border border-gray-300 bg-gray-50 px-3
+                      text-center text-base leading-none text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
