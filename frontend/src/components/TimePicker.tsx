@@ -154,7 +154,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                 paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
               }}
             >
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-3">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Date
@@ -164,8 +164,8 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={date}
                     onChange={handleDateChange}
                     className="
-                      block h-10 w-full rounded-lg border border-gray-300
-                      bg-gray-50 px-2.5 text-sm text-gray-900
+                      block h-11 w-full rounded-lg border border-gray-300
+                      bg-gray-50 px-3 text-base text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
@@ -182,8 +182,8 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={time}
                     onChange={handleTimeChange}
                     className="
-                      block h-10 w-full rounded-lg border border-gray-300
-                      bg-gray-50 px-2.5 text-sm text-gray-900
+                      block h-11 w-full rounded-lg border border-gray-300
+                      bg-gray-50 px-3 text-base text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
@@ -191,17 +191,17 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     "
                   />
                 </div>
-              </div>
 
-              <Button
-                variant="primary"
-                size="md"
-                fullWidth
-                onClick={useNow}
-                className="mt-3"
-              >
-                Use current date &amp; time
-              </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  onClick={useNow}
+                  className="mt-1"
+                >
+                  Use current date &amp; time
+                </Button>
+              </div>
             </div>
           </motion.div>
         </>
