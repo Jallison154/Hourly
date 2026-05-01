@@ -318,19 +318,34 @@ export const timeEntriesAPI = {
     if (startDate) params.startDate = startDate
     if (endDate) params.endDate = endDate
     
-    const response = await api.get('/time-entries/export', {
+    const response = await api.get<Blob>('/time-entries/export', {
       params,
       responseType: 'blob'
     })
-    
+
+    const blob = response.data
+    const ctRaw = response.headers['content-type']
+    const contentType =
+      typeof ctRaw === 'string'
+        ? ctRaw
+        : Array.isArray(ctRaw)
+          ? ctRaw.join('; ')
+          : ''
+
     // Check if the blob is actually a JSON error response
-    if (response.data.type === 'application/json' || response.headers['content-type']?.includes('application/json')) {
-      const text = await response.data.text()
-      const errorData = JSON.parse(text)
-      throw new Error(errorData.error || 'Failed to export time entries')
+    if (blob.type === 'application/json' || contentType.includes('application/json')) {
+      const text = await blob.text()
+      let message = 'Failed to export time entries'
+      try {
+        const errorData = JSON.parse(text) as { error?: string }
+        message = errorData.error ?? message
+      } catch {
+        // Body was not JSON despite content-type hint
+      }
+      throw new Error(message)
     }
-    
-    return response.data
+
+    return blob
   }
 }
 
