@@ -126,10 +126,10 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-2 pb-3 sm:pt-5">
+            <div className="flex items-center justify-between px-4 pt-1.5 pb-2 sm:px-5 sm:pt-4">
               <h2
                 id={headingId}
-                className="text-lg font-semibold text-gray-900 dark:text-white"
+                className="text-base font-semibold text-gray-900 dark:text-white sm:text-lg"
               >
                 {label}
               </h2>
@@ -137,7 +137,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                 type="button"
                 onClick={() => setIsOpen(false)}
                 className="
-                  -mr-2 inline-flex min-h-[40px] items-center rounded-lg px-3
+                  -mr-2 inline-flex min-h-[36px] items-center rounded-lg px-2.5
                   text-sm font-semibold text-blue-600 hover:bg-blue-50
                   active:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30
                   dark:active:bg-blue-900/50 transition-colors
@@ -149,14 +149,14 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
 
             {/* Body (scrolls if cramped) */}
             <div
-              className="flex-1 overflow-y-auto px-5 pt-2"
+              className="flex-1 overflow-y-auto px-4 pt-1 sm:px-5"
               style={{
-                paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+                paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
               }}
             >
-              <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Date
                   </label>
                   <input
@@ -164,8 +164,8 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={date}
                     onChange={handleDateChange}
                     className="
-                      block min-h-[48px] w-full rounded-xl border border-gray-300
-                      bg-gray-50 px-4 py-3 text-base text-gray-900
+                      block h-10 w-full rounded-lg border border-gray-300
+                      bg-gray-50 px-2.5 text-sm text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
@@ -174,7 +174,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                     Time
                   </label>
                   <input
@@ -182,8 +182,8 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     value={time}
                     onChange={handleTimeChange}
                     className="
-                      block min-h-[48px] w-full rounded-xl border border-gray-300
-                      bg-gray-50 px-4 py-3 text-base text-gray-900
+                      block h-10 w-full rounded-lg border border-gray-300
+                      bg-gray-50 px-2.5 text-sm text-gray-900
                       focus:border-blue-500 focus:bg-white focus:outline-none
                       focus:ring-2 focus:ring-blue-500/40
                       dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
@@ -191,17 +191,17 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                     "
                   />
                 </div>
-
-                <Button
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  onClick={useNow}
-                  className="mt-2"
-                >
-                  Use current date &amp; time
-                </Button>
               </div>
+
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                onClick={useNow}
+                className="mt-3"
+              >
+                Use current date &amp; time
+              </Button>
             </div>
           </motion.div>
         </>
@@ -222,15 +222,15 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className="
-          flex min-h-[48px] w-full items-center justify-between rounded-xl border
-          border-gray-300 bg-white px-4 py-3 text-left text-base text-gray-900
+          flex min-h-[40px] w-full items-center justify-between rounded-lg border
+          border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900
           transition-colors hover:border-gray-400 focus:outline-none
           focus-visible:ring-2 focus-visible:ring-blue-500
           dark:border-gray-600 dark:bg-gray-700 dark:text-white
           dark:hover:border-gray-500
         "
       >
-        <span>{display}</span>
+        <span className="truncate">{display}</span>
         <svg
           aria-hidden="true"
           className="ml-2 h-4 w-4 flex-shrink-0 text-gray-400"
