@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import Button from './Button'
 
 interface DialogProps {
   open: boolean
@@ -23,7 +24,7 @@ export default function Dialog({
   confirmText = 'OK',
   cancelText = 'Cancel',
   onConfirm,
-  onCancel
+  onCancel,
 }: DialogProps) {
   useEffect(() => {
     if (open) {
@@ -36,97 +37,115 @@ export default function Dialog({
     }
   }, [open])
 
-  const handleConfirm = () => {
-    if (onConfirm) {
-      onConfirm()
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (type === 'alert' || type === 'info')) onClose()
     }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, type, onClose])
+
+  const handleConfirm = () => {
+    if (onConfirm) onConfirm()
     onClose()
   }
 
   const handleCancel = () => {
-    if (onCancel) {
-      onCancel()
-    }
+    if (onCancel) onCancel()
     onClose()
   }
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      if (type === 'alert' || type === 'info') {
-        onClose()
-      }
+      if (type === 'alert' || type === 'info') onClose()
     }
   }
+
+  // Danger phrasing for confirm dialogs whose primary action is destructive
+  const destructive = /delete|remove|cancel/i.test(confirmText)
+  const confirmVariant = type === 'confirm' && destructive ? 'danger' : 'primary'
 
   return (
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
             onClick={handleBackdropClick}
           />
-          
-          {/* Dialog */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
+            onClick={handleBackdropClick}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6 relative"
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="
+                relative w-full bg-white shadow-2xl
+                rounded-t-3xl sm:rounded-2xl sm:max-w-md
+                dark:bg-gray-800
+              "
+              style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+              onClick={(e) => e.stopPropagation()}
             >
-              {/* Close button (only for alert/info, not confirm) */}
-              {(type === 'alert' || type === 'info') && (
-                <button
-                  onClick={onClose}
-                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              )}
+              {/* Mobile drag handle */}
+              <div className="flex justify-center pt-2 pb-1 sm:hidden">
+                <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+              </div>
 
-              {/* Title */}
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 pr-8">
-                {title}
-              </h3>
-
-              {/* Message */}
-              <p className="text-gray-600 dark:text-gray-400 mb-6 whitespace-pre-line">
-                {message}
-              </p>
-
-              {/* Actions */}
-              <div className={`flex ${type === 'confirm' ? 'justify-end space-x-3' : 'justify-end'}`}>
-                {type === 'confirm' && (
-                  <motion.button
-                    onClick={handleCancel}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97, opacity: 0.9 }}
-                    transition={{ duration: 0.1 }}
-                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors"
+              <div className="px-6 pt-2 sm:pt-6">
+                {(type === 'alert' || type === 'info') && (
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    onClick={onClose}
+                    className="absolute right-3 top-3 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
                   >
-                    {cancelText}
-                  </motion.button>
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
                 )}
-                <motion.button
-                  onClick={type === 'confirm' ? handleConfirm : onClose}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97, opacity: 0.9 }}
-                  transition={{ duration: 0.1 }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    type === 'confirm'
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : type === 'alert' || type === 'info'
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white pr-8">
+                  {title}
+                </h3>
+
+                <p className="mt-3 text-gray-600 dark:text-gray-300 whitespace-pre-line">
+                  {message}
+                </p>
+
+                <div
+                  className={`mt-6 flex gap-3 ${
+                    type === 'confirm' ? 'flex-col-reverse sm:flex-row sm:justify-end' : 'justify-end'
                   }`}
                 >
-                  {confirmText}
-                </motion.button>
+                  {type === 'confirm' && (
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={handleCancel}
+                      fullWidth
+                      className="sm:!w-auto"
+                    >
+                      {cancelText}
+                    </Button>
+                  )}
+                  <Button
+                    variant={confirmVariant}
+                    size="md"
+                    onClick={type === 'confirm' ? handleConfirm : onClose}
+                    fullWidth
+                    className="sm:!w-auto"
+                  >
+                    {confirmText}
+                  </Button>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -135,4 +154,3 @@ export default function Dialog({
     </AnimatePresence>
   )
 }
-

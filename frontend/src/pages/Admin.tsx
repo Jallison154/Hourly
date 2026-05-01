@@ -5,6 +5,7 @@ import { adminAPI, type AdminDashboard, type AdminDashboardUser } from '../servi
 import { formatHours } from '../utils/date'
 import { format, parseISO } from 'date-fns'
 import PullToRefresh from '../components/PullToRefresh'
+import Button from '../components/Button'
 import { UserGroupIcon } from '@heroicons/react/24/outline'
 import { UserGroupIcon as UserGroupIconSolid } from '@heroicons/react/24/solid'
 
@@ -106,15 +107,16 @@ export default function Admin() {
               {loginError && (
                 <p className="text-sm text-red-600 dark:text-red-400">{loginError}</p>
               )}
-              <motion.button
+              <Button
                 type="submit"
-                disabled={loading}
-                whileHover={{ scale: loading ? 1 : 1.01 }}
-                whileTap={{ scale: loading ? 1 : 0.99 }}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-xl shadow-lg transition-colors"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={loading}
+                className="shadow-lg"
               >
                 {loading ? 'Checking...' : 'Log in'}
-              </motion.button>
+              </Button>
             </form>
             <button
               type="button"

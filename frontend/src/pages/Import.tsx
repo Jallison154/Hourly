@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { importAPI, timeEntriesAPI } from '../services/api'
 import Dialog from '../components/Dialog'
+import Button from '../components/Button'
 import PullToRefresh from '../components/PullToRefresh'
 import { useDialog } from '../hooks/useDialog'
 
@@ -225,15 +226,18 @@ export default function Import() {
               </div>
             )}
 
-            <motion.button
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={loading}
+              disabled={!file}
               onClick={handleImport}
-              disabled={loading || !file}
-              whileHover={{ scale: loading || !file ? 1 : 1.02 }}
-              whileTap={{ scale: loading || !file ? 1 : 0.98 }}
-              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-lg transition-colors"
+              className="shadow-lg"
             >
               {loading ? 'Importing...' : 'Import Data'}
-            </motion.button>
+            </Button>
           </div>
         </div>
 
@@ -282,15 +286,18 @@ export default function Import() {
               </div>
             )}
 
-            <motion.button
+            <Button
+              type="button"
+              variant="danger"
+              size="lg"
+              fullWidth
+              loading={clearing}
+              disabled={!clearStartDate || !clearEndDate}
               onClick={handleClearData}
-              disabled={clearing || !clearStartDate || !clearEndDate}
-              whileHover={{ scale: clearing || !clearStartDate || !clearEndDate ? 1 : 1.02 }}
-              whileTap={{ scale: clearing || !clearStartDate || !clearEndDate ? 1 : 0.98 }}
-              className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-lg transition-colors"
+              className="shadow-lg"
             >
               {clearing ? 'Deleting...' : 'Clear Data'}
-            </motion.button>
+            </Button>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import {
   toLocalTimeInputValue,
   fromLocalDateAndTime,
 } from '../utils/date'
+import Button from './Button'
 
 interface TimePickerProps {
   value: Date
@@ -15,7 +16,7 @@ interface TimePickerProps {
 
 function useIsMinSm() {
   const [isSm, setIsSm] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches,
   )
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 640px)')
@@ -37,8 +38,13 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
     if (!isOpen) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
     }
   }, [isOpen])
 
@@ -84,7 +90,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/45 sm:bg-black/35"
+            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm sm:bg-black/40"
             onClick={() => setIsOpen(false)}
           />
           <motion.div
@@ -102,54 +108,100 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
                 ? { opacity: 0, scale: 0.96, y: 8 }
                 : { opacity: 1, y: '100%' }
             }
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed inset-x-0 bottom-0 z-[61] max-h-[85vh] overflow-y-auto rounded-t-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-600 dark:bg-gray-800 sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto sm:max-h-[min(90vh,520px)] sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
-            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+            className="
+              fixed inset-x-0 bottom-0 z-[61] flex max-h-[90dvh] flex-col
+              rounded-t-3xl border-t border-gray-200 bg-white shadow-2xl
+              dark:border-gray-700 dark:bg-gray-800
+              sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto
+              sm:max-h-[min(85vh,560px)] sm:w-full sm:max-w-md
+              sm:-translate-x-1/2 sm:-translate-y-1/2
+              sm:rounded-2xl sm:border
+            "
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700 sm:rounded-t-2xl">
-              <h2 id={headingId} className="text-base font-semibold text-gray-900 dark:text-white">
+            {/* Drag handle (mobile only) */}
+            <div className="flex justify-center pt-2 pb-1 sm:hidden">
+              <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-2 pb-3 sm:pt-5">
+              <h2
+                id={headingId}
+                className="text-lg font-semibold text-gray-900 dark:text-white"
+              >
                 {label}
               </h2>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="min-h-[44px] min-w-[44px] rounded-lg text-sm font-medium text-blue-600 dark:text-blue-400"
+                className="
+                  -mr-2 inline-flex min-h-[40px] items-center rounded-lg px-3
+                  text-sm font-semibold text-blue-600 hover:bg-blue-50
+                  active:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30
+                  dark:active:bg-blue-900/50 transition-colors
+                "
               >
                 Done
               </button>
             </div>
 
-            <div className="space-y-5 p-4 sm:p-5">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={handleDateChange}
-                  className="min-h-[48px] w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
+            {/* Body (scrolls if cramped) */}
+            <div
+              className="flex-1 overflow-y-auto px-5 pt-2"
+              style={{
+                paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+              }}
+            >
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={handleDateChange}
+                    className="
+                      block min-h-[48px] w-full rounded-xl border border-gray-300
+                      bg-gray-50 px-4 py-3 text-base text-gray-900
+                      focus:border-blue-500 focus:bg-white focus:outline-none
+                      focus:ring-2 focus:ring-blue-500/40
+                      dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
+                      dark:focus:bg-gray-700
+                    "
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={handleTimeChange}
+                    className="
+                      block min-h-[48px] w-full rounded-xl border border-gray-300
+                      bg-gray-50 px-4 py-3 text-base text-gray-900
+                      focus:border-blue-500 focus:bg-white focus:outline-none
+                      focus:ring-2 focus:ring-blue-500/40
+                      dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
+                      dark:focus:bg-gray-700
+                    "
+                  />
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  onClick={useNow}
+                  className="mt-2"
+                >
+                  Use current date &amp; time
+                </Button>
               </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Time
-                </label>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={handleTimeChange}
-                  className="min-h-[48px] w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={useNow}
-                className="min-h-[48px] w-full rounded-xl bg-blue-600 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
-              >
-                Use current date &amp; time
-              </button>
             </div>
           </motion.div>
         </>
@@ -159,15 +211,35 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
 
   return (
     <div className="relative">
-      <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
+      {label && (
+        <span className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label}
+        </span>
+      )}
       <button
         type="button"
         onClick={handleToggle}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="min-h-[48px] w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-left text-base text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        className="
+          flex min-h-[48px] w-full items-center justify-between rounded-xl border
+          border-gray-300 bg-white px-4 py-3 text-left text-base text-gray-900
+          transition-colors hover:border-gray-400 focus:outline-none
+          focus-visible:ring-2 focus-visible:ring-blue-500
+          dark:border-gray-600 dark:bg-gray-700 dark:text-white
+          dark:hover:border-gray-500
+        "
       >
-        {display}
+        <span>{display}</span>
+        <svg
+          aria-hidden="true"
+          className="ml-2 h-4 w-4 flex-shrink-0 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
       </button>
       {typeof document !== 'undefined' && createPortal(sheet, document.body)}
     </div>

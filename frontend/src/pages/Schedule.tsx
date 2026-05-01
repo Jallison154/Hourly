@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
+import Button from '../components/Button'
 import PullToRefresh from '../components/PullToRefresh'
 import { userAPI } from '../services/api'
 import type { WeeklySchedule } from '../types'
@@ -207,16 +208,17 @@ export default function Schedule() {
               </div>
             </div>
             
-            <motion.button
+            <Button
               type="button"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={saving}
               onClick={handleSaveSchedule}
-              disabled={saving}
-              whileHover={{ scale: saving ? 1 : 1.02 }}
-              whileTap={{ scale: saving ? 1 : 0.98 }}
-              className="w-full mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-lg transition-colors text-lg"
+              className="mt-6 shadow-lg"
             >
               {saving ? 'Saving...' : 'Save Schedule'}
-            </motion.button>
+            </Button>
           </div>
         </motion.div>
 

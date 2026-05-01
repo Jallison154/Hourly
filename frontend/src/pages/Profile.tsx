@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
+import Button from '../components/Button'
 import PullToRefresh from '../components/PullToRefresh'
 import { userAPI, timeEntriesAPI } from '../services/api'
 
@@ -284,14 +285,16 @@ export default function Profile() {
                   minLength={6}
                 />
               </div>
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="md"
+                fullWidth
+                loading={changingPassword}
                 onClick={handleChangePassword}
-                disabled={changingPassword}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {changingPassword ? 'Changing Password...' : 'Change Password'}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -594,8 +597,10 @@ export default function Profile() {
 
           {/* Submit Button and Logout */}
           <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
-            <motion.button
+            <Button
               type="button"
+              variant="danger"
+              size="md"
               onClick={async () => {
                 const confirmed = await showConfirm('Logout', 'Are you sure you want to logout?', 'Logout', 'Cancel')
                 if (confirmed) {
@@ -603,21 +608,17 @@ export default function Profile() {
                   navigate('/login')
                 }
               }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-6 py-3 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
             >
               Logout
-            </motion.button>
-            <motion.button
+            </Button>
+            <Button
               type="submit"
-              disabled={loading}
-              whileHover={{ scale: loading ? 1 : 1.02 }}
-              whileTap={{ scale: loading ? 1 : 0.98 }}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg shadow-lg transition-colors"
+              variant="primary"
+              size="md"
+              loading={loading}
             >
               {loading ? 'Saving...' : 'Save Changes'}
-            </motion.button>
+            </Button>
           </div>
         </form>
 
@@ -684,8 +685,10 @@ export default function Profile() {
                 This will permanently delete all your time entries. This action cannot be undone. 
                 Use this if you want to re-import your data from CSV.
               </p>
-              <motion.button
+              <Button
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={async (e) => {
                   e.preventDefault()
                   e.stopPropagation()
@@ -706,12 +709,9 @@ export default function Profile() {
                     }
                   }
                 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
               >
                 Delete All Time Entries
-              </motion.button>
+              </Button>
             </div>
           </div>
         </div>

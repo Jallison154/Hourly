@@ -5,6 +5,7 @@ import ManualEntryForm from '../components/ManualEntryForm'
 import ActiveTimer from '../components/ActiveTimer'
 import WeeklySummary from '../components/WeeklySummary'
 import Dialog from '../components/Dialog'
+import Button from '../components/Button'
 import PullToRefresh from '../components/PullToRefresh'
 import { timeEntriesAPI } from '../services/api'
 import { useAuth } from '../hooks/useAuth'
@@ -186,17 +187,17 @@ export default function ClockInOut() {
             </AnimatePresence>
 
             {/* Clock In Button */}
-            <motion.button
+            <Button
               type="button"
+              variant="success"
+              size="lg"
+              fullWidth
+              loading={isClockingIn}
               onClick={handleClockIn}
-              disabled={isClockingIn}
-              whileHover={isClockingIn ? undefined : { scale: 1.02 }}
-              whileTap={isClockingIn ? undefined : { scale: 0.97, opacity: 0.9 }}
-              transition={{ duration: 0.1 }}
-              className="w-full min-h-[52px] bg-green-600 hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors"
+              className="shadow-lg"
             >
               {isClockingIn ? 'Clocking in…' : 'Clock In'}
-            </motion.button>
+            </Button>
           </motion.div>
         )}
 
@@ -247,28 +248,28 @@ export default function ClockInOut() {
             </AnimatePresence>
 
             {/* Clock Out Button */}
-            <motion.button
+            <Button
               type="button"
+              variant="danger"
+              size="lg"
+              fullWidth
+              loading={isClockingOut}
               onClick={handleClockOut}
-              disabled={isClockingOut}
-              whileHover={isClockingOut ? undefined : { scale: 1.02 }}
-              whileTap={isClockingOut ? undefined : { scale: 0.97, opacity: 0.9 }}
-              transition={{ duration: 0.1 }}
-              className="w-full min-h-[52px] bg-red-600 hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl text-lg sm:text-xl shadow-lg transition-colors mb-2"
+              className="mb-2 shadow-lg"
             >
               {isClockingOut ? 'Clocking out…' : 'Clock Out'}
-            </motion.button>
+            </Button>
 
             {/* Cancel Clock In Button */}
-            <motion.button
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              fullWidth
               onClick={handleCancelClockIn}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97, opacity: 0.9 }}
-              transition={{ duration: 0.1 }}
-              className="w-full min-h-[48px] bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-xl text-sm shadow-md transition-colors sm:py-2 sm:rounded-lg"
             >
               Cancel Clock In
-            </motion.button>
+            </Button>
           </motion.div>
         )}
 
@@ -284,15 +285,16 @@ export default function ClockInOut() {
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
               Manual Entry
             </h2>
-            <motion.button
+            <Button
+              type="button"
+              variant={showManualEntry ? 'secondary' : 'primary'}
+              size="md"
+              fullWidth
               onClick={() => setShowManualEntry(!showManualEntry)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97, opacity: 0.9 }}
-              transition={{ duration: 0.1 }}
-              className="min-h-[44px] w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors sm:w-auto sm:rounded-lg sm:text-base sm:py-2"
+              className="sm:!w-auto"
             >
               {showManualEntry ? 'Cancel' : 'Add Entry'}
-            </motion.button>
+            </Button>
           </div>
 
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -318,89 +320,112 @@ export default function ClockInOut() {
         </motion.div>
         )}
 
-      {/* Break Selection Dialog */}
-      {showBreakDialog && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl dark:bg-gray-800 sm:rounded-2xl sm:p-6"
-            style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
-          >
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl mb-4">
-              Did you take a break today?
-            </h2>
-            <div className="space-y-3 mb-4">
-              <motion.button
-                type="button"
-                onClick={() => handleBreakSelected(15)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
+      {/* Break Selection Sheet */}
+      <AnimatePresence>
+        {showBreakDialog && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowBreakDialog(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 pointer-events-none">
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="break-sheet-title"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 24 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                className="
+                  pointer-events-auto relative flex max-h-[90dvh] w-full flex-col
+                  rounded-t-3xl bg-white shadow-2xl
+                  dark:bg-gray-800
+                  sm:max-w-md sm:rounded-2xl
+                "
+                style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+                onClick={(e) => e.stopPropagation()}
               >
-                15 minutes
-              </motion.button>
-              <motion.button
-                type="button"
-                onClick={() => handleBreakSelected(30)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
-              >
-                30 minutes
-              </motion.button>
-              <motion.button
-                type="button"
-                onClick={() => handleBreakSelected(60)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="min-h-[48px] w-full rounded-xl bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
-              >
-                1 hour
-              </motion.button>
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Custom (minutes)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    value={customBreakMinutes}
-                    onChange={(e) => setCustomBreakMinutes(e.target.value)}
-                    placeholder="Enter minutes"
-                    className="min-h-[48px] flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:min-h-0 sm:rounded-lg sm:py-2"
-                  />
-                  <motion.button
-                    type="button"
-                    onClick={() => {
-                      const minutes = parseInt(customBreakMinutes)
-                      if (!isNaN(minutes) && minutes >= 0) {
-                        handleBreakSelected(minutes)
-                      }
-                    }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    disabled={!customBreakMinutes || isNaN(parseInt(customBreakMinutes))}
-                    className="min-h-[48px] shrink-0 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:rounded-lg sm:py-2"
-                  >
-                    Use
-                  </motion.button>
+                <div className="flex justify-center pt-2 pb-1 sm:hidden">
+                  <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
                 </div>
-              </div>
-              <motion.button
-                type="button"
-                onClick={() => handleBreakSelected(null)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="mt-2 min-h-[48px] w-full rounded-xl bg-gray-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-gray-700"
-              >
-                No break
-              </motion.button>
+
+                <div className="flex-1 overflow-y-auto px-5 pt-2 sm:pt-6">
+                  <h2
+                    id="break-sheet-title"
+                    className="mb-1 text-xl font-bold text-gray-900 dark:text-white"
+                  >
+                    Did you take a break today?
+                  </h2>
+                  <p className="mb-5 text-sm text-gray-600 dark:text-gray-400">
+                    Pick a duration to subtract from your shift.
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <Button variant="primary" size="md" onClick={() => handleBreakSelected(15)}>
+                      15 min
+                    </Button>
+                    <Button variant="primary" size="md" onClick={() => handleBreakSelected(30)}>
+                      30 min
+                    </Button>
+                    <Button variant="primary" size="md" onClick={() => handleBreakSelected(60)}>
+                      1 hour
+                    </Button>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3">
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                      Custom
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={customBreakMinutes}
+                        onChange={(e) => setCustomBreakMinutes(e.target.value)}
+                        placeholder="Minutes"
+                        className="
+                          min-h-[44px] flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
+                          text-base text-gray-900 placeholder:text-gray-400
+                          focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2
+                          focus:ring-blue-500/40
+                          dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
+                          dark:placeholder:text-gray-500 dark:focus:bg-gray-700
+                        "
+                      />
+                      <Button
+                        variant="primary"
+                        size="md"
+                        disabled={!customBreakMinutes || isNaN(parseInt(customBreakMinutes))}
+                        onClick={() => {
+                          const minutes = parseInt(customBreakMinutes)
+                          if (!isNaN(minutes) && minutes >= 0) {
+                            handleBreakSelected(minutes)
+                          }
+                        }}
+                      >
+                        Use
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    fullWidth
+                    onClick={() => handleBreakSelected(null)}
+                  >
+                    No break
+                  </Button>
+                </div>
+              </motion.div>
             </div>
-          </motion.div>
-        </div>
-      )}
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Dialog */}
       <Dialog

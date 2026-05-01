@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import TimePicker from './TimePicker'
+import Button from './Button'
 import { timeEntriesAPI } from '../services/api'
 import type { TimeEntry } from '../types'
 
@@ -93,16 +93,15 @@ export default function ManualEntryForm({ onSuccess, entry }: ManualEntryFormPro
         />
       </div>
 
-      <motion.button
+      <Button
         type="submit"
-        disabled={loading}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97, opacity: 0.9 }}
-        transition={{ duration: 0.1 }}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        variant="primary"
+        size="lg"
+        fullWidth
+        loading={loading}
       >
         {loading ? 'Saving...' : entry ? 'Update Entry' : 'Create Entry'}
-      </motion.button>
+      </Button>
     </form>
   )
 }

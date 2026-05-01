@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { motion } from 'framer-motion'
+import Button from '../components/Button'
 
 export default function Register() {
   const [name, setName] = useState('')
@@ -121,15 +122,15 @@ export default function Register() {
               />
             </div>
 
-            <motion.button
+            <Button
               type="submit"
-              disabled={loading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={loading}
             >
               {loading ? 'Creating account...' : 'Sign Up'}
-            </motion.button>
+            </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
