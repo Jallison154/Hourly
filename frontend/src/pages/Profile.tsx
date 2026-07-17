@@ -156,7 +156,7 @@ export default function Profile() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -165,6 +165,20 @@ export default function Profile() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Profile Settings
           </h1>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Link
+              to="/paycheck"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-okami-border bg-okami-panel px-3 text-sm font-medium text-gray-800 shadow-sm dark:text-gray-100"
+            >
+              Paycheck
+            </Link>
+            <Link
+              to="/import"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-okami-border bg-okami-panel px-3 text-sm font-medium text-gray-800 shadow-sm dark:text-gray-100"
+            >
+              Import
+            </Link>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

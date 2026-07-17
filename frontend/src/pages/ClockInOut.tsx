@@ -127,7 +127,7 @@ export default function ClockInOut() {
 
   return (
     <PullToRefresh onRefresh={loadStatus}>
-      <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 sm:pb-8" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+      <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 sm:pb-8" style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}>
       <div className="max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 h-full overflow-y-auto overscroll-y-contain">
         {/* Weekly Summary */}
         <WeeklySummary />
