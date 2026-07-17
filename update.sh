@@ -72,7 +72,9 @@ echo ""
 
 echo "→ Installing backend dependencies..."
 cd backend
-npm ci --omit=dev 2>/dev/null || npm install
+# Include devDependencies so TypeScript/Prisma CLI are available to build & migrate,
+# then prune them after a successful build for a leaner runtime install.
+npm ci 2>/dev/null || npm install
 echo "→ Running prisma migrate deploy..."
 npx prisma generate
 npx prisma migrate deploy || {
@@ -85,6 +87,8 @@ npm run build || {
   echo "✗ Backend build failed — aborting restart"
   exit 1
 }
+echo "→ Pruning backend dev dependencies..."
+npm prune --omit=dev
 echo "✓ Backend rebuilt"
 echo ""
 
