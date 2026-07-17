@@ -328,32 +328,26 @@ export default function ClockInOut() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
               onClick={() => setShowBreakDialog(false)}
             />
-            <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 pointer-events-none">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
               <motion.div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="break-sheet-title"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.98 }}
                 transition={{ type: 'spring', damping: 28, stiffness: 320 }}
                 className="
-                  pointer-events-auto relative flex max-h-[90dvh] w-full flex-col
-                  rounded-t-3xl bg-white shadow-2xl
+                  pointer-events-auto relative flex max-h-[85dvh] w-full max-w-md flex-col
+                  rounded-2xl bg-white shadow-2xl
                   dark:bg-gray-800
-                  sm:max-w-md sm:rounded-2xl
                 "
-                style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex justify-center pt-2 pb-1 sm:hidden">
-                  <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-5 pt-2 sm:pt-6">
+                <div className="flex-1 overflow-y-auto px-5 py-6">
                   <h2
                     id="break-sheet-title"
                     className="mb-1 text-xl font-bold text-gray-900 dark:text-white"

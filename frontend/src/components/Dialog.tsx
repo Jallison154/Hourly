@@ -74,78 +74,69 @@ export default function Dialog({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
             onClick={handleBackdropClick}
           />
 
           <div
-            className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
             onClick={handleBackdropClick}
           >
             <motion.div
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 24, scale: 0.98 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
               className="
-                relative w-full bg-white shadow-2xl
-                rounded-t-3xl sm:rounded-2xl sm:max-w-md
+                relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl
                 dark:bg-gray-800
               "
-              style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Mobile drag handle */}
-              <div className="flex justify-center pt-2 pb-1 sm:hidden">
-                <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
-              </div>
-
-              <div className="px-6 pt-2 sm:pt-6">
-                {(type === 'alert' || type === 'info') && (
-                  <button
-                    type="button"
-                    aria-label="Close"
-                    onClick={onClose}
-                    className="absolute right-3 top-3 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </button>
-                )}
-
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white pr-8">
-                  {title}
-                </h3>
-
-                <p className="mt-3 text-gray-600 dark:text-gray-300 whitespace-pre-line">
-                  {message}
-                </p>
-
-                <div
-                  className={`mt-6 flex gap-3 ${
-                    type === 'confirm' ? 'flex-col-reverse sm:flex-row sm:justify-end' : 'justify-end'
-                  }`}
+              {(type === 'alert' || type === 'info') && (
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={onClose}
+                  className="absolute right-3 top-3 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
-                  {type === 'confirm' && (
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={handleCancel}
-                      fullWidth
-                      className="sm:!w-auto"
-                    >
-                      {cancelText}
-                    </Button>
-                  )}
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              )}
+
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white pr-8">
+                {title}
+              </h3>
+
+              <p className="mt-3 text-gray-600 dark:text-gray-300 whitespace-pre-line">
+                {message}
+              </p>
+
+              <div
+                className={`mt-6 flex gap-3 ${
+                  type === 'confirm' ? 'flex-col-reverse sm:flex-row sm:justify-end' : 'justify-end'
+                }`}
+              >
+                {type === 'confirm' && (
                   <Button
-                    variant={confirmVariant}
+                    variant="secondary"
                     size="md"
-                    onClick={type === 'confirm' ? handleConfirm : onClose}
+                    onClick={handleCancel}
                     fullWidth
                     className="sm:!w-auto"
                   >
-                    {confirmText}
+                    {cancelText}
                   </Button>
-                </div>
+                )}
+                <Button
+                  variant={confirmVariant}
+                  size="md"
+                  onClick={type === 'confirm' ? handleConfirm : onClose}
+                  fullWidth
+                  className="sm:!w-auto"
+                >
+                  {confirmText}
+                </Button>
               </div>
             </motion.div>
           </div>

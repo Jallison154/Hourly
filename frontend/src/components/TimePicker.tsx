@@ -14,24 +14,10 @@ interface TimePickerProps {
   label: string
 }
 
-function useIsMinSm() {
-  const [isSm, setIsSm] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches,
-  )
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 640px)')
-    const sync = () => setIsSm(mq.matches)
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
-  return isSm
-}
-
 export default function TimePicker({ value, onChange, label }: TimePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [date, setDate] = useState(() => toLocalDateInputValue(value))
   const [time, setTime] = useState(() => toLocalTimeInputValue(value))
-  const isDesktop = useIsMinSm()
   const headingId = useRef(`time-picker-${Math.random().toString(36).slice(2, 9)}`).current
 
   useEffect(() => {
@@ -97,37 +83,20 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             role="dialog"
             aria-modal="true"
             aria-labelledby={headingId}
-            initial={
-              isDesktop
-                ? { opacity: 0, scale: 0.96, y: 8 }
-                : { opacity: 1, y: '100%' }
-            }
-            animate={isDesktop ? { opacity: 1, scale: 1, y: 0 } : { opacity: 1, y: 0 }}
-            exit={
-              isDesktop
-                ? { opacity: 0, scale: 0.96, y: 8 }
-                : { opacity: 1, y: '100%' }
-            }
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ type: 'spring', damping: 30, stiffness: 320 }}
             className="
-              fixed inset-x-0 bottom-0 z-[61] box-border flex w-screen max-w-full
-              max-h-[90dvh] flex-col overflow-hidden
-              rounded-t-3xl border-t border-gray-200 bg-white shadow-2xl
+              fixed left-1/2 top-1/2 z-[61] box-border flex w-[calc(100%-2rem)] max-w-md
+              max-h-[min(85dvh,560px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden
+              rounded-2xl border border-gray-200 bg-white shadow-2xl
               dark:border-gray-700 dark:bg-gray-800
-              sm:inset-x-auto sm:left-1/2 sm:top-1/2 sm:bottom-auto
-              sm:max-h-[min(85vh,560px)] sm:w-full sm:max-w-md
-              sm:-translate-x-1/2 sm:-translate-y-1/2
-              sm:rounded-2xl sm:border
             "
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle (mobile only) */}
-            <div className="flex justify-center pt-2 pb-1 sm:hidden">
-              <div className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
-            </div>
-
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-1.5 pb-2 sm:px-5 sm:pt-4">
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
               <h2
                 id={headingId}
                 className="text-base font-semibold text-gray-900 dark:text-white sm:text-lg"
@@ -149,14 +118,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             </div>
 
             {/* Body (scrolls if cramped) */}
-            <div
-              className="box-border flex-1 overflow-y-auto px-4 pt-1 sm:px-5"
-              style={{
-                paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-                paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-                paddingRight: 'max(1rem, env(safe-area-inset-right))',
-              }}
-            >
+            <div className="box-border flex-1 overflow-y-auto px-5 pb-5 pt-1">
               <div className="space-y-3">
                 <div className="min-w-0">
                   <label className="mb-1.5 block text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
