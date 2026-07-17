@@ -1,0 +1,5 @@
+.tools/
+.DS_Store
+*.log
+backups/
+*.db-journal

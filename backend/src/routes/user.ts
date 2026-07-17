@@ -10,6 +10,8 @@ const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
   hourlyRate: z.number().positive().optional(),
   overtimeRate: z.number().positive().optional(),
+  overtimeThresholdHours: z.number().positive().max(168).optional(),
+  workweekStartDay: z.number().int().min(0).max(6).optional(),
   timeRoundingInterval: z.number().int().min(1).max(60).optional(),
   profileImage: z.union([z.string().url(), z.literal(''), z.null()]).optional(),
   payPeriodType: z.enum(['weekly', 'monthly']).optional(),
@@ -22,29 +24,38 @@ const updateProfileSchema = z.object({
   timezone: z.string().max(64).optional().nullable() // IANA timezone e.g. America/Denver
 })
 
+const userPublicSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  isActive: true,
+  companyId: true,
+  managerId: true,
+  mustResetPassword: true,
+  hourlyRate: true,
+  overtimeRate: true,
+  overtimeThresholdHours: true,
+  workweekStartDay: true,
+  timeRoundingInterval: true,
+  profileImage: true,
+  payPeriodType: true,
+  payPeriodEndDay: true,
+  paycheckAdjustment: true,
+  state: true,
+  stateTaxRate: true,
+  filingStatus: true,
+  weeklySchedule: true,
+  timezone: true,
+  createdAt: true,
+} as const
+
 // Get user profile
 router.get('/profile', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        hourlyRate: true,
-        overtimeRate: true,
-        timeRoundingInterval: true,
-        profileImage: true,
-        payPeriodType: true,
-        payPeriodEndDay: true,
-        paycheckAdjustment: true,
-        state: true,
-        stateTaxRate: true,
-        filingStatus: true,
-        weeklySchedule: true,
-        timezone: true,
-        createdAt: true
-      }
+      select: userPublicSelect,
     })
     
     if (!user) {
@@ -62,9 +73,15 @@ router.get('/profile', authenticate, async (req: AuthRequest, res) => {
 router.put('/profile', authenticate, async (req: AuthRequest, res) => {
   try {
     const data = updateProfileSchema.parse(req.body)
+
+    // Never allow self-service role / active / manager changes via profile
+    const body = req.body as Record<string, unknown>
+    if ('role' in body || 'isActive' in body || 'managerId' in body || 'companyId' in body) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
     
     // Normalize empty strings to null for nullable fields
-    const normalizedData: any = { ...data }
+    const normalizedData: Record<string, unknown> = { ...data }
     if (normalizedData.profileImage === '') {
       normalizedData.profileImage = null
     }
@@ -78,23 +95,7 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: normalizedData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        hourlyRate: true,
-        overtimeRate: true,
-        timeRoundingInterval: true,
-        profileImage: true,
-        payPeriodType: true,
-        payPeriodEndDay: true,
-        paycheckAdjustment: true,
-        state: true,
-        stateTaxRate: true,
-        filingStatus: true,
-        weeklySchedule: true,
-        timezone: true
-      }
+      select: userPublicSelect,
     })
     
     res.json(user)
@@ -109,7 +110,7 @@ router.put('/profile', authenticate, async (req: AuthRequest, res) => {
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(6)
+  newPassword: z.string().min(10, 'Password must be at least 10 characters')
 })
 
 // Change password

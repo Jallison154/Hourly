@@ -6,14 +6,21 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "test:timezone": "tsx src/utils/__tests__/timezone.test.ts",
     "test:clock-state": "tsx src/__tests__/clockState.integration.ts",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "reset-password": "tsx reset-password.ts",
-    "list-users": "tsx list-users.ts"
+    "list-users": "tsx list-users.ts",
+    "backup": "bash ../scripts/backup-sqlite.sh",
+    "backup:verify": "bash ../scripts/backup-sqlite.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
@@ -21,6 +28,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.6.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "luxon": "^3.7.2",
     "zod": "^3.22.4"
@@ -32,8 +41,11 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/luxon": "^3.7.1",
     "@types/node": "^20.10.5",
+    "@types/supertest": "^7.2.1",
     "prisma": "^5.7.1",
+    "supertest": "^7.2.2",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.10"
   }
 }

@@ -1,19 +1,7 @@
-import { Request, Response, NextFunction } from 'express'
-
-const ADMIN_TOKEN_HEADER = 'x-admin-token'
-
-export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers[ADMIN_TOKEN_HEADER] as string || req.headers.authorization?.replace(/^Bearer\s+/i, '')
-  const adminPassword = process.env.ADMIN_PASSWORD
-
-  if (!adminPassword) {
-    console.error('ADMIN_PASSWORD is not set in environment')
-    return res.status(503).json({ error: 'Admin access not configured' })
-  }
-
-  if (!token || token !== adminPassword) {
-    return res.status(401).json({ error: 'Invalid admin password' })
-  }
-
-  next()
-}
+/**
+ * Legacy admin password JWT is retired for day-to-day admin access.
+ * Administrators use normal user accounts with role ADMIN.
+ * See POST /api/auth/bootstrap-admin for one-time promotion via ADMIN_PASSWORD.
+ */
+export { requireAdmin, requireManagerOrAdmin, requireRole, authenticate } from './auth'
+export type { AuthRequest, AuthUser } from './auth'

@@ -63,8 +63,8 @@ async function resetPassword(email: string, newPassword: string) {
     }
 
     // Validate password length
-    if (newPassword.length < 6) {
-      console.error('❌ Password must be at least 6 characters long')
+    if (newPassword.length < 10) {
+      console.error('❌ Password must be at least 10 characters long')
       process.exit(1)
     }
 
@@ -78,7 +78,7 @@ async function resetPassword(email: string, newPassword: string) {
     })
 
     console.log(`✅ Password reset successfully for ${normalizedEmail}`)
-    console.log(`   New password: ${newPassword}`)
+    console.log('   (New password was set; it is not printed for security.)')
   } catch (error) {
     console.error('❌ Error resetting password:', error)
     process.exit(1)
