@@ -69,6 +69,12 @@ const getApiUrl = () => {
 const API_URL = getApiUrl()
 if (import.meta.env.DEV) console.log('API URL configured:', API_URL)
 
+function clearClientSession() {
+  localStorage.removeItem('token')
+  sessionStorage.removeItem('hourly_admin_token')
+  sessionStorage.removeItem('sessionExpired')
+}
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -117,9 +123,24 @@ api.interceptors.response.use(
     if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
       err.userMessage = 'Cannot reach server. Please check your connection.'
     } else if (error.response?.status === 401) {
-      const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register')
-      err.userMessage = isAuthEndpoint ? 'Invalid email or password' : 'Session expired. Please log in again.'
-      if (!isAuthEndpoint) err.isSessionExpired = true
+      const isAuthEndpoint =
+        error.config?.url?.includes('/auth/login') ||
+        error.config?.url?.includes('/auth/register') ||
+        error.config?.url?.includes('/admin/login')
+      err.userMessage = isAuthEndpoint
+        ? 'Invalid email or password'
+        : 'Session expired. Please log in again.'
+      if (!isAuthEndpoint) {
+        err.isSessionExpired = true
+        clearClientSession()
+        sessionStorage.setItem('sessionExpired', '1')
+        if (
+          typeof window !== 'undefined' &&
+          !window.location.pathname.startsWith('/login')
+        ) {
+          window.location.assign('/login')
+        }
+      }
     } else if (error.response?.status === 0) {
       err.userMessage = 'Connection error. Check your network or CORS.'
     } else if (error.response?.status && error.response.status >= 400) {
@@ -187,9 +208,20 @@ export const authAPI = {
     }
   },
   
-  logout: () => {
-    localStorage.removeItem('token')
-  }
+  bootstrapAdmin: async (email: string, adminPassword: string) => {
+    const { data } = await api.post('/auth/bootstrap-admin', { email, adminPassword })
+    if (data.token) localStorage.setItem('token', data.token)
+    return data
+  },
+
+  logout: async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      /* ignore */
+    }
+    clearClientSession()
+  },
 }
 
 // User API
@@ -420,33 +452,105 @@ export const importAPI = {
   }
 }
 
-// Admin API - uses admin password as token, no user JWT
+// Admin / manager dashboard (uses normal user JWT + role)
 export interface AdminDashboardUser {
   id: string
   name: string
   email: string
+  role?: string
+  isActive?: boolean
   isClockedIn: boolean
   clockedInSince: string | null
+  onBreak?: boolean
   currentWeekHours: number
+  overtimeHours?: number
   hoursLeft: number
+  unusuallyLongShift?: boolean
+  openShiftHours?: number | null
+  pendingTimesheets?: number
 }
 
 export interface AdminDashboard {
   workWeek: { start: string; end: string }
+  summary?: {
+    clockedIn: number
+    onBreak: number
+    missingClockOut: number
+    inOvertime: number
+    awaitingApproval: number
+  }
   users: AdminDashboardUser[]
 }
 
 export const adminAPI = {
-  login: async (password: string): Promise<{ success: boolean }> => {
-    const { data } = await api.post('/admin/login', { password })
+  getDashboard: async (): Promise<AdminDashboard> => {
+    const { data } = await api.get('/admin/dashboard')
     return data
   },
-  getDashboard: async (adminToken: string): Promise<AdminDashboard> => {
-    const { data } = await api.get('/admin/dashboard', {
-      headers: { 'x-admin-token': adminToken }
-    })
+  getAudit: async () => {
+    const { data } = await api.get('/admin/audit')
     return data
-  }
+  },
+}
+
+export const employeesAPI = {
+  list: async () => {
+    const { data } = await api.get('/employees')
+    return data
+  },
+  create: async (payload: Record<string, unknown>) => {
+    const { data } = await api.post('/employees', payload)
+    return data
+  },
+  update: async (id: string, payload: Record<string, unknown>) => {
+    const { data } = await api.patch(`/employees/${id}`, payload)
+    return data
+  },
+  invite: async (email: string, role = 'EMPLOYEE') => {
+    const { data } = await api.post('/employees/invite', { email, role })
+    return data
+  },
+}
+
+export const companyAPI = {
+  getSettings: async () => {
+    const { data } = await api.get('/company/settings')
+    return data
+  },
+  updateSettings: async (payload: Record<string, unknown>) => {
+    const { data } = await api.put('/company/settings', payload)
+    return data
+  },
+}
+
+export const timesheetsAPI = {
+  getCurrent: async (start: string, end: string) => {
+    const { data } = await api.get('/timesheets/current', { params: { start, end } })
+    return data
+  },
+  submit: async (id: string) => {
+    const { data } = await api.post(`/timesheets/${id}/submit`)
+    return data
+  },
+  withdraw: async (id: string) => {
+    const { data } = await api.post(`/timesheets/${id}/withdraw`)
+    return data
+  },
+  approve: async (id: string) => {
+    const { data } = await api.post(`/timesheets/${id}/approve`)
+    return data
+  },
+  reject: async (id: string, reason: string) => {
+    const { data } = await api.post(`/timesheets/${id}/reject`, { reason })
+    return data
+  },
+}
+
+export const systemAPI = {
+  detailedHealth: async () => {
+    const { data } = await api.get('/system/health/detailed')
+    return data
+  },
 }
 
 export default api

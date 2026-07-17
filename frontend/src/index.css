@@ -47,31 +47,54 @@
 }
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Okami Designs–inspired tokens (light) */
+  --okami-bg: #f4f2ef;
+  --okami-panel: #ffffff;
+  --okami-border: #e4e0d8;
+  --okami-accent: #e07a2f;
+  --okami-accent-hover: #c96620;
+  --okami-muted: #6b6560;
+  --okami-success: #2f9e6b;
+  --okami-warning: #d4a017;
+  --okami-danger: #c9443a;
+  --okami-radius: 1rem;
+  --okami-shadow: 0 8px 24px rgba(28, 24, 20, 0.08);
+
+  font-family: "DM Sans", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color: #1c1814;
+  background-color: var(--okami-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --okami-bg: #141210;
+    --okami-panel: #1e1b18;
+    --okami-border: #2e2a26;
+    --okami-accent: #f08a3a;
+    --okami-accent-hover: #ff9a4a;
+    --okami-muted: #a39e97;
+    --okami-success: #3db87f;
+    --okami-warning: #e0b030;
+    --okami-danger: #e0554a;
+    --okami-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    color: #f5f1eb;
+    background-color: var(--okami-bg);
+  }
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
+  background-color: var(--okami-bg);
+  overflow-x: hidden;
 }
 
 

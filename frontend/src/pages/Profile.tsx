@@ -17,6 +17,8 @@ export default function Profile() {
     name: user?.name || '',
     hourlyRate: user?.hourlyRate || 0,
     overtimeRate: user?.overtimeRate || 1.5,
+    overtimeThresholdHours: user?.overtimeThresholdHours || 40,
+    workweekStartDay: user?.workweekStartDay ?? 0,
     timeRoundingInterval: user?.timeRoundingInterval || 5,
     profileImage: user?.profileImage || '',
     payPeriodType: (user?.payPeriodType || 'monthly') as 'weekly' | 'monthly',
@@ -42,6 +44,8 @@ export default function Profile() {
         name: user.name || '',
         hourlyRate: user.hourlyRate || 0,
         overtimeRate: user.overtimeRate || 1.5,
+        overtimeThresholdHours: user.overtimeThresholdHours || 40,
+        workweekStartDay: user.workweekStartDay ?? 0,
         timeRoundingInterval: user.timeRoundingInterval || 5,
         profileImage: user.profileImage || '',
         payPeriodType: (user.payPeriodType || 'monthly') as 'weekly' | 'monthly',
@@ -96,8 +100,8 @@ export default function Profile() {
       return
     }
     
-    if (passwordData.newPassword.length < 6) {
-      await showAlert('Error', 'New password must be at least 6 characters long')
+    if (passwordData.newPassword.length < 10) {
+      await showAlert('Error', 'New password must be at least 10 characters long')
       return
     }
     
@@ -267,10 +271,10 @@ export default function Profile() {
                   value={passwordData.newPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  minLength={6}
+                  minLength={10}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Must be at least 6 characters
+                  Must be at least 10 characters
                 </p>
               </div>
               <div>
@@ -282,7 +286,7 @@ export default function Profile() {
                   value={passwordData.confirmPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  minLength={6}
+                  minLength={10}
                 />
               </div>
               <Button
@@ -334,6 +338,48 @@ export default function Profile() {
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Default: 1.5x (time and a half)
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Overtime threshold (hours/week)
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="1"
+                  max="168"
+                  value={formData.overtimeThresholdHours}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      overtimeThresholdHours: parseFloat(e.target.value) || 40,
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-okami-accent focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Workweek starts on
+                </label>
+                <select
+                  value={formData.workweekStartDay}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      workweekStartDay: parseInt(e.target.value, 10),
+                    })
+                  }
+                  className="w-full min-h-[44px] px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(
+                    (day, i) => (
+                      <option key={day} value={i}>
+                        {day}
+                      </option>
+                    )
+                  )}
+                </select>
               </div>
             </div>
           </div>
@@ -671,8 +717,24 @@ export default function Profile() {
           </div>
         </div>
 
+        {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+          <div className="mt-6">
+            <a
+              href="/admin"
+              className="block w-full text-center min-h-[44px] py-3 rounded-xl bg-okami-accent text-white font-semibold"
+            >
+              {user.role === 'ADMIN' ? 'Admin dashboard' : 'Team dashboard'}
+            </a>
+          </div>
+        )}
+
+        <p className="mt-6 text-center text-xs text-okami-muted">
+          Hourly v1.2.0 · Okami Designs
+          {user?.role ? ` · ${user.role}` : ''}
+        </p>
+
         {/* Danger Zone - Outside form to prevent submission */}
-        <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4">
             Danger Zone
           </h3>

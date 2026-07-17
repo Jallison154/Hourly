@@ -199,7 +199,7 @@ export default function PaycheckCalculator() {
           >
             {/* Summary */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-2">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                   Pay Summary
                 </h2>
@@ -209,6 +209,12 @@ export default function PaycheckCalculator() {
                   </div>
                 )}
               </div>
+              <p className="mb-4 text-xs text-okami-muted leading-relaxed">
+                Tax year {calculation.taxYear ?? 2024} estimate. Results may not match payroll
+                withholding because of W-4 selections, pretax benefits, retirement deductions,
+                dependents, additional withholding, local taxes, and employer payroll rules.
+                Montana income tax uses progressive brackets (not a flat rate) for this tax year.
+              </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Regular Hours</div>

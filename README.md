@@ -19,7 +19,7 @@ A Progressive Web App for time tracking with clock in/out functionality, timeshe
 
 - **Frontend**: React + TypeScript + Vite + Tailwind CSS + Framer Motion
 - **Backend**: Node.js + Express + TypeScript
-- **Database**: PostgreSQL + Prisma ORM
+- **Database**: SQLite + Prisma ORM
 
 ## Setup
 
@@ -49,7 +49,7 @@ See [INSTALL.md](INSTALL.md) for more details.
 ### Prerequisites
 
 - Node.js 18+ and npm
-- PostgreSQL database (or SQLite for development)
+- SQLite (file-based; no separate database server)
 
 ### Manual Installation
 
@@ -65,20 +65,24 @@ cd backend
 npm install
 ```
 
-3. Set up environment variables:
+3. Set up environment variables (see `backend/.env.example`):
 ```bash
-# Backend .env file
-DATABASE_URL="postgresql://user:password@localhost:5432/hours_calculator"
-JWT_SECRET="your-secret-key"
-PORT=5000
+cp backend/.env.example backend/.env
+# Edit backend/.env — set JWT_SECRET (32+ chars), ADMIN_PASSWORD, ALLOWED_ORIGINS
+DATABASE_URL="file:./prisma/dev.db"
 ```
 
 4. Run database migrations:
 ```bash
 cd backend
 npm run prisma:generate
+# Development:
 npm run prisma:migrate
+# Production updates:
+npx prisma migrate deploy
 ```
+
+See [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) for backup/restore. Use `./update.sh` on the server for safe deploy (backup → migrate deploy → build → restart → health check).
 
 5. Start development servers:
 ```bash

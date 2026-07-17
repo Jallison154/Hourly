@@ -1,95 +1,51 @@
 # Database Setup Guide
 
+Hourly uses **SQLite** via Prisma. No separate database server is required.
+
 ## Quick Setup
 
-The internal server error you're seeing is because the database isn't configured yet. Follow these steps:
-
-### Option 1: Using PostgreSQL (Recommended)
-
-1. **Create the `.env` file** in the `backend` directory:
-   ```bash
-   cd backend
-   ```
-
-2. **Create `.env` file** with your database credentials:
-   ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/hours_calculator"
-   JWT_SECRET="your-random-secret-key-here"
-   PORT=5000
-   ```
-
-3. **Update the DATABASE_URL** with your actual PostgreSQL credentials:
-   - Replace `username` with your PostgreSQL username
-   - Replace `password` with your PostgreSQL password
-   - Replace `hours_calculator` with your database name (or create it first)
-
-4. **Create the database** (if it doesn't exist):
-   ```bash
-   createdb hours_calculator
-   # or using psql:
-   psql -U postgres
-   CREATE DATABASE hours_calculator;
-   ```
-
-5. **Run the setup script**:
-   ```bash
-   ./setup-db.sh
-   ```
-
-   Or manually:
-   ```bash
-   npm run prisma:generate
-   npm run prisma:migrate
-   ```
-
-### Option 2: Using SQLite (Easier for Development)
-
-If you don't have PostgreSQL set up, you can use SQLite for development:
-
-1. **Update `backend/prisma/schema.prisma`**:
-   Change the datasource from:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-   To:
-   ```prisma
-   datasource db {
-     provider = "sqlite"
-     url      = "file:./dev.db"
-   }
-   ```
-
-2. **Update `.env`** (or create it):
-   ```env
-   DATABASE_URL="file:./dev.db"
-   JWT_SECRET="your-random-secret-key-here"
-   PORT=5000
-   ```
-
-3. **Run migrations**:
-   ```bash
-   npm run prisma:generate
-   npm run prisma:migrate
-   ```
-
-## After Setup
-
-Once the database is configured, restart the backend server:
+1. Create `backend/.env` from the example:
 
 ```bash
 cd backend
+cp .env.example .env
+```
+
+2. Edit `.env` and set at least:
+
+```env
+DATABASE_URL="file:./prisma/dev.db"
+JWT_SECRET="generate-with-openssl-rand-hex-32"
+ADMIN_PASSWORD="a-strong-admin-password"
+PORT=5000
+HOST=0.0.0.0
+NODE_ENV=development
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
+
+In production, `ALLOWED_ORIGINS` is required. Prefer `ADMIN_PASSWORD_HASH` (bcrypt) over a plaintext `ADMIN_PASSWORD`.
+
+3. Run migrations:
+
+```bash
+npx prisma generate
+# Development:
+npx prisma migrate dev
+# Production / server updates:
+npx prisma migrate deploy
+```
+
+4. Start the API:
+
+```bash
 npm run dev
 ```
 
-The frontend should now be able to connect and you can register/login!
+## Backups
 
-## Troubleshooting
+See [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md). Production updates should use `./update.sh`, which backs up the DB before `prisma migrate deploy`.
 
-- **"Database connection failed"**: Check your DATABASE_URL in `.env` and ensure PostgreSQL is running
-- **"Table does not exist"**: Run `npm run prisma:migrate` to create the tables
-- **Port already in use**: Change PORT in `.env` or stop the process using port 5000
+## Do not
 
-
+- Do not run `prisma migrate reset` against a live database with user data.
+- Do not commit real secrets in `.env`.

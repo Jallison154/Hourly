@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick script to update from git, rebuild, and restart Hourly services
+# Update from git, backup DB, migrate, rebuild, restart, health-check Hourly services
 
 set -e
 
@@ -12,42 +12,36 @@ echo "Updating Hourly from Git"
 echo "=========================================="
 echo ""
 
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then 
+if [ "$EUID" -eq 0 ]; then
     SUDO_CMD=""
 else
     SUDO_CMD="sudo"
 fi
 
-# Check if this is a git repository
 if [ ! -d ".git" ]; then
     echo "Error: Not a git repository"
     exit 1
 fi
 
-# Get current branch
 CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "main")
 
-# Temporarily disable exit on error for git operations
 set +e
 
-# Stash any local changes
 if ! git diff --quiet 2>/dev/null || ! git diff --staged --quiet 2>/dev/null; then
     echo "→ Stashing local changes..."
-    git stash push -m "Auto-stash before update.sh $(date +%Y-%m-%d_%H:%M:%S)" 2>/dev/null
+    git stash push -m "Auto-stash before update.sh $(date +%Y-%m-%d_%H%M%S)" 2>/dev/null
     STASHED=true
 else
     STASHED=false
 fi
 
-# Fetch and update
 echo "→ Fetching latest changes from origin..."
 git fetch origin --prune 2>/dev/null
 
 if [ $? -eq 0 ]; then
     LOCAL=$(git rev-parse HEAD 2>/dev/null)
     REMOTE=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null)
-    
+
     if [ -n "$LOCAL" ] && [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
         echo "→ Updating to latest version..."
         git reset --hard "origin/$CURRENT_BRANCH" 2>/dev/null
@@ -60,38 +54,49 @@ else
     echo "⚠ Could not fetch from origin (continuing with existing code)"
 fi
 
-# Restore stashed changes if any
 if [ "$STASHED" = true ]; then
     echo "→ Restoring stashed changes..."
     git stash pop 2>/dev/null || echo "⚠ Could not restore stashed changes (check: git stash list)"
 fi
 
-# Re-enable exit on error
 set -e
 
 echo ""
-echo "→ Rebuilding backend..."
+echo "→ Backing up SQLite database..."
+chmod +x scripts/backup-sqlite.sh
+./scripts/backup-sqlite.sh || {
+  echo "✗ Database backup failed — aborting update"
+  exit 1
+}
+echo ""
+
+echo "→ Installing backend dependencies..."
 cd backend
+npm ci --omit=dev 2>/dev/null || npm install
+echo "→ Running prisma migrate deploy..."
+npx prisma generate
+npx prisma migrate deploy || {
+  echo "✗ Migration failed — aborting (database backup is in ../backups/)"
+  exit 1
+}
+echo "→ Building backend..."
 rm -rf dist 2>/dev/null || true
-npm run build
+npm run build || {
+  echo "✗ Backend build failed — aborting restart"
+  exit 1
+}
 echo "✓ Backend rebuilt"
 echo ""
 
-echo "→ Rebuilding frontend..."
+echo "→ Building frontend..."
 cd ../frontend
+npm ci 2>/dev/null || npm install
 rm -rf dist .vite node_modules/.vite 2>/dev/null || true
-# Clear npm cache for good measure
-npm cache clean --force 2>/dev/null || true
-npm run build
+npm run build || {
+  echo "✗ Frontend build failed — aborting restart"
+  exit 1
+}
 echo "✓ Frontend rebuilt"
-echo ""
-
-# Verify the build contains the Add Entry button
-if grep -q "Add Entry" dist/index.html 2>/dev/null || grep -q "Add Entry" dist/assets/*.js 2>/dev/null; then
-    echo "✓ Verified: Add Entry button is in the build"
-else
-    echo "⚠ Warning: Could not verify Add Entry button in build (may still be there)"
-fi
 echo ""
 
 echo "→ Restarting services..."
@@ -102,7 +107,17 @@ sleep 2
 echo "✓ Services restarted"
 echo ""
 
-# Check status
+echo "→ Health check..."
+HEALTH_URL="${HOURLY_HEALTH_URL:-http://127.0.0.1:5000/api/health}"
+if curl -sf "$HEALTH_URL" >/dev/null; then
+  echo "✓ Health check passed ($HEALTH_URL)"
+else
+  echo "✗ Health check failed ($HEALTH_URL)"
+  echo "  Check logs: $SUDO_CMD journalctl -u hourly-backend -n 40"
+  exit 1
+fi
+echo ""
+
 echo "Service Status:"
 echo ""
 
@@ -123,8 +138,3 @@ fi
 echo ""
 echo "Update complete!"
 echo ""
-echo "Access the app at:"
-echo "  Frontend: http://192.168.10.65:5173"
-echo "  Backend: http://192.168.10.65:5000"
-echo ""
-

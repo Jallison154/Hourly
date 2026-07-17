@@ -19,7 +19,9 @@ export default function Login() {
         sessionStorage.removeItem('sessionExpired')
         setSessionExpiredMessage('Session expired. Please log in again.')
       }
-    } catch (_) {}
+    } catch {
+      /* ignore storage errors */
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

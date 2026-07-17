@@ -1,77 +1,84 @@
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { HomeIcon, ClockIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
-import { HomeIcon as HomeIconSolid, ClockIcon as ClockIconSolid, DocumentTextIcon as DocumentTextIconSolid } from '@heroicons/react/24/solid'
+import {
+  ClockIcon,
+  DocumentTextIcon,
+  CalendarDaysIcon,
+  BanknotesIcon,
+  EllipsisHorizontalIcon,
+} from '@heroicons/react/24/outline'
+import {
+  ClockIcon as ClockIconSolid,
+  DocumentTextIcon as DocumentTextIconSolid,
+  CalendarDaysIcon as CalendarDaysIconSolid,
+  BanknotesIcon as BanknotesIconSolid,
+  EllipsisHorizontalIcon as EllipsisHorizontalIconSolid,
+} from '@heroicons/react/24/solid'
+
+const navItems = [
+  { path: '/', label: 'Clock', icon: ClockIcon, iconSolid: ClockIconSolid, match: ['/', '/clock'] },
+  { path: '/timesheet', label: 'Timesheet', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
+  { path: '/schedule', label: 'Schedule', icon: CalendarDaysIcon, iconSolid: CalendarDaysIconSolid },
+  { path: '/paycheck', label: 'Paycheck', icon: BanknotesIcon, iconSolid: BanknotesIconSolid },
+  { path: '/profile', label: 'More', icon: EllipsisHorizontalIcon, iconSolid: EllipsisHorizontalIconSolid, match: ['/profile', '/import', '/dashboard'] },
+]
 
 export default function MobileBottomNav() {
   const location = useLocation()
 
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: HomeIcon, iconSolid: HomeIconSolid },
-    { path: '/', label: 'Clock', icon: ClockIcon, iconSolid: ClockIconSolid, oversized: true },
-    { path: '/timesheet', label: 'Timesheet', icon: DocumentTextIcon, iconSolid: DocumentTextIconSolid },
-  ]
-
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return location.pathname === '/'
-    }
-    return location.pathname.startsWith(path)
+  const isActive = (item: (typeof navItems)[number]) => {
+    const paths = item.match ?? [item.path]
+    return paths.some((p) =>
+      p === '/' ? location.pathname === '/' || location.pathname === '/clock' : location.pathname.startsWith(p)
+    )
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 sm:hidden" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) * 0.5)' }}>
-      <div className="flex items-center h-14">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-okami-border bg-okami-panel/95 backdrop-blur sm:hidden dark:bg-gray-900/95"
+      style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
+      aria-label="Main"
+    >
+      <div className="flex items-stretch h-14">
         {navItems.map((item) => {
-          const active = isActive(item.path)
+          const active = isActive(item)
           const Icon = active ? item.iconSolid : item.icon
-          const isOversized = item.oversized
-          
           return (
             <motion.div
               key={item.path}
-              className={`flex flex-col items-center justify-center relative ${isOversized ? 'flex-[1.5] -mt-6' : 'flex-1'}`}
-              whileTap={{ scale: 0.97, opacity: 0.8 }}
+              className="flex-1 relative"
+              whileTap={{ scale: 0.96, opacity: 0.85 }}
               transition={{ duration: 0.1 }}
             >
               <Link
                 to={item.path}
-                className="flex flex-col items-center justify-center w-full h-full"
+                className="flex flex-col items-center justify-center w-full h-full min-h-[44px] gap-0.5"
               >
-                {isOversized ? (
+                {active && (
                   <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl ${
-                      active 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }`}
-                  >
-                    <Icon className="w-10 h-10" />
-                  </motion.div>
-                ) : (
-                  <>
-                    {active && (
-                      <motion.div
-                        layoutId="activeTab"
-                        className="absolute -top-1 left-0 right-0 h-1 bg-blue-600 rounded-b-full"
-                        initial={false}
-                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                    <Icon className={`w-6 h-6 ${active ? 'text-blue-600' : 'text-gray-500 dark:text-gray-400'}`} />
-                    <span className={`text-xs mt-1 ${active ? 'text-blue-600 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
-                      {item.label}
-                    </span>
-                  </>
+                    layoutId="activeTab"
+                    className="absolute top-0 left-2 right-2 h-0.5 bg-okami-accent rounded-b-full"
+                    initial={false}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
                 )}
+                <Icon
+                  className={`w-6 h-6 ${active ? 'text-okami-accent' : 'text-gray-500 dark:text-gray-400'}`}
+                />
+                <span
+                  className={`text-[10px] leading-tight ${
+                    active
+                      ? 'text-okami-accent font-semibold'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  {item.label}
+                </span>
               </Link>
             </motion.div>
           )
         })}
       </div>
-    </div>
+    </nav>
   )
 }
-

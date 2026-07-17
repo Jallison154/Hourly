@@ -175,9 +175,7 @@ export default function WeeklySummary() {
 
       // Calculate consecutive days worked (check backwards from today)
       let consecutiveDays = 0
-      let checkDate = new Date()
-      checkDate.setHours(0, 0, 0, 0)
-      
+
       // Get recent entries to check consecutive days (last 30 days should be enough)
       const thirtyDaysAgo = new Date()
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
@@ -201,7 +199,7 @@ export default function WeeklySummary() {
       // Check backwards from today
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      let currentCheck = new Date(today)
+      const currentCheck = new Date(today)
       
       // Skip today if it's before the start of the day (like if checking early morning)
       const todayKey = `${currentCheck.getFullYear()}-${String(currentCheck.getMonth() + 1).padStart(2, '0')}-${String(currentCheck.getDate()).padStart(2, '0')}`
@@ -210,8 +208,8 @@ export default function WeeklySummary() {
         currentCheck.setDate(currentCheck.getDate() - 1)
       }
       
-      // Count consecutive days backwards
-      while (true) {
+      // Count consecutive days backwards (cap at 60 days)
+      for (let i = 0; i < 60; i++) {
         const dateKey = `${currentCheck.getFullYear()}-${String(currentCheck.getMonth() + 1).padStart(2, '0')}-${String(currentCheck.getDate()).padStart(2, '0')}`
         if (allWorkedDates.has(dateKey)) {
           consecutiveDays++

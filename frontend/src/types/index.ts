@@ -8,12 +8,21 @@ export interface WeeklySchedule {
   sunday?: number
 }
 
+export type UserRole = 'EMPLOYEE' | 'MANAGER' | 'ADMIN'
+
 export interface User {
   id: string
   email: string
   name: string
+  role?: UserRole
+  isActive?: boolean
+  companyId?: string | null
+  managerId?: string | null
+  mustResetPassword?: boolean
   hourlyRate: number
   overtimeRate?: number
+  overtimeThresholdHours?: number
+  workweekStartDay?: number // 0=Sunday … 6=Saturday
   timeRoundingInterval?: number
   profileImage?: string | null
   payPeriodType?: 'weekly' | 'monthly'
@@ -64,6 +73,7 @@ export interface PayCalculation {
   medicare?: number
   netPay: number
   stateTaxRate?: number // The state tax rate used for calculations (for display)
+  taxYear?: number
 }
 
 export interface PayPeriod {

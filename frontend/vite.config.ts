@@ -7,26 +7,36 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      registerType: 'prompt',
+      includeAssets: ['logo-icon.svg', 'logo.svg'],
+      minify: false,
+      workbox: {
+        mode: 'development',
+        navigateFallback: 'index.html',
+        runtimeCaching: [
+          {
+            // Never cache authenticated API responses across users
+            urlPattern: /\/api\//,
+            handler: 'NetworkOnly',
+          },
+        ],
+      },
       manifest: {
         name: 'Hourly',
         short_name: 'Hourly',
-        description: 'Time tracking and paycheck calculator',
-        theme_color: '#ffffff',
+        description: 'Time tracking and paycheck calculator by Okami Designs',
+        theme_color: '#141210',
+        background_color: '#141210',
+        display: 'standalone',
         icons: [
           {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
+            src: 'logo-icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
           },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
+        ],
+      },
     })
   ],
   server: {
