@@ -60,6 +60,9 @@
   --okami-radius: 1rem;
   --okami-shadow: 0 8px 24px rgba(28, 24, 20, 0.08);
 
+  /* Shared clearance for fixed AppBottomNav (raised Clock + dock + safe area) */
+  --nav-clearance: calc(7.25rem + env(safe-area-inset-bottom, 0px));
+
   font-family: "DM Sans", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -70,6 +73,13 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@media (min-width: 640px) {
+  :root {
+    /* Floating dock sits slightly above the bottom edge */
+    --nav-clearance: calc(8rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -96,5 +106,11 @@ body {
   background-color: var(--okami-bg);
   overflow-x: hidden;
 }
+
+/* Apply to authenticated page roots so the dock never covers controls */
+.page-with-nav {
+  padding-bottom: var(--nav-clearance);
+}
+
 
 

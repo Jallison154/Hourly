@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
@@ -11,6 +11,7 @@ import { userAPI, timeEntriesAPI } from '../services/api'
 export default function Profile() {
   const { user, updateUser, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { dialog, showAlert, showConfirm, closeDialog } = useDialog()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -59,6 +60,15 @@ export default function Profile() {
       setImagePreview(user.profileImage || null)
     }
   }, [user])
+
+  useEffect(() => {
+    if (!location.hash) return
+    const id = location.hash.slice(1)
+    const el = document.getElementById(id)
+    if (el) {
+      requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
+  }, [location.hash, user])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -156,27 +166,21 @@ export default function Profile() {
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 page-with-nav">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Profile Settings
-          </h1>
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Profile
+            </h1>
             <Link
-              to="/paycheck"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-okami-border bg-okami-panel px-3 text-sm font-medium text-gray-800 shadow-sm dark:text-gray-100"
+              to="/settings"
+              className="text-sm font-medium text-okami-accent"
             >
-              Paycheck
-            </Link>
-            <Link
-              to="/import"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-okami-border bg-okami-panel px-3 text-sm font-medium text-gray-800 shadow-sm dark:text-gray-100"
-            >
-              Import
+              ← Settings
             </Link>
           </div>
         </div>
@@ -317,7 +321,7 @@ export default function Profile() {
           </div>
 
           {/* Pay Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div id="pay" className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 scroll-mt-24">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Pay Settings
             </h2>
@@ -399,7 +403,7 @@ export default function Profile() {
           </div>
 
           {/* Time Rounding */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div id="rounding" className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 scroll-mt-24">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Time Rounding
             </h2>
@@ -510,7 +514,7 @@ export default function Profile() {
           </div>
 
           {/* Time zone */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div id="timezone" className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 scroll-mt-24">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               Time zone
             </h2>

@@ -79,98 +79,101 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm sm:bg-black/40"
             onClick={() => setIsOpen(false)}
           />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={headingId}
-            initial={{ opacity: 0, scale: 0.96, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 8 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-            className="
-              fixed left-1/2 top-1/2 z-[61] box-border flex w-[calc(100%-2rem)] max-w-md
-              max-h-[min(85dvh,560px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden
-              rounded-2xl border border-gray-200 bg-white shadow-2xl
-              dark:border-gray-700 dark:bg-gray-800
-            "
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 pt-4 pb-2">
-              <h2
-                id={headingId}
-                className="text-base font-semibold text-gray-900 dark:text-white sm:text-lg"
-              >
-                {label}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="
-                  -mr-2 inline-flex min-h-[36px] items-center rounded-lg px-2.5
-                  text-sm font-semibold text-blue-600 hover:bg-blue-50
-                  active:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30
-                  dark:active:bg-blue-900/50 transition-colors
-                "
-              >
-                Done
-              </button>
-            </div>
-
-            {/* Body (scrolls if cramped) */}
-            <div className="box-border flex-1 overflow-y-auto px-5 pb-5 pt-1">
-              <div className="space-y-3">
-                <div className="min-w-0">
-                  <label className="mb-1.5 block text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={handleDateChange}
-                    className="
-                      time-picker-input box-border block h-11 w-full min-w-0 max-w-full
-                      appearance-none rounded-lg border border-gray-300 bg-gray-50 px-3
-                      text-center text-base leading-none text-gray-900
-                      focus:border-blue-500 focus:bg-white focus:outline-none
-                      focus:ring-2 focus:ring-blue-500/40
-                      dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
-                      dark:focus:bg-gray-700
-                    "
-                  />
-                </div>
-                <div className="min-w-0">
-                  <label className="mb-1.5 block text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Time
-                  </label>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={handleTimeChange}
-                    className="
-                      time-picker-input box-border block h-11 w-full min-w-0 max-w-full
-                      appearance-none rounded-lg border border-gray-300 bg-gray-50 px-3
-                      text-center text-base leading-none text-gray-900
-                      focus:border-blue-500 focus:bg-white focus:outline-none
-                      focus:ring-2 focus:ring-blue-500/40
-                      dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
-                      dark:focus:bg-gray-700
-                    "
-                  />
-                </div>
-
-                <Button
-                  variant="primary"
-                  size="md"
-                  fullWidth
-                  onClick={useNow}
-                  className="mt-1"
+          {/* Flex center wrapper — avoid translate + framer y (they fight and break centering) */}
+          <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 pointer-events-none">
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={headingId}
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              className="
+                pointer-events-auto box-border flex w-full max-w-md
+                max-h-[min(85dvh,560px)] flex-col overflow-hidden
+                rounded-2xl border border-gray-200 bg-white shadow-2xl
+                dark:border-gray-700 dark:bg-gray-800
+              "
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                <h2
+                  id={headingId}
+                  className="text-base font-semibold text-gray-900 dark:text-white sm:text-lg"
                 >
-                  Use current date &amp; time
-                </Button>
+                  {label}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="
+                    -mr-2 inline-flex min-h-[36px] items-center rounded-lg px-2.5
+                    text-sm font-semibold text-blue-600 hover:bg-blue-50
+                    active:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30
+                    dark:active:bg-blue-900/50 transition-colors
+                  "
+                >
+                  Done
+                </button>
               </div>
-            </div>
-          </motion.div>
+
+              {/* Body (scrolls if cramped) */}
+              <div className="box-border flex-1 overflow-y-auto px-5 pb-5 pt-1">
+                <div className="space-y-3">
+                  <div className="min-w-0">
+                    <label className="mb-1.5 block text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={handleDateChange}
+                      className="
+                        time-picker-input box-border block h-11 w-full min-w-0 max-w-full
+                        appearance-none rounded-lg border border-gray-300 bg-gray-50 px-3
+                        text-center text-base leading-none text-gray-900
+                        focus:border-blue-500 focus:bg-white focus:outline-none
+                        focus:ring-2 focus:ring-blue-500/40
+                        dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
+                        dark:focus:bg-gray-700
+                      "
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <label className="mb-1.5 block text-center text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Time
+                    </label>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={handleTimeChange}
+                      className="
+                        time-picker-input box-border block h-11 w-full min-w-0 max-w-full
+                        appearance-none rounded-lg border border-gray-300 bg-gray-50 px-3
+                        text-center text-base leading-none text-gray-900
+                        focus:border-blue-500 focus:bg-white focus:outline-none
+                        focus:ring-2 focus:ring-blue-500/40
+                        dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
+                        dark:focus:bg-gray-700
+                      "
+                    />
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    size="md"
+                    fullWidth
+                    onClick={useNow}
+                    className="mt-1"
+                  >
+                    Use current date &amp; time
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

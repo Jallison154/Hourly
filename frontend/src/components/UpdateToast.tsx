@@ -14,7 +14,10 @@ export default function UpdateToast() {
   if (!waiting) return null
 
   return (
-    <div className="fixed bottom-20 sm:bottom-6 inset-x-4 z-[70] mx-auto max-w-md rounded-2xl border border-okami-border bg-okami-panel p-4 shadow-xl dark:bg-gray-800">
+    <div
+      className="fixed inset-x-4 z-[70] mx-auto max-w-md rounded-2xl border border-okami-border bg-okami-panel p-4 shadow-xl dark:bg-gray-800"
+      style={{ bottom: 'calc(var(--nav-clearance) + 0.5rem)' }}
+    >
       <p className="text-sm font-medium text-gray-900 dark:text-white">
         A new version of Hourly is available.
       </p>

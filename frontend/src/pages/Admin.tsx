@@ -69,7 +69,7 @@ export default function Admin() {
 
   return (
     <PullToRefresh onRefresh={loadDashboard}>
-      <div className="min-h-screen bg-okami-bg pb-28 sm:pb-8">
+      <div className="min-h-screen bg-okami-bg page-with-nav">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <motion.div
             initial={{ opacity: 0, y: 10 }}

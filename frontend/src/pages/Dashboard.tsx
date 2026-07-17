@@ -85,18 +85,23 @@ export default function Dashboard() {
 
   return (
     <PullToRefresh onRefresh={loadMetrics}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:pb-8" style={{ paddingBottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 page-with-nav">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-8 flex justify-between items-center"
       >
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Dashboard
-        </h1>
+        <div>
+          <Link to="/home" className="text-sm font-medium text-okami-accent">
+            ← Home
+          </Link>
+          <h1 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
+            Detailed metrics
+          </h1>
+        </div>
         <div className="flex-1"></div>
         <Link
-          to="/profile"
+          to="/settings"
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
         >
           {user?.profileImage ? (
