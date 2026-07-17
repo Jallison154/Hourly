@@ -1,5 +1,7 @@
 import { calculateNetPay } from './taxCalculator'
-import { getWeekStartSundayUtc, toLocalDayKey, normalizeTimezone } from './timezone'
+import { getWeekStartForDayUtc, toLocalDayKey, normalizeTimezone } from './timezone'
+import { mulHoursRate, roundMoney } from './money'
+import { workedHoursInRange, type BreakInterval } from './workedTime'
 
 export interface PayCalculation {
   regularHours: number
@@ -13,12 +15,22 @@ export interface PayCalculation {
   socialSecurity: number
   medicare: number
   netPay: number
-  stateTaxRate?: number // The state tax rate used for calculations (for display)
+  stateTaxRate?: number
+  taxYear?: number
+}
+
+export interface PaySettings {
+  overtimeRate?: number
+  overtimeThresholdHours?: number
+  workweekStartDay?: number // 0=Sunday … 6=Saturday
+  timezone?: string | null
+  state?: string | null
+  stateTaxRate?: number | null
+  filingStatus?: 'single' | 'married'
 }
 
 /**
- * Calculate pay for a given number of hours and hourly rate
- * Overtime multiplier after 40 hours per week
+ * Calculate pay for a given number of hours against remaining weekly capacity.
  */
 export function calculatePay(
   hours: number,
@@ -27,122 +39,107 @@ export function calculatePay(
   overtimeRate: number = 1.5,
   state?: string | null,
   stateTaxRate?: number | null,
-  filingStatus: 'single' | 'married' = 'single'
+  filingStatus: 'single' | 'married' = 'single',
+  overtimeThresholdHours: number = 40
 ): PayCalculation {
-  const regularHours = Math.min(hours, 40 - weeklyHours)
+  const threshold = overtimeThresholdHours > 0 ? overtimeThresholdHours : 40
+  const regularHours = Math.max(0, Math.min(hours, threshold - weeklyHours))
   const overtimeHours = Math.max(0, hours - regularHours)
-  
-  const regularPay = regularHours * hourlyRate
-  const overtimePay = overtimeHours * hourlyRate * overtimeRate
-  const grossPay = regularPay + overtimePay
-  
-  // Estimate annual income (assuming this pay period is typical)
-  // This is a rough estimate - in reality, you'd need to track all pay periods
-  const annualGrossPay = grossPay * 24 // Assuming 24 pay periods per year (monthly)
-  
+
+  const regularPay = mulHoursRate(regularHours, hourlyRate)
+  const overtimePay = mulHoursRate(overtimeHours, hourlyRate * overtimeRate)
+  const grossPay = roundMoney(regularPay + overtimePay)
+
+  const annualGrossPay = grossPay * 24
   const taxes = calculateNetPay(grossPay, annualGrossPay, state, stateTaxRate, filingStatus)
-  
+
   return {
     regularHours,
     overtimeHours,
     regularPay,
     overtimePay,
     grossPay,
-    ...taxes
+    ...taxes,
   }
+}
+
+export type PayEntry = {
+  clockIn: Date
+  clockOut: Date | null
+  totalBreakMinutes: number
+  breaks?: BreakInterval[]
 }
 
 /**
  * Calculate pay for multiple entries with weekly overtime tracking.
- * timezone: IANA timezone for week boundaries (Sunday–Saturday). If omitted, uses UTC.
  */
 export function calculatePayForEntries(
-  entries: Array<{ clockIn: Date; clockOut: Date | null; totalBreakMinutes: number }>,
+  entries: PayEntry[],
   hourlyRate: number,
   overtimeRate: number = 1.5,
   state?: string | null,
   stateTaxRate?: number | null,
   filingStatus: 'single' | 'married' = 'single',
-  timezone?: string | null
+  timezone?: string | null,
+  overtimeThresholdHours: number = 40,
+  workweekStartDay: number = 0
 ): PayCalculation {
   const tz = normalizeTimezone(timezone ?? 'UTC')
+  const threshold = overtimeThresholdHours > 0 ? overtimeThresholdHours : 40
+  const startDay = ((workweekStartDay % 7) + 7) % 7
   const weeks: { [key: string]: number } = {}
-  let totalHours = 0
-
-  console.log(`\n=== PAY CALCULATION DEBUG ===`)
-  console.log(`Processing ${entries.length} entries, timezone: ${tz}`)
-  console.log(`Hourly Rate: $${hourlyRate}, Overtime Rate: ${overtimeRate}x`)
 
   for (const entry of entries) {
     if (!entry.clockOut) continue
 
-    const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-    const breakHours = entry.totalBreakMinutes / 60
-    const workedHours = hours - breakHours
+    const workedHours =
+      entry.breaks && entry.breaks.length > 0
+        ? workedHoursInRange({
+            clockIn: entry.clockIn,
+            clockOut: entry.clockOut,
+            rangeStart: entry.clockIn,
+            rangeEnd: entry.clockOut,
+            breaks: entry.breaks,
+            totalBreakMinutes: entry.totalBreakMinutes,
+          })
+        : (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60) -
+          entry.totalBreakMinutes / 60
 
-    const sundayUtc = getWeekStartSundayUtc(entry.clockIn, tz)
-    const weekKey = toLocalDayKey(sundayUtc, tz)
-
-    weeks[weekKey] = (weeks[weekKey] || 0) + workedHours
-    totalHours += workedHours
-
-    console.log(`Entry: ${entry.clockIn.toISOString()} to ${entry.clockOut.toISOString()}`)
-    console.log(`  Total hours: ${hours.toFixed(4)}, Break hours: ${breakHours.toFixed(4)}, Worked hours: ${workedHours.toFixed(4)}`)
-    console.log(`  Week: ${weekKey}, Week total so far: ${weeks[weekKey].toFixed(4)}`)
+    const weekStart = getWeekStartForDayUtc(entry.clockIn, tz, startDay)
+    const weekKey = toLocalDayKey(weekStart, tz)
+    weeks[weekKey] = (weeks[weekKey] || 0) + Math.max(0, workedHours)
   }
-  
-  console.log(`\nTotal hours across all entries: ${totalHours.toFixed(4)}`)
-  console.log(`Weeks breakdown:`)
-  Object.entries(weeks).forEach(([weekKey, weekHours]) => {
-    console.log(`  ${weekKey}: ${weekHours.toFixed(4)} hours`)
-  })
-  
-  // Calculate pay with overtime
-  let regularPay = 0
-  let overtimePay = 0
+
+  let regularPayCents = 0
+  let overtimePayCents = 0
   let regularHours = 0
   let overtimeHours = 0
-  
-  console.log(`\nCalculating pay per week:`)
-  for (const [weekKey, weekHours] of Object.entries(weeks)) {
-    if (weekHours <= 40) {
-      const weekRegularPay = weekHours * hourlyRate
+
+  for (const weekHours of Object.values(weeks)) {
+    if (weekHours <= threshold) {
       regularHours += weekHours
-      regularPay += weekRegularPay
-      console.log(`  Week ${weekKey}: ${weekHours.toFixed(4)} hours (regular) = $${weekRegularPay.toFixed(2)}`)
+      regularPayCents += Math.round(mulHoursRate(weekHours, hourlyRate) * 100)
     } else {
-      const weekRegularPay = 40 * hourlyRate
-      const weekOvertimeHours = weekHours - 40
-      const weekOvertimePay = weekOvertimeHours * hourlyRate * overtimeRate
-      regularHours += 40
-      regularPay += weekRegularPay
-      overtimeHours += weekOvertimeHours
-      overtimePay += weekOvertimePay
-      console.log(`  Week ${weekKey}: ${weekHours.toFixed(4)} hours (${40} regular + ${weekOvertimeHours.toFixed(4)} OT) = $${weekRegularPay.toFixed(2)} + $${weekOvertimePay.toFixed(2)} = $${(weekRegularPay + weekOvertimePay).toFixed(2)}`)
+      const ot = weekHours - threshold
+      regularHours += threshold
+      overtimeHours += ot
+      regularPayCents += Math.round(mulHoursRate(threshold, hourlyRate) * 100)
+      overtimePayCents += Math.round(mulHoursRate(ot, hourlyRate * overtimeRate) * 100)
     }
   }
-  
-  const grossPay = regularPay + overtimePay
-  
-  console.log(`\nFinal calculation:`)
-  console.log(`  Regular hours: ${regularHours.toFixed(4)} = $${regularPay.toFixed(2)}`)
-  console.log(`  Overtime hours: ${overtimeHours.toFixed(4)} = $${overtimePay.toFixed(2)}`)
-  console.log(`  Gross Pay: $${grossPay.toFixed(2)}`)
-  console.log(`=== END PAY CALCULATION DEBUG ===\n`)
-  
-  // Estimate annual income
-  const annualGrossPay = grossPay * 24 // Monthly pay periods
-  
+
+  const regularPay = roundMoney(regularPayCents / 100)
+  const overtimePay = roundMoney(overtimePayCents / 100)
+  const grossPay = roundMoney(regularPay + overtimePay)
+  const annualGrossPay = grossPay * 24
   const taxes = calculateNetPay(grossPay, annualGrossPay, state, stateTaxRate, filingStatus)
-  
+
   return {
     regularHours,
     overtimeHours,
     regularPay,
     overtimePay,
     grossPay,
-    ...taxes
+    ...taxes,
   }
 }
-
-

@@ -17,6 +17,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         id: true,
         hourlyRate: true,
         overtimeRate: true,
+        overtimeThresholdHours: true,
+        workweekStartDay: true,
         payPeriodType: true,
         payPeriodEndDay: true,
         state: true,
@@ -99,14 +101,17 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       completed.map(e => ({
         clockIn: e.clockIn,
         clockOut: e.clockOut!,
-        totalBreakMinutes: getEffectiveBreakMinutes(e)
+        totalBreakMinutes: getEffectiveBreakMinutes(e),
+        breaks: e.breaks.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
       })),
       user.hourlyRate || 0,
       user.overtimeRate || 1.5,
       user.state,
       user.stateTaxRate,
       (user.filingStatus === 'married' ? 'married' : 'single'),
-      tz
+      tz,
+      user.overtimeThresholdHours || 40,
+      user.workweekStartDay ?? 0
     )
     
     // Get average hours per day

@@ -369,8 +369,12 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     const { csvContent, startDate, endDate } = req.body
 
     if (!csvContent || typeof csvContent !== 'string') {
-      console.error('Missing or invalid csvContent:', typeof csvContent, csvContent ? 'present' : 'missing')
       return res.status(400).json({ error: 'CSV content is required' })
+    }
+
+    const MAX_CSV_BYTES = 5 * 1024 * 1024
+    if (Buffer.byteLength(csvContent, 'utf8') > MAX_CSV_BYTES) {
+      return res.status(400).json({ error: 'CSV file is too large (max 5 MB)' })
     }
 
     // Get user settings (including timezone for date range and CSV parsing)

@@ -1,10 +1,13 @@
 import express from 'express'
-import { authenticate, AuthRequest } from '../middleware/auth'
+import { authenticate, type AuthRequest } from '../middleware/auth'
 import { z } from 'zod'
 import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, isDateInPayPeriod } from '../utils/payPeriod'
 import { applyClockInRounding, applyClockOutRounding } from '../utils/timeRounding'
 import { getDateRangeUtc, formatInTimezone } from '../utils/timezone'
+import { collectClockWarnings, validateBreakWithinShift } from '../utils/clockSafety'
+import { assertEditablePeriod } from '../utils/timesheetGuard'
+import { writeAudit } from '../utils/audit'
 
 const router = express.Router()
 
@@ -78,11 +81,18 @@ router.post('/clock-in', authenticate, async (req: AuthRequest, res) => {
       include: { breaks: true }
     })
     if (openEntry) {
-      return res.status(200).json(openEntry)
+      const warnings = collectClockWarnings({ clockIn: openEntry.clockIn, clockOut: null })
+      return res.status(200).json({ ...openEntry, warnings, alreadyClockedIn: true })
     }
+    const periodBlock = await assertEditablePeriod(req.userId!, clockIn)
+    if (periodBlock) {
+      return res.status(403).json({ error: periodBlock })
+    }
+    const warnings = collectClockWarnings({ clockIn, clockOut: null })
     const entry = await prisma.timeEntry.create({
       data: {
         userId: req.userId!,
+        companyId: (req as AuthRequest).auth?.companyId ?? null,
         clockIn,
         isManualEntry: !!clockInTime
       },
@@ -90,7 +100,16 @@ router.post('/clock-in', authenticate, async (req: AuthRequest, res) => {
         breaks: true
       }
     })
-    res.status(201).json(entry)
+    await writeAudit({
+      actor: (req as AuthRequest).auth,
+      targetUserId: req.userId,
+      entityType: 'TimeEntry',
+      entityId: entry.id,
+      action: 'time_entry.create',
+      newValues: { clockIn: entry.clockIn },
+      req,
+    })
+    res.status(201).json({ ...entry, warnings })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors })
@@ -142,7 +161,7 @@ router.post('/clock-out', authenticate, async (req: AuthRequest, res) => {
     if (clockOut <= openEntry.clockIn) {
       return res.status(400).json({ error: 'Clock out time must be after clock in time' })
     }
-    
+
     // Calculate total break minutes
     // If breakMinutes provided, use it; otherwise calculate from existing breaks
     let breakMinutes = providedBreakMinutes
@@ -156,7 +175,12 @@ router.post('/clock-out', authenticate, async (req: AuthRequest, res) => {
         return total
       }, 0)
     }
-    
+
+    const warnings = collectClockWarnings({
+      clockIn: openEntry.clockIn,
+      clockOut,
+    })
+
     // Update entry
     const entry = await prisma.timeEntry.update({
       where: { id: openEntry.id },
@@ -168,8 +192,8 @@ router.post('/clock-out', authenticate, async (req: AuthRequest, res) => {
         breaks: true
       }
     })
-    
-    res.json(entry)
+
+    res.json({ ...entry, warnings })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors })
@@ -717,6 +741,11 @@ router.post('/:id/breaks', authenticate, async (req: AuthRequest, res) => {
     
     const start = new Date(startTime)
     const end = endTime ? new Date(endTime) : null
+
+    const breakError = validateBreakWithinShift(start, end, entry.clockIn, entry.clockOut)
+    if (breakError) {
+      return res.status(400).json({ error: breakError })
+    }
     
     // Calculate duration if not provided
     let breakDuration = duration

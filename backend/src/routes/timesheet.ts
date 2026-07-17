@@ -292,6 +292,8 @@ async function getTimesheetData(
         name: true,
         hourlyRate: true,
         overtimeRate: true,
+        overtimeThresholdHours: true,
+        workweekStartDay: true,
         paycheckAdjustment: true,
         state: true,
         stateTaxRate: true,
@@ -304,6 +306,8 @@ async function getTimesheetData(
     if (!user) {
       return res.status(404).json({ error: 'User not found' })
     }
+    const otThreshold = user.overtimeThresholdHours || 40
+    const workweekStartDay = user.workweekStartDay ?? 0
     
     // Get time entries
     const entries = await prisma.timeEntry.findMany({
@@ -330,14 +334,17 @@ async function getTimesheetData(
       completedEntries.map(e => ({
         clockIn: e.clockIn,
         clockOut: e.clockOut!,
-        totalBreakMinutes: getEffectiveBreakMinutes(e)
+        totalBreakMinutes: getEffectiveBreakMinutes(e),
+        breaks: e.breaks.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
       })),
       user.hourlyRate,
       user.overtimeRate || 1.5,
       user.state,
       user.stateTaxRate,
       filingStatus,
-      userTimezone
+      userTimezone,
+      otThreshold,
+      workweekStartDay
     )
     
     // Use pay period's annual estimate for all weekly tax calculations
@@ -420,14 +427,12 @@ async function getTimesheetData(
       
       // Calculate pay based ONLY on hours in this pay period (weekHours)
       // Don't consider hours from outside the pay period
-      if (weekHours <= 40) {
-        // No overtime - all displayed hours are regular
+      if (weekHours <= otThreshold) {
         regularHours = weekHours
         regularPay = weekHours * hourlyRate
       } else {
-        // Overtime applies - first 40 hours are regular, rest is overtime
-        regularHours = 40
-        overtimeHours = weekHours - 40
+        regularHours = otThreshold
+        overtimeHours = weekHours - otThreshold
         regularPay = regularHours * hourlyRate
         overtimePay = overtimeHours * hourlyRate * overtimeRate
       }

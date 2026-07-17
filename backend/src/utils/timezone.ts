@@ -61,15 +61,30 @@ export function formatInTimezone(utcDate: Date, timezone: string, dateFormat: st
 }
 
 /**
- * Return the UTC instant for Sunday 00:00:00 in the given timezone on the week containing the given UTC date.
- * Week is Sunday–Saturday (Luxon's default week is Monday–Sunday, so we compute Sunday explicitly).
+ * Return the UTC instant for week-start 00:00:00 in the given timezone.
+ * workweekStartDay: 0=Sunday … 6=Saturday (JS getDay convention). Default 0 (Sunday).
  */
-export function getWeekStartSundayUtc(referenceUtc: Date, timezone: string): Date {
+export function getWeekStartForDayUtc(
+  referenceUtc: Date,
+  timezone: string,
+  workweekStartDay: number = 0
+): Date {
   const tz = normalizeTimezone(timezone)
   const dt = DateTime.fromJSDate(referenceUtc, { zone: 'utc' }).setZone(tz)
-  // Luxon weekday: 1 = Monday, 7 = Sunday
-  const sunday = dt.weekday === 7 ? dt.startOf('day') : dt.minus({ days: dt.weekday }).startOf('day')
-  return sunday.toUTC().toJSDate()
+  const startDay = ((workweekStartDay % 7) + 7) % 7
+  // Convert JS day (0=Sun) to Luxon weekday (1=Mon … 7=Sun)
+  const luxonStart = startDay === 0 ? 7 : startDay
+  const daysSinceStart = (dt.weekday - luxonStart + 7) % 7
+  const weekStart = dt.minus({ days: daysSinceStart }).startOf('day')
+  return weekStart.toUTC().toJSDate()
+}
+
+/**
+ * Return the UTC instant for Sunday 00:00:00 in the given timezone on the week containing the given UTC date.
+ * Week is Sunday–Saturday by default.
+ */
+export function getWeekStartSundayUtc(referenceUtc: Date, timezone: string): Date {
+  return getWeekStartForDayUtc(referenceUtc, timezone, 0)
 }
 
 /**

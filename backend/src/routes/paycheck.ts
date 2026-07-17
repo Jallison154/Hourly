@@ -26,6 +26,8 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       select: {
         hourlyRate: true,
         overtimeRate: true,
+        overtimeThresholdHours: true,
+        workweekStartDay: true,
         paycheckAdjustment: true,
         state: true,
         stateTaxRate: true,
@@ -42,6 +44,8 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     
     const rate = hourlyRate || user.hourlyRate
     const overtimeRate = user.overtimeRate || 1.5
+    const otThreshold = user.overtimeThresholdHours || 40
+    const workweekStartDay = user.workweekStartDay ?? 0
     const adjustment = user.paycheckAdjustment || 0
     
     if (!rate) {
@@ -50,7 +54,16 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
     
     // If hours provided, calculate directly
     if (hours !== undefined) {
-      const calculation = calculatePay(hours, rate, 0, overtimeRate, user.state, user.stateTaxRate)
+      const calculation = calculatePay(
+        hours,
+        rate,
+        0,
+        overtimeRate,
+        user.state,
+        user.stateTaxRate,
+        (user.filingStatus === 'married' ? 'married' : 'single'),
+        otThreshold
+      )
       // Apply adjustment
       calculation.grossPay += adjustment
       calculation.netPay += adjustment
@@ -99,40 +112,26 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       }
     })
     
-    console.log(`\n=== PAYCHECK CALCULATION FOR PAY PERIOD ===`)
-    console.log(`Pay period: ${payPeriod.start.toISOString()} to ${payPeriod.end.toISOString()}`)
-    console.log(`Found ${entries.length} completed entries`)
-    console.log(`Hourly rate: $${rate}, Overtime rate: ${overtimeRate}x, Adjustment: $${adjustment}`)
-    
-    entries.forEach((e, idx) => {
-      const breakMin = getEffectiveBreakMinutes(e)
-      const hours = e.clockOut ? (e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60) : 0
-      const workedHours = hours - breakMin / 60
-      console.log(`Entry ${idx + 1}: ${e.clockIn.toISOString()} to ${e.clockOut?.toISOString() || 'N/A'}, worked: ${workedHours.toFixed(4)}h`)
-    })
     const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
     const calculation = calculatePayForEntries(
       entries.map(e => ({
         clockIn: e.clockIn,
         clockOut: e.clockOut,
-        totalBreakMinutes: getEffectiveBreakMinutes(e)
+        totalBreakMinutes: getEffectiveBreakMinutes(e),
+        breaks: e.breaks.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
       })),
       rate,
       overtimeRate,
       user.state,
       user.stateTaxRate,
       filingStatus,
-      tz
+      tz,
+      otThreshold,
+      workweekStartDay
     )
-    
-    console.log(`Before adjustment: Gross = $${calculation.grossPay.toFixed(2)}, Net = $${calculation.netPay.toFixed(2)}`)
-    
-    // Apply adjustment
-    console.log(`Applying adjustment: $${adjustment}`)
+
     calculation.grossPay += adjustment
     calculation.netPay += adjustment
-    console.log(`After adjustment: Gross = $${calculation.grossPay.toFixed(2)}, Net = $${calculation.netPay.toFixed(2)}`)
-    console.log(`=== END PAYCHECK CALCULATION ===\n`)
     
     // Calculate the pay period's annual income estimate (use this for all weekly tax calculations)
     const payPeriodAnnualGrossPay = calculation.grossPay * 24 // Monthly pay periods
@@ -159,8 +158,6 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         }
       })
       
-      console.log(`Paycheck Week ${week.weekNumber}: Found ${weekEntries.length} entries within pay period`)
-      
       // Calculate weekly gross pay (hours and pay only, no taxes yet)
       let weekHours = 0
       let weekRegularHours = 0
@@ -178,13 +175,13 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       })
       
       // Calculate pay based ONLY on hours in this pay period
-      if (weekHours <= 40) {
+      if (weekHours <= otThreshold) {
         weekRegularHours = weekHours
         weekRegularPay = weekHours * rate
       } else {
-        weekRegularHours = 40
-        weekOvertimeHours = weekHours - 40
-        weekRegularPay = 40 * rate
+        weekRegularHours = otThreshold
+        weekOvertimeHours = weekHours - otThreshold
+        weekRegularPay = otThreshold * rate
         weekOvertimePay = weekOvertimeHours * rate * overtimeRate
       }
       
@@ -203,10 +200,7 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
         ...weekTaxes
       }
       
-      console.log(`Paycheck Week ${week.weekNumber}: Total hours = ${(weekCalculation.regularHours + weekCalculation.overtimeHours).toFixed(2)}, Regular = ${weekCalculation.regularHours.toFixed(2)}, Overtime = ${weekCalculation.overtimeHours.toFixed(2)}, Gross = $${weekCalculation.grossPay.toFixed(2)}`)
-      
       // Apply adjustment proportionally to weekly breakdown
-      // Distribute adjustment evenly across weeks
       const totalWeeks = weeks.length
       const weeklyAdjustment = adjustment / totalWeeks
       weekCalculation.grossPay += weeklyAdjustment
@@ -237,6 +231,8 @@ router.get('/estimate', authenticate, async (req: AuthRequest, res) => {
       ...calculation,
       hourlyRate: rate,
       overtimeRate,
+      overtimeThresholdHours: otThreshold,
+      taxYear: calculation.taxYear,
       adjustment,
       payPeriod: {
         start: payPeriod.start.toISOString(),
