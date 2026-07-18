@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import TimePicker from '../components/TimePicker'
 import ManualEntryForm from '../components/ManualEntryForm'
@@ -320,106 +321,110 @@ export default function ClockInOut() {
         </motion.div>
         )}
 
-      {/* Break Selection Sheet */}
-      <AnimatePresence>
-        {showBreakDialog && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
-              onClick={() => setShowBreakDialog(false)}
-            />
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
-              <motion.div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="break-sheet-title"
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.98 }}
-                transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                className="
-                  pointer-events-auto relative flex max-h-[85dvh] w-full max-w-md flex-col
-                  rounded-2xl bg-white shadow-2xl
-                  dark:bg-gray-800
-                "
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex-1 overflow-y-auto px-5 py-6">
-                  <h2
-                    id="break-sheet-title"
-                    className="mb-1 text-xl font-bold text-gray-900 dark:text-white"
-                  >
-                    Did you take a break today?
-                  </h2>
-                  <p className="mb-5 text-sm text-gray-600 dark:text-gray-400">
-                    Pick a duration to subtract from your shift.
-                  </p>
+      {/* Break Selection Sheet — portaled so fixed centering uses the viewport */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {showBreakDialog && (
+              <div className="fixed inset-0 z-[100] grid place-items-center p-4">
+                <motion.button
+                  type="button"
+                  aria-label="Close"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => setShowBreakDialog(false)}
+                />
+                <motion.div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="break-sheet-title"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                  className="
+                    relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col
+                    rounded-2xl bg-white shadow-2xl
+                    dark:bg-gray-800
+                  "
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex-1 overflow-y-auto px-5 py-6">
+                    <h2
+                      id="break-sheet-title"
+                      className="mb-1 text-xl font-bold text-gray-900 dark:text-white"
+                    >
+                      Did you take a break today?
+                    </h2>
+                    <p className="mb-5 text-sm text-gray-600 dark:text-gray-400">
+                      Pick a duration to subtract from your shift.
+                    </p>
 
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    <Button variant="primary" size="md" onClick={() => handleBreakSelected(15)}>
-                      15 min
-                    </Button>
-                    <Button variant="primary" size="md" onClick={() => handleBreakSelected(30)}>
-                      30 min
-                    </Button>
-                    <Button variant="primary" size="md" onClick={() => handleBreakSelected(60)}>
-                      1 hour
-                    </Button>
-                  </div>
-
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3">
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
-                      Custom
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        value={customBreakMinutes}
-                        onChange={(e) => setCustomBreakMinutes(e.target.value)}
-                        placeholder="Minutes"
-                        className="
-                          min-h-[44px] flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
-                          text-base text-gray-900 placeholder:text-gray-400
-                          focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2
-                          focus:ring-blue-500/40
-                          dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
-                          dark:placeholder:text-gray-500 dark:focus:bg-gray-700
-                        "
-                      />
-                      <Button
-                        variant="primary"
-                        size="md"
-                        disabled={!customBreakMinutes || isNaN(parseInt(customBreakMinutes))}
-                        onClick={() => {
-                          const minutes = parseInt(customBreakMinutes)
-                          if (!isNaN(minutes) && minutes >= 0) {
-                            handleBreakSelected(minutes)
-                          }
-                        }}
-                      >
-                        Use
+                    <div className="mb-4 grid grid-cols-3 gap-2">
+                      <Button variant="primary" size="md" onClick={() => handleBreakSelected(15)}>
+                        15 min
+                      </Button>
+                      <Button variant="primary" size="md" onClick={() => handleBreakSelected(30)}>
+                        30 min
+                      </Button>
+                      <Button variant="primary" size="md" onClick={() => handleBreakSelected(60)}>
+                        1 hour
                       </Button>
                     </div>
-                  </div>
 
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    fullWidth
-                    onClick={() => handleBreakSelected(null)}
-                  >
-                    No break
-                  </Button>
-                </div>
-              </motion.div>
-            </div>
-          </>
+                    <div className="mb-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Custom
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          value={customBreakMinutes}
+                          onChange={(e) => setCustomBreakMinutes(e.target.value)}
+                          placeholder="Minutes"
+                          className="
+                            min-h-[44px] flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
+                            text-base text-gray-900 placeholder:text-gray-400
+                            focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2
+                            focus:ring-blue-500/40
+                            dark:border-gray-600 dark:bg-gray-700/60 dark:text-white
+                            dark:placeholder:text-gray-500 dark:focus:bg-gray-700
+                          "
+                        />
+                        <Button
+                          variant="primary"
+                          size="md"
+                          disabled={!customBreakMinutes || isNaN(parseInt(customBreakMinutes))}
+                          onClick={() => {
+                            const minutes = parseInt(customBreakMinutes)
+                            if (!isNaN(minutes) && minutes >= 0) {
+                              handleBreakSelected(minutes)
+                            }
+                          }}
+                        >
+                          Use
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      fullWidth
+                      onClick={() => handleBreakSelected(null)}
+                    >
+                      No break
+                    </Button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
 
       {/* Dialog */}
       <Dialog

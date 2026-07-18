@@ -133,14 +133,24 @@ export default function PullToRefresh({ onRefresh, children, disabled = false }:
           </motion.div>
         )}
       </AnimatePresence>
-      <motion.div
-        animate={{ 
-          y: isRefreshing ? 60 : Math.min(pullDistance, 100)
+      {/*
+        Avoid Framer `transform` while idle — a persistent translateY(0) creates a
+        containing block that breaks position:fixed dialogs nested in page content.
+      */}
+      <div
+        style={{
+          transform:
+            isRefreshing || pullDistance > 0
+              ? `translateY(${isRefreshing ? 60 : Math.min(pullDistance, 100)}px)`
+              : undefined,
+          transition:
+            isRefreshing || pullDistance === 0
+              ? 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              : undefined,
         }}
-        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       >
         {children}
-      </motion.div>
+      </div>
     </div>
   )
 }
