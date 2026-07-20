@@ -156,18 +156,17 @@ export default function ClockInOut() {
 
             {/* Custom Time Toggle */}
             <div className="mb-3 flex justify-center sm:justify-start">
-              <motion.button
+              <Button
                 type="button"
+                variant="secondary"
+                size="md"
                 onClick={() => {
                   setShowTimePicker(!showTimePicker)
                   setUseCustomTime(!showTimePicker)
                 }}
-                whileTap={{ scale: 0.97, opacity: 0.7 }}
-                transition={{ duration: 0.1 }}
-                className="min-h-[44px] px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 active:opacity-70 sm:text-xs sm:font-normal sm:hover:underline"
               >
-                {showTimePicker ? 'Use current time' : 'Set custom time'}
-              </motion.button>
+                {showTimePicker ? 'Use current time' : 'Custom in time'}
+              </Button>
             </div>
 
             <AnimatePresence>
@@ -217,18 +216,17 @@ export default function ClockInOut() {
 
             {/* Custom Time Toggle */}
             <div className="mb-3 flex justify-center sm:justify-start">
-              <motion.button
+              <Button
                 type="button"
+                variant="secondary"
+                size="md"
                 onClick={() => {
                   setShowTimePicker(!showTimePicker)
                   setUseCustomTime(!showTimePicker)
                 }}
-                whileTap={{ scale: 0.97, opacity: 0.7 }}
-                transition={{ duration: 0.1 }}
-                className="min-h-[44px] px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 active:opacity-70 sm:text-xs sm:font-normal sm:hover:underline"
               >
-                {showTimePicker ? 'Use current time' : 'Set custom time'}
-              </motion.button>
+                {showTimePicker ? 'Use current time' : 'Custom out time'}
+              </Button>
             </div>
 
             <AnimatePresence>
