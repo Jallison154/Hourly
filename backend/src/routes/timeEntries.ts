@@ -17,7 +17,8 @@ const clockInSchema = z.object({
 
 const clockOutSchema = z.object({
   clockOutTime: z.string().datetime().optional(), // ISO string, defaults to now
-  breakMinutes: z.number().int().min(0).optional() // Break time in minutes
+  // coerce so string values from clients ("90") still parse
+  breakMinutes: z.coerce.number().int().min(0).max(24 * 60).optional(),
 })
 
 const createEntrySchema = z.object({
@@ -38,7 +39,7 @@ const addBreakSchema = z.object({
   breakType: z.enum(['lunch', 'rest', 'other']),
   startTime: z.string().datetime(),
   endTime: z.string().datetime().optional(),
-  duration: z.number().int().min(0).optional(),
+  duration: z.coerce.number().int().min(0).max(24 * 60).optional(),
   notes: z.string().optional()
 })
 
@@ -196,7 +197,9 @@ router.post('/clock-out', authenticate, async (req: AuthRequest, res) => {
     res.json({ ...entry, warnings })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors })
+      return res.status(400).json({
+        error: error.errors.map((e) => e.message).join('; ') || 'Invalid clock-out data',
+      })
     }
     console.error('Clock out error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -739,8 +742,24 @@ router.post('/:id/breaks', authenticate, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Time entry not found' })
     }
     
-    const start = new Date(startTime)
-    const end = endTime ? new Date(endTime) : null
+    let start = new Date(startTime)
+    let end = endTime ? new Date(endTime) : null
+
+    // If a duration is provided but the start is outside the shift (common when the
+    // client defaults to "now" while editing a past entry), place the break at clock-in.
+    if (
+      duration != null &&
+      duration > 0 &&
+      (start < entry.clockIn || (entry.clockOut && start > entry.clockOut))
+    ) {
+      start = new Date(entry.clockIn)
+      end = new Date(start.getTime() + duration * 60 * 1000)
+      if (entry.clockOut && end > entry.clockOut) {
+        return res.status(400).json({
+          error: `Break of ${duration} minutes exceeds this shift. Shorten the break or adjust the entry times.`,
+        })
+      }
+    }
 
     const breakError = validateBreakWithinShift(start, end, entry.clockIn, entry.clockOut)
     if (breakError) {
@@ -749,7 +768,7 @@ router.post('/:id/breaks', authenticate, async (req: AuthRequest, res) => {
     
     // Calculate duration if not provided
     let breakDuration = duration
-    if (!breakDuration && end) {
+    if ((breakDuration == null || breakDuration === 0) && end) {
       breakDuration = Math.round((end.getTime() - start.getTime()) / 60000)
     }
     
@@ -789,7 +808,9 @@ router.post('/:id/breaks', authenticate, async (req: AuthRequest, res) => {
     res.status(201).json(breakEntry)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors })
+      return res.status(400).json({
+        error: error.errors.map((e) => e.message).join('; ') || 'Invalid break data',
+      })
     }
     console.error('Add break error:', error)
     res.status(500).json({ error: 'Internal server error' })

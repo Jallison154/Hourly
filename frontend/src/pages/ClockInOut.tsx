@@ -72,25 +72,54 @@ export default function ClockInOut() {
   }
 
   const handleBreakSelected = async (minutes: number | null) => {
-    setShowBreakDialog(false)
     if (isClockingOut) return
+
+    if (minutes != null) {
+      if (!Number.isFinite(minutes) || minutes < 0 || !Number.isInteger(minutes)) {
+        await showAlert('Invalid break', 'Enter break time as whole minutes (for example 90 for 1 hour 30 minutes).')
+        return
+      }
+      if (minutes > 24 * 60) {
+        await showAlert('Invalid break', 'Break cannot be more than 24 hours.')
+        return
+      }
+    }
+
+    setShowBreakDialog(false)
     setIsClockingOut(true)
     try {
       const time = useCustomTime ? clockOutTime.toISOString() : undefined
-      await timeEntriesAPI.clockOut(time, minutes || undefined)
+      // Use nullish coalescing so 0 minutes is sent correctly
+      await timeEntriesAPI.clockOut(time, minutes ?? undefined)
       await loadStatus()
       setUseCustomTime(false)
       setShowTimePicker(false)
       setCustomBreakMinutes('')
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string }; status?: number } }
+      const axiosError = error as { response?: { data?: { error?: string | unknown }; status?: number } }
+      const raw = axiosError.response?.data?.error
       const message =
-        axiosError.response?.data?.error ||
-        (axiosError.response?.status === 500 ? 'Server error. Please try again.' : 'Failed to clock out. Please try again.')
+        typeof raw === 'string'
+          ? raw
+          : Array.isArray(raw)
+            ? 'Invalid break or clock-out time. Please try again.'
+            : axiosError.response?.status === 500
+              ? 'Server error. Please try again.'
+              : 'Failed to clock out. Please try again.'
       await showAlert('Error', message)
+      setShowBreakDialog(true)
     } finally {
       setIsClockingOut(false)
     }
+  }
+
+  const applyCustomBreakMinutes = () => {
+    const minutes = Number.parseInt(String(customBreakMinutes).trim(), 10)
+    if (!customBreakMinutes.trim() || Number.isNaN(minutes) || minutes < 0) {
+      void showAlert('Invalid break', 'Enter break time as whole minutes (for example 90 for 1 hour 30 minutes).')
+      return
+    }
+    void handleBreakSelected(minutes)
   }
 
   const handleCancelClockIn = async () => {
@@ -155,11 +184,12 @@ export default function ClockInOut() {
             </div>
 
             {/* Custom Time Toggle */}
-            <div className="mb-3 flex justify-center sm:justify-start">
+            <div className="mb-3">
               <Button
                 type="button"
                 variant="secondary"
                 size="md"
+                fullWidth
                 onClick={() => {
                   setShowTimePicker(!showTimePicker)
                   setUseCustomTime(!showTimePicker)
@@ -215,11 +245,12 @@ export default function ClockInOut() {
             </div>
 
             {/* Custom Time Toggle */}
-            <div className="mb-3 flex justify-center sm:justify-start">
+            <div className="mb-3">
               <Button
                 type="button"
                 variant="secondary"
                 size="md"
+                fullWidth
                 onClick={() => {
                   setShowTimePicker(!showTimePicker)
                   setUseCustomTime(!showTimePicker)
@@ -374,17 +405,29 @@ export default function ClockInOut() {
 
                     <div className="mb-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
                       <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        Custom
+                        Custom minutes
                       </label>
-                      <div className="flex gap-2">
+                      <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                        Example: 90 = 1 hour 30 minutes
+                      </p>
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                           type="number"
-                          min="0"
+                          inputMode="numeric"
+                          min={0}
+                          max={24 * 60}
+                          step={1}
                           value={customBreakMinutes}
                           onChange={(e) => setCustomBreakMinutes(e.target.value)}
-                          placeholder="Minutes"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              applyCustomBreakMinutes()
+                            }
+                          }}
+                          placeholder="e.g. 90"
                           className="
-                            min-h-[44px] flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
+                            min-h-[44px] w-full flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
                             text-base text-gray-900 placeholder:text-gray-400
                             focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2
                             focus:ring-blue-500/40
@@ -395,13 +438,8 @@ export default function ClockInOut() {
                         <Button
                           variant="primary"
                           size="md"
-                          disabled={!customBreakMinutes || isNaN(parseInt(customBreakMinutes))}
-                          onClick={() => {
-                            const minutes = parseInt(customBreakMinutes)
-                            if (!isNaN(minutes) && minutes >= 0) {
-                              handleBreakSelected(minutes)
-                            }
-                          }}
+                          disabled={!String(customBreakMinutes).trim() || Number.isNaN(Number.parseInt(String(customBreakMinutes).trim(), 10))}
+                          onClick={applyCustomBreakMinutes}
                         >
                           Use
                         </Button>

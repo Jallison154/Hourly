@@ -932,14 +932,18 @@ function EditEntryForm({
     }))
   })
   const [showAddBreak, setShowAddBreak] = useState(false)
-  const [newBreak, setNewBreak] = useState({
-    breakType: 'lunch' as 'lunch' | 'rest' | 'other',
-    startTime: new Date(),
-    endTime: new Date(),
-    hasEndTime: true,
-    duration: 30,
-    notes: ''
-  })
+  const makeDefaultBreak = () => {
+    const start = new Date(entry.clockIn)
+    return {
+      breakType: 'lunch' as 'lunch' | 'rest' | 'other',
+      startTime: start,
+      endTime: new Date(start.getTime() + 30 * 60 * 1000),
+      hasEndTime: true,
+      duration: 30,
+      notes: '',
+    }
+  }
+  const [newBreak, setNewBreak] = useState(makeDefaultBreak)
   const [loadingBreaks, setLoadingBreaks] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1022,7 +1026,14 @@ function EditEntryForm({
             </label>
             <motion.button
               type="button"
-              onClick={() => setShowAddBreak(!showAddBreak)}
+              onClick={() => {
+                const next = !showAddBreak
+                setShowAddBreak(next)
+                if (next) {
+                  setError('')
+                  setNewBreak(makeDefaultBreak())
+                }
+              }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
@@ -1115,11 +1126,22 @@ function EditEntryForm({
                     </label>
                     <input
                       type="number"
-                      min="0"
+                      inputMode="numeric"
+                      min={0}
+                      max={24 * 60}
+                      step={1}
                       value={newBreak.duration}
-                      onChange={(e) => setNewBreak({ ...newBreak, duration: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setNewBreak({
+                          ...newBreak,
+                          duration: Number.parseInt(e.target.value, 10) || 0,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white text-sm"
                     />
+                    <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                      90 = 1h 30m
+                    </p>
                   </div>
                 </div>
 
@@ -1141,25 +1163,50 @@ function EditEntryForm({
                     type="button"
                     onClick={async () => {
                       try {
+                        setError('')
                         setLoadingBreaks(true)
-                        const endTime = new Date(newBreak.startTime)
-                        endTime.setMinutes(endTime.getMinutes() + newBreak.duration)
+                        const duration = Number(newBreak.duration)
+                        if (!Number.isFinite(duration) || duration <= 0 || !Number.isInteger(duration)) {
+                          setError('Enter break duration as whole minutes (for example 90).')
+                          return
+                        }
+
+                        const shiftStart = new Date(entry.clockIn)
+                        const shiftEnd = hasClockOut
+                          ? clockOut
+                          : entry.clockOut
+                            ? new Date(entry.clockOut)
+                            : null
+
+                        let breakStart = new Date(newBreak.startTime)
+                        // Keep the break inside this entry's shift (not "now")
+                        if (breakStart < shiftStart || (shiftEnd && breakStart > shiftEnd)) {
+                          breakStart = new Date(shiftStart)
+                        }
+
+                        const breakEnd = new Date(breakStart.getTime() + duration * 60 * 1000)
+                        if (shiftEnd && breakEnd > shiftEnd) {
+                          const maxMinutes = Math.max(
+                            0,
+                            Math.floor((shiftEnd.getTime() - breakStart.getTime()) / 60000)
+                          )
+                          setError(
+                            maxMinutes > 0
+                              ? `Break of ${duration} minutes is too long for this shift. Max is ${maxMinutes} minutes.`
+                              : 'Break does not fit inside this shift. Adjust the entry times first.'
+                          )
+                          return
+                        }
+
                         const addedBreak = await timeEntriesAPI.addBreak(entry.id, {
                           breakType: newBreak.breakType,
-                          startTime: newBreak.startTime.toISOString(),
-                          endTime: endTime.toISOString(),
-                          duration: newBreak.duration,
-                          notes: newBreak.notes || undefined
+                          startTime: breakStart.toISOString(),
+                          endTime: breakEnd.toISOString(),
+                          duration,
+                          notes: newBreak.notes || undefined,
                         })
                         setBreaks([...breaks, addedBreak])
-                        setNewBreak({
-                          breakType: 'lunch',
-                          startTime: new Date(),
-                          endTime: new Date(),
-                          hasEndTime: true,
-                          duration: 30,
-                          notes: ''
-                        })
+                        setNewBreak(makeDefaultBreak())
                         setShowAddBreak(false)
                       } catch (err: unknown) {
                         const axiosError = err as { response?: { data?: { error?: string } } }
@@ -1179,14 +1226,7 @@ function EditEntryForm({
                     type="button"
                     onClick={() => {
                       setShowAddBreak(false)
-                      setNewBreak({
-                        breakType: 'lunch',
-                        startTime: new Date(),
-                        endTime: new Date(),
-                        hasEndTime: true,
-                        duration: 30,
-                        notes: ''
-                      })
+                      setNewBreak(makeDefaultBreak())
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
