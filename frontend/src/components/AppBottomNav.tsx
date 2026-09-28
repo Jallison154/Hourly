@@ -52,9 +52,9 @@ export default function AppBottomNav() {
         <div className="relative overflow-visible">
           <div
             className="
-              absolute inset-0 border border-okami-border bg-okami-panel/95 shadow-panel backdrop-blur
+              nav-dock-surface absolute inset-0 border border-okami-border/70 bg-okami-panel/25 shadow-panel backdrop-blur-xl
               max-sm:rounded-none max-sm:border-x-0 max-sm:border-b-0
-              sm:rounded-2xl dark:bg-gray-900/95
+              sm:rounded-2xl dark:bg-gray-900/25
             "
             style={{
               WebkitMaskImage:

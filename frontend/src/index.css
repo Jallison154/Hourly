@@ -122,5 +122,12 @@ body {
   padding-bottom: var(--nav-clearance);
 }
 
+/* Phone dock fill continues through the home-indicator inset. Buttons stay put. */
+@media (max-width: 639px) {
+  .nav-dock-surface {
+    bottom: calc(-1 * max(0.25rem, env(safe-area-inset-bottom, 0px)));
+  }
+}
+
 
 
