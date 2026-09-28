@@ -142,7 +142,12 @@ export function calculateNetPay(
     netPay,
     socialSecurity,
     medicare,
-    stateTaxRate: stateTaxRate ?? getDefaultStateTaxRate(state),
+    stateTaxRate:
+      stateTaxRate != null
+        ? stateTaxRate
+        : state && state.toUpperCase() === 'MT'
+          ? 0
+          : getDefaultStateTaxRate(state),
     taxYear: Math.min(FEDERAL_TAX_YEAR, MT_TAX_YEAR),
   }
 }

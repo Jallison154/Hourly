@@ -111,7 +111,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       (user.filingStatus === 'married' ? 'married' : 'single'),
       tz,
       user.overtimeThresholdHours || 40,
-      user.workweekStartDay ?? 0
+      user.workweekStartDay ?? 0,
+      user.payPeriodType || 'monthly'
     )
     
     // Get average hours per day

@@ -3,7 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
 import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz, getPayPeriodsForRangeInTimezone, type PayPeriod } from '../utils/payPeriod'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
-import { calculatePayForEntries } from '../utils/payCalculator'
+import { summarizePayPeriod } from '../utils/payCalculator'
 import { toLocalDayKey, formatInTimezone, getWeekBucketForInstant } from '../utils/timezone'
 
 const router = express.Router()
@@ -302,7 +302,6 @@ async function getTimesheetData(
         hourlyRate: true,
         overtimeRate: true,
         overtimeThresholdHours: true,
-        workweekStartDay: true,
         paycheckAdjustment: true,
         state: true,
         stateTaxRate: true,
@@ -316,7 +315,6 @@ async function getTimesheetData(
       return res.status(404).json({ error: 'User not found' })
     }
     const otThreshold = user.overtimeThresholdHours || 40
-    const workweekStartDay = user.workweekStartDay ?? 0
     
     // Get time entries
     const entries = await prisma.timeEntry.findMany({
@@ -336,31 +334,44 @@ async function getTimesheetData(
     })
     
     const weeks = getWeeksInPayPeriodTz(payPeriod, userTimezone)
-
-    const completedEntries = entries.filter(e => e.clockOut !== null)
     const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
-    const payPeriodPay = calculatePayForEntries(
-      completedEntries.map(e => ({
-        clockIn: e.clockIn,
-        clockOut: e.clockOut!,
-        totalBreakMinutes: getEffectiveBreakMinutes(e),
-        breaks: e.breaks.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
+    const rangeStart = weeks.length > 0 ? weeks[0].start : payPeriod.start
+    const spanEntries = await prisma.timeEntry.findMany({
+      where: {
+        userId: req.userId!,
+        clockIn: { gte: rangeStart, lte: payPeriod.end },
+        clockOut: { not: null }
+      },
+      include: { breaks: true }
+    })
+    const workedHoursFor = (entry: { clockIn: Date; clockOut: Date | null; breaks?: Array<{ duration?: number | null; endTime?: Date | null; startTime?: Date }>; totalBreakMinutes: number }) => {
+      if (!entry.clockOut) return 0
+      const span = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
+      return Math.max(0, span - getEffectiveBreakMinutes(entry) / 60)
+    }
+    const paySummary = summarizePayPeriod({
+      entries: spanEntries.map((entry) => ({
+        id: entry.id,
+        clockIn: entry.clockIn,
+        clockOut: entry.clockOut,
+        workedHours: workedHoursFor(entry),
       })),
-      user.hourlyRate,
-      user.overtimeRate || 1.5,
-      user.state,
-      user.stateTaxRate,
+      weeks,
+      periodStart: payPeriod.start,
+      periodEnd: payPeriod.end,
+      hourlyRate: user.hourlyRate,
+      overtimeRate: user.overtimeRate || 1.5,
+      overtimeThresholdHours: otThreshold,
+      payPeriodType: user.payPeriodType || 'monthly',
+      state: user.state,
+      stateTaxRate: user.stateTaxRate,
       filingStatus,
-      userTimezone,
-      otThreshold,
-      workweekStartDay
-    )
+      adjustment: user.paycheckAdjustment || 0,
+    })
+    const payPeriodPay = paySummary.period
     
-    // Use pay period's annual estimate for all weekly tax calculations
-    const payPeriodAnnualGrossPay = payPeriodPay.grossPay * 24
-    
-    // Calculate weekly breakdowns: use canonical week bounds (Sun–Sat) from getWeeksInPayPeriodTz
-    const weeklyData = await Promise.all(weeks.map(async (week) => {
+    const weeklyData = weeks.map((week) => {
+      const weekPaySlice = paySummary.weeks.find((item) => item.weekNumber === week.weekNumber)
       const weekEntries = entries
         .filter(e => {
           const inWeek = e.clockIn >= week.start && e.clockIn < week.endExclusive
@@ -369,43 +380,6 @@ async function getTimesheetData(
         })
         .sort((a, b) => a.clockIn.getTime() - b.clockIn.getTime())
 
-      const allWeekEntries = await prisma.timeEntry.findMany({
-        where: {
-          userId: req.userId!,
-          clockIn: {
-            gte: week.start,
-            lt: week.endExclusive
-          },
-          clockOut: { not: null }
-        },
-        include: {
-          breaks: true
-        }
-      })
-      
-      // Calculate total hours for DISPLAY - only from entries in current pay period
-      let weekHours = 0
-      weekEntries.forEach(entry => {
-        if (entry.clockOut) {
-          const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-          const breakHours = getEffectiveBreakMinutes(entry) / 60
-          const workedHours = hours - breakHours
-          weekHours += workedHours
-        }
-      })
-      const previousPayPeriodHours = allWeekEntries
-        .filter(e => !weekEntries.some(we => we.id === e.id))
-        .reduce((sum, entry) => {
-          const hours = (entry.clockOut!.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-          const breakHours = getEffectiveBreakMinutes(entry) / 60
-          return sum + (hours - breakHours)
-        }, 0)
-      
-      // Calculate total hours for the FULL week (including previous pay period) for overtime determination
-      const fullWeekHours = weekHours + previousPayPeriodHours
-      
-      // Map entries from current pay period for display (with hours calculated)
-      // (Already sorted chronologically above)
       const weekEntriesWithHours = weekEntries.map(entry => {
         if (!entry.clockOut) {
           return {
@@ -414,7 +388,7 @@ async function getTimesheetData(
             breakHours: 0
           }
         }
-        
+
         const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
         const breakHours = getEffectiveBreakMinutes(entry) / 60
         const workedHours = hours - breakHours
@@ -424,63 +398,30 @@ async function getTimesheetData(
           breakHours
         }
       })
-      // Calculate pay for DISPLAYED entries only (matching the displayed hours)
-      // Only count hours within the pay period, even if week spans pay period boundaries
-      const hourlyRate = user.hourlyRate
-      const overtimeRate = user.overtimeRate || 1.5
-      
-      let regularPay = 0
-      let overtimePay = 0
-      let regularHours = 0
-      let overtimeHours = 0
-      
-      // Calculate pay based ONLY on hours in this pay period (weekHours)
-      // Don't consider hours from outside the pay period
-      if (weekHours <= otThreshold) {
-        regularHours = weekHours
-        regularPay = weekHours * hourlyRate
-      } else {
-        regularHours = otThreshold
-        overtimeHours = weekHours - otThreshold
-        regularPay = regularHours * hourlyRate
-        overtimePay = overtimeHours * hourlyRate * overtimeRate
-      }
-      
-      const grossPay = regularPay + overtimePay
-      
-      // Calculate taxes using the pay period's annual estimate (not the week's estimate)
-      // This ensures consistent tax calculations across all weeks
-      const { calculateNetPay } = await import('../utils/taxCalculator')
-      const taxes = calculateNetPay(grossPay, payPeriodAnnualGrossPay, user.state, user.stateTaxRate, filingStatus)
-      
-      // Apply adjustment proportionally to weekly breakdown
-      const totalWeeks = weeks.length
-      const weeklyAdjustment = (user.paycheckAdjustment || 0) / totalWeeks
-      
+      const weekHours = weekPaySlice?.hoursInPeriod ?? 0
+      const previousPayPeriodHours = weekPaySlice?.priorWeekHours ?? 0
       const weekPay = {
-        regularHours,
-        overtimeHours,
-        regularPay,
-        overtimePay,
-        grossPay: grossPay + weeklyAdjustment,
-        federalTax: taxes.federalTax,
-        stateTax: taxes.stateTax,
-        fica: taxes.fica,
-        netPay: taxes.netPay + weeklyAdjustment
+        regularHours: weekPaySlice?.regularHours ?? 0,
+        overtimeHours: weekPaySlice?.overtimeHours ?? 0,
+        regularPay: weekPaySlice?.regularPay ?? 0,
+        overtimePay: weekPaySlice?.overtimePay ?? 0,
+        grossPay: weekPaySlice?.grossPay ?? 0,
+        federalTax: weekPaySlice?.federalTax ?? 0,
+        stateTax: weekPaySlice?.stateTax ?? 0,
+        fica: weekPaySlice?.fica ?? 0,
+        netPay: weekPaySlice?.netPay ?? 0
       }
-      
-      console.log(`Week ${week.weekNumber}: Displayed hours = ${weekHours.toFixed(2)}, Full week hours = ${fullWeekHours.toFixed(2)}, Previous pay period hours = ${previousPayPeriodHours.toFixed(2)}, Regular = ${weekPay.regularHours.toFixed(2)}, Overtime = ${weekPay.overtimeHours.toFixed(2)}`)
-      
+
       return {
         weekNumber: week.weekNumber,
         start: week.start.toISOString(),
         end: week.endDisplay.toISOString(),
         entries: weekEntriesWithHours,
         totalHours: weekHours,
-        previousPayPeriodHours: previousPayPeriodHours, // Hours from previous pay period in this week
+        previousPayPeriodHours,
         pay: weekPay
       }
-    }))
+    })
     
     // Calculate total hours
     let totalHours = 0

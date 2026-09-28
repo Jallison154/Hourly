@@ -12,6 +12,13 @@ import PullToRefresh from '../components/PullToRefresh'
 import type { TimesheetData, Break } from '../types'
 import { TrashIcon, PencilIcon, PlusIcon, EnvelopeIcon, Bars3Icon, ClipboardDocumentIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 
+function splitShiftPay(entryHours: number, hoursAlreadyCounted: number, threshold: number) {
+  const room = Math.max(0, threshold - Math.max(0, hoursAlreadyCounted))
+  const regularHours = Math.min(Math.max(0, entryHours), room)
+  const overtimeHours = Math.max(0, entryHours - regularHours)
+  return { regularHours, overtimeHours, isOvertime: overtimeHours > 0 }
+}
+
 export default function Timesheet() {
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -554,14 +561,12 @@ export default function Timesheet() {
               <div className="mb-4 space-y-2 md:hidden">
                 {week.entries.map((entry, entryIndex) => {
                   const previousHours = week.previousPayPeriodHours || 0
-                  const cumulativeHours = previousHours + week.entries
-                    .slice(0, entryIndex + 1)
+                  const hoursAlreadyCounted = previousHours + week.entries
+                    .slice(0, entryIndex)
                     .reduce((sum, e) => sum + (e.hours || 0), 0)
-                  const isOvertime = week.totalHours > 40 && cumulativeHours > 40
-                  const regularHoursInEntry = isOvertime
-                    ? Math.max(0, 40 - (cumulativeHours - entry.hours))
-                    : entry.hours
-                  const overtimeHoursInEntry = isOvertime ? entry.hours - regularHoursInEntry : 0
+                  const threshold = user?.overtimeThresholdHours || 40
+                  const { regularHours: regularHoursInEntry, overtimeHours: overtimeHoursInEntry, isOvertime } =
+                    splitShiftPay(entry.hours || 0, hoursAlreadyCounted, threshold)
                   const hourlyRate = timesheet.user.hourlyRate
                   const overtimeRate = timesheet.user.overtimeRate || 1.5
                   const entryPay = entry.clockOut
@@ -662,21 +667,12 @@ export default function Timesheet() {
                       // Calculate cumulative hours up to this entry
                       // Include hours from previous pay period entries in this week
                       const previousHours = week.previousPayPeriodHours || 0
-                      const cumulativeHoursFromDisplayed = week.entries
-                        .slice(0, entryIndex + 1)
+                      const hoursAlreadyCounted = previousHours + week.entries
+                        .slice(0, entryIndex)
                         .reduce((sum, e) => sum + (e.hours || 0), 0)
-                      const cumulativeHours = previousHours + cumulativeHoursFromDisplayed
-                      
-                      // Entry is in overtime if week total exceeds 40 AND cumulative hours exceed 40
-                      const isOvertime = week.totalHours > 40 && cumulativeHours > 40
-                      
-                      // Calculate how much of this entry is overtime
-                      const regularHoursInEntry = isOvertime 
-                        ? Math.max(0, 40 - (cumulativeHours - entry.hours))
-                        : entry.hours
-                      const overtimeHoursInEntry = isOvertime
-                        ? entry.hours - regularHoursInEntry
-                        : 0
+                      const threshold = user?.overtimeThresholdHours || 40
+                      const { regularHours: regularHoursInEntry, overtimeHours: overtimeHoursInEntry, isOvertime } =
+                        splitShiftPay(entry.hours || 0, hoursAlreadyCounted, threshold)
                       
                       const rowClass = isOvertime 
                         ? 'bg-red-50 dark:bg-red-900/20' 
