@@ -301,7 +301,7 @@ export default function WeeklySummary() {
         </div>
         {daysUntilNextPayPeriod !== null && (
           <div className="text-center">
-            <div className="text-xs text-gray-600 dark:text-gray-400 mb-0.5">Days till end of pay period</div>
+            <div className="text-xs leading-tight text-gray-600 dark:text-gray-400 mb-0.5">Period ends</div>
             <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
               {daysUntilNextPayPeriod}
             </div>

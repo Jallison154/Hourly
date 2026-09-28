@@ -9,11 +9,15 @@ import {
   BuildingOffice2Icon,
   ChevronRightIcon,
   ArrowRightOnRectangleIcon,
+  CircleStackIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
+import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
 import PullToRefresh from '../components/PullToRefresh'
+import { timeEntriesAPI } from '../services/api'
 
 const APP_VERSION = '1.2.0'
 
@@ -80,11 +84,34 @@ function StaticRow({
 export default function Settings() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const { dialog, showConfirm, closeDialog } = useDialog()
+  const { dialog, showConfirm, showAlert, closeDialog } = useDialog()
+  const [exporting, setExporting] = useState(false)
   const role = user?.role ?? 'EMPLOYEE'
   const isManager = role === 'MANAGER' || role === 'ADMIN'
   const isAdmin = role === 'ADMIN'
   const online = typeof navigator !== 'undefined' ? navigator.onLine : true
+
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const blob = await timeEntriesAPI.exportEntries()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `time-entries-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      await showAlert('Exported', 'Time entries downloaded.')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to export time entries'
+      await showAlert('Couldn’t export', errorMessage)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const handleRefresh = async () => {
     // Soft refresh — settings is mostly static links
@@ -159,10 +186,35 @@ export default function Settings() {
               />
             </Section>
 
+            <Section title="Data" icon={CircleStackIcon}>
+              <li>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={exporting}
+                  className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.03] disabled:opacity-60 dark:hover:bg-white/[0.04]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {exporting ? 'Exporting…' : 'Export all entries'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-okami-muted">
+                      Download every time entry as a CSV backup
+                    </p>
+                  </div>
+                  <ArrowDownTrayIcon className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+                </button>
+              </li>
+              <Row
+                to="/import"
+                label="Import"
+                description="Bring in time entries from a CSV file"
+              />
+            </Section>
+
             <Section title="App" icon={DevicePhoneMobileIcon}>
               <StaticRow label="Connection" value={online ? 'Online' : 'Offline'} />
               <StaticRow label="Version" value={`Hourly v${APP_VERSION}`} />
-              <StaticRow label="Theme" value="System" />
               <StaticRow label="About" value="Okami Designs" />
             </Section>
 
@@ -173,16 +225,6 @@ export default function Settings() {
                   label="Team dashboard"
                   description="Who is in, on break, or in overtime"
                 />
-                <Row
-                  to="/admin"
-                  label="Timesheet approvals"
-                  description="Review submitted timesheets"
-                />
-                <Row
-                  to="/schedule"
-                  label="Team schedules"
-                  description="Planning and availability"
-                />
               </Section>
             )}
 
@@ -190,29 +232,8 @@ export default function Settings() {
               <Section title="Administration" icon={BuildingOffice2Icon}>
                 <Row
                   to="/admin"
-                  label="Employees & roles"
-                  description="People, roles, and status"
-                />
-                <Row
-                  to="/import"
-                  label="Import tools"
-                  description="Import Hours Keeper CSV data"
-                />
-                <Row
-                  to="/admin"
-                  label="System & audit"
-                  description="Health overview and audit history"
-                />
-              </Section>
-            )}
-
-            {/* Employees can still reach Import from App if needed historically — keep under App for all */}
-            {!isAdmin && (
-              <Section title="Data" icon={DevicePhoneMobileIcon}>
-                <Row
-                  to="/import"
-                  label="Import"
-                  description="Import time entries from CSV"
+                  label="Team"
+                  description="People, roles, and who is clocked in"
                 />
               </Section>
             )}

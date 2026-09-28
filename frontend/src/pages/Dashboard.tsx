@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { metricsAPI } from '../services/api'
-import { useAuth } from '../hooks/useAuth'
 import { formatCurrency, formatHours } from '../utils/date'
 import type { Metrics } from '../types'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import PullToRefresh from '../components/PullToRefresh'
 
 export default function Dashboard() {
-  const { user } = useAuth()
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [chartView, setChartView] = useState<'daily' | 'weekly' | 'yearly'>('daily')
@@ -89,33 +87,14 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 flex justify-between items-center"
+        className="mb-6"
       >
-        <div>
-          <Link to="/home" className="text-sm font-medium text-okami-accent">
-            ← Home
-          </Link>
-          <h1 className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
-            Detailed metrics
-          </h1>
-        </div>
-        <div className="flex-1"></div>
-        <Link
-          to="/settings"
-          className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-        >
-          {user?.profileImage ? (
-            <img
-              src={user.profileImage}
-              alt={user?.name || 'Profile'}
-              className="w-10 h-10 rounded-full border-2 border-gray-300 dark:border-gray-600 object-cover"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold border-2 border-gray-300 dark:border-gray-600">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
-            </div>
-          )}
+        <Link to="/home" className="text-sm font-medium text-okami-accent">
+          ← Home
         </Link>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
+          Detailed metrics
+        </h1>
       </motion.div>
 
       {/* Combined Metrics Section */}
@@ -239,13 +218,13 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow p-6"
+        className="min-w-0 overflow-hidden rounded-lg bg-white p-4 shadow dark:bg-gray-800 sm:p-6"
       >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white sm:text-xl">
             {chartView === 'daily' ? 'Daily Hours' : chartView === 'weekly' ? 'Weekly Hours' : 'Monthly Hours'}
           </h2>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:flex">
             <button
               onClick={() => setChartView('daily')}
               className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
@@ -278,15 +257,17 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
+        <div className="min-w-0 w-full">
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+            <YAxis width={32} tick={{ fontSize: 11 }} />
             <Tooltip />
             <Bar dataKey="hours" fill="#3b82f6" />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </motion.div>
 
 

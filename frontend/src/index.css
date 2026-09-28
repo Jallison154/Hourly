@@ -103,8 +103,18 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--okami-bg);
   overflow-x: hidden;
+}
+
+/* iOS zooms the page when a focused field is under 16px, which shoves dialogs off screen. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /* Apply to authenticated page roots so the dock never covers controls */

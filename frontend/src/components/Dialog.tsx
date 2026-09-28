@@ -69,7 +69,7 @@ export default function Dialog({
   const modal = (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[100] grid place-items-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
           <motion.button
             type="button"
             aria-label="Close"
@@ -88,8 +88,11 @@ export default function Dialog({
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
             className="
-              relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl
+              relative z-10 w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl
               dark:bg-gray-800
+              max-h-[min(92dvh,100%)]
+              pb-[max(1.5rem,env(safe-area-inset-bottom))]
+              sm:rounded-2xl sm:pb-6
             "
             onClick={(e) => e.stopPropagation()}
           >

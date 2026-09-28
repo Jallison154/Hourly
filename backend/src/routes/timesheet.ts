@@ -153,8 +153,8 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     }
 
     const rows: string[] = []
-    // Header row only (no title row)
-    rows.push('Date,Clock In,Clock Out,Hours Worked')
+    // Header row only (no title row). Break sits between clock in and clock out.
+    rows.push('Date,Clock In,Break,Clock Out,Hours Worked')
 
     // First pass: compute per-entry hours and week buckets
     const entrySummaries = entries
@@ -173,20 +173,24 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
 
     // Second pass: emit rows with per-week subtotals
     let grandTotalHours = 0
+    let grandTotalBreakMinutes = 0
     let currentWeekKey: string | null = null
     let currentWeekTotal = 0
+    let currentWeekBreakMinutes = 0
 
-    entrySummaries.forEach(({ entry, workedHours, dayKey, weekKey }) => {
+    entrySummaries.forEach(({ entry, breakMinutes, workedHours, dayKey, weekKey }) => {
       if (currentWeekKey !== null && weekKey !== currentWeekKey) {
         // Close previous week
         rows.push([
           'Week Total',
           '',
+          csvEscape(formatHours(currentWeekBreakMinutes / 60)),
           '',
           csvEscape(formatHours(currentWeekTotal))
         ].join(','))
         rows.push('') // blank line between weeks
         currentWeekTotal = 0
+        currentWeekBreakMinutes = 0
       }
 
       currentWeekKey = weekKey
@@ -197,11 +201,14 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
         : ''
 
       currentWeekTotal += workedHours
+      currentWeekBreakMinutes += breakMinutes
       grandTotalHours += workedHours
+      grandTotalBreakMinutes += breakMinutes
 
       rows.push([
         csvEscape(dayKey),
         csvEscape(clockInLocal),
+        csvEscape(formatHours(breakMinutes / 60)),
         csvEscape(clockOutLocal),
         csvEscape(formatHours(workedHours))
       ].join(','))
@@ -212,6 +219,7 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
       rows.push([
         'Week Total',
         '',
+        csvEscape(formatHours(currentWeekBreakMinutes / 60)),
         '',
         csvEscape(formatHours(currentWeekTotal))
       ].join(','))
@@ -222,6 +230,7 @@ router.get('/export/:startDate/:endDate', authenticate, async (req: AuthRequest,
     rows.push([
       'Totals',
       '',
+      csvEscape(formatHours(grandTotalBreakMinutes / 60)),
       '',
       csvEscape(formatHours(grandTotalHours))
     ].join(','))

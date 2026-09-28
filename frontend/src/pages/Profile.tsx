@@ -6,7 +6,7 @@ import { useDialog } from '../hooks/useDialog'
 import Dialog from '../components/Dialog'
 import Button from '../components/Button'
 import PullToRefresh from '../components/PullToRefresh'
-import { userAPI, timeEntriesAPI } from '../services/api'
+import { userAPI } from '../services/api'
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuth()
@@ -37,7 +37,6 @@ export default function Profile() {
     confirmPassword: ''
   })
   const [changingPassword, setChangingPassword] = useState(false)
-  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -129,31 +128,6 @@ export default function Profile() {
   }
 
   const roundingOptions = [5, 10, 15, 30]
-
-  const handleExport = async () => {
-    setExporting(true)
-    try {
-      const blob = await timeEntriesAPI.exportEntries()
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `time-entries-${new Date().toISOString().split('T')[0]}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      
-      await showAlert('Success', 'Time entries exported successfully!')
-    } catch (error: unknown) {
-      console.error('Export error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to export time entries'
-      await showAlert('Error', errorMessage)
-    } finally {
-      setExporting(false)
-    }
-  }
 
   const handleRefresh = async () => {
     try {
@@ -411,7 +385,7 @@ export default function Profile() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Rounding Interval (minutes)
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {roundingOptions.map((option) => (
                   <button
                     key={option}
@@ -685,55 +659,6 @@ export default function Profile() {
             </Button>
           </div>
         </form>
-
-        {/* Import Data Section */}
-        <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Import Data
-          </h2>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Import time entries from a CSV file. This allows you to bulk import your work history, 
-              migrate data from other time tracking systems, or restore previously exported data.
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-500">
-              The CSV file should contain columns for date, clock in time, clock out time, and optionally 
-              break duration. You can also specify date ranges for importing and clearing existing entries.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 mt-4">
-              <motion.button
-                type="button"
-                onClick={handleExport}
-                disabled={exporting}
-                whileHover={{ scale: exporting ? 1 : 1.02 }}
-                whileTap={{ scale: exporting ? 1 : 0.98 }}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                {exporting ? 'Exporting...' : 'Export All Entries'}
-              </motion.button>
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Link
-                  to="/import"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  Go to Import Page
-                </Link>
-              </motion.div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              💡 <strong>Tip:</strong> Export your data regularly as a backup. The exported CSV can be re-imported if needed.
-            </p>
-          </div>
-        </div>
 
         {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
           <div className="mt-6">

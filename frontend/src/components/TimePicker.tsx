@@ -69,7 +69,7 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
   const sheet = (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] grid place-items-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
           <motion.button
             type="button"
             aria-label="Close"
@@ -89,9 +89,11 @@ export default function TimePicker({ value, onChange, label }: TimePickerProps) 
             transition={{ type: 'spring', damping: 30, stiffness: 320 }}
             className="
               relative z-10 box-border flex w-full max-w-md
-              max-h-[min(85dvh,560px)] flex-col overflow-hidden
-              rounded-2xl border border-gray-200 bg-white shadow-2xl
+              max-h-[min(92dvh,560px)] flex-col overflow-hidden
+              rounded-t-2xl border border-gray-200 bg-white shadow-2xl
+              pb-[env(safe-area-inset-bottom)]
               dark:border-gray-700 dark:bg-gray-800
+              sm:rounded-2xl sm:pb-0
             "
             onClick={(e) => e.stopPropagation()}
           >

@@ -1,16 +1,16 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link } from 'react-router-dom'
 import { timesheetAPI, timeEntriesAPI, paycheckAPI } from '../services/api'
 import { formatDate, formatDateWithDay, formatTime, formatHours, formatCurrency } from '../utils/date'
 import { formatTimesheetAsText } from '../utils/timesheetFormatter'
 import Dialog from '../components/Dialog'
+import Sheet from '../components/Sheet'
 import { useDialog } from '../hooks/useDialog'
 import { useAuth } from '../hooks/useAuth'
 import TimePicker from '../components/TimePicker'
 import PullToRefresh from '../components/PullToRefresh'
 import type { TimesheetData, Break } from '../types'
-import { TrashIcon, PencilIcon, PlusIcon, EnvelopeIcon, Bars3Icon } from '@heroicons/react/24/outline'
+import { TrashIcon, PencilIcon, PlusIcon, EnvelopeIcon, Bars3Icon, ClipboardDocumentIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 
 export default function Timesheet() {
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null)
@@ -405,9 +405,9 @@ export default function Timesheet() {
         ) : !timesheet ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="text-red-600 dark:text-red-400 mb-2">Failed to load timesheet</div>
+              <div className="text-red-600 dark:text-red-400 mb-2">Couldn’t load this timesheet</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                Please check the browser console for details
+                Pull down to try again.
               </div>
             </div>
           </div>
@@ -416,7 +416,7 @@ export default function Timesheet() {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">
                 Timesheet
               </h1>
               {/* Hamburger Menu Button */}
@@ -425,7 +425,7 @@ export default function Timesheet() {
                   onClick={() => setShowMenu(!showMenu)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-gray-200 text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                   aria-label="Menu"
                 >
                   <Bars3Icon className="h-6 w-6" />
@@ -442,14 +442,14 @@ export default function Timesheet() {
                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1"
+                      className="absolute right-0 z-50 mt-2 w-52 max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-gray-700 dark:bg-gray-800"
                     >
                       <button
                         onClick={() => {
                           handleCreateEntry()
                           setShowMenu(false)
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                       >
                         <PlusIcon className="h-5 w-5" />
                         <span>Add Entry</span>
@@ -459,9 +459,9 @@ export default function Timesheet() {
                           await handleCopyToClipboard()
                           setShowMenu(false)
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                       >
-                        <span>📋</span>
+                        <ClipboardDocumentIcon className="h-5 w-5" />
                         <span>{copied ? 'Copied!' : 'Copy as Text'}</span>
                       </button>
                       <button
@@ -469,7 +469,7 @@ export default function Timesheet() {
                           handleEmailTimesheet()
                           setShowMenu(false)
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                       >
                         <EnvelopeIcon className="h-5 w-5" />
                         <span>Email</span>
@@ -479,20 +479,11 @@ export default function Timesheet() {
                           await handleExportCsv()
                           setShowMenu(false)
                         }}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                        className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                       >
-                        <span>⬇️</span>
+                        <ArrowDownTrayIcon className="h-5 w-5" />
                         <span>Export CSV</span>
                       </button>
-                      <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                      <Link
-                        to="/schedule"
-                        onClick={() => setShowMenu(false)}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                      >
-                        <span>📅</span>
-                        <span>Schedule</span>
-                      </Link>
                     </motion.div>
                   </>
                 )}
@@ -511,7 +502,7 @@ export default function Timesheet() {
                       setSelectedPeriod({ start, end })
                     }
                   }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[250px]"
+                  className="w-full max-w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white sm:w-auto sm:min-w-[16rem]"
                 >
                   {payPeriods.map((period, index) => {
                     const startDate = new Date(period.start)
@@ -541,9 +532,9 @@ export default function Timesheet() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: weekIndex * 0.1 }}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6"
+              className="mb-6 rounded-lg bg-white p-4 shadow-lg dark:bg-gray-800 sm:p-6"
             >
-              <div className="flex justify-between items-center mb-4">
+              <div className="mb-4 flex items-start justify-between gap-3">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Week {week.weekNumber}
                 </h2>
@@ -559,8 +550,87 @@ export default function Timesheet() {
                 {formatDate(week.start, tz)} - {formatDate(week.end, tz)}
               </div>
 
-              {/* Week Entries */}
-              <div className="overflow-x-auto mb-4">
+              {/* Phone: one card per shift. Wide screens keep the table. */}
+              <div className="mb-4 space-y-2 md:hidden">
+                {week.entries.map((entry, entryIndex) => {
+                  const previousHours = week.previousPayPeriodHours || 0
+                  const cumulativeHours = previousHours + week.entries
+                    .slice(0, entryIndex + 1)
+                    .reduce((sum, e) => sum + (e.hours || 0), 0)
+                  const isOvertime = week.totalHours > 40 && cumulativeHours > 40
+                  const regularHoursInEntry = isOvertime
+                    ? Math.max(0, 40 - (cumulativeHours - entry.hours))
+                    : entry.hours
+                  const overtimeHoursInEntry = isOvertime ? entry.hours - regularHoursInEntry : 0
+                  const hourlyRate = timesheet.user.hourlyRate
+                  const overtimeRate = timesheet.user.overtimeRate || 1.5
+                  const entryPay = entry.clockOut
+                    ? (regularHoursInEntry * hourlyRate) + (overtimeHoursInEntry * hourlyRate * overtimeRate)
+                    : null
+                  const breakLabel = entry.breakHours > 0
+                    ? `${formatHours(entry.breakHours)} break`
+                    : entry.breaks.length > 0
+                      ? entry.breaks.map((b) => `${b.breakType} ${b.duration || 0}m`).join(', ')
+                      : null
+
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`rounded-lg border border-gray-200 p-3 dark:border-gray-700 ${isOvertime ? 'bg-red-50 dark:bg-red-900/20' : 'bg-gray-50 dark:bg-gray-700/40'}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {formatDateWithDay(entry.clockIn, tz)}
+                          </div>
+                          <div className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">
+                            {formatTime(entry.clockIn, tz)} – {entry.clockOut ? formatTime(entry.clockOut, tz) : 'Open'}
+                          </div>
+                          <div className={`mt-1 text-sm font-semibold ${isOvertime ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                            {formatHours(entry.hours)} worked
+                            {breakLabel ? <span className="font-normal text-gray-500 dark:text-gray-400"> · {breakLabel}</span> : null}
+                            {entryPay != null ? (
+                              <span className={`font-semibold ${isOvertime ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                                {' '}· {formatCurrency(entryPay)}
+                              </span>
+                            ) : null}
+                          </div>
+                          {isOvertime && overtimeHoursInEntry > 0 && (
+                            <div className="mt-0.5 text-xs text-red-500 dark:text-red-400">
+                              {formatHours(regularHoursInEntry)} regular + {formatHours(overtimeHoursInEntry)} overtime
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleEditEntry({
+                              id: entry.id,
+                              clockIn: entry.clockIn,
+                              clockOut: entry.clockOut,
+                              notes: entry.notes || null
+                            })}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                            aria-label="Edit entry"
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEntry(entry.id)}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                            aria-label="Delete entry"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="mb-4 hidden overflow-x-auto md:block">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
@@ -765,13 +835,13 @@ export default function Timesheet() {
             transition={{ delay: timesheet.weeks.length * 0.1 }}
             className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl">
                 Pay Summary
               </h2>
               {calculation.payPeriod && (
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {formatDate(calculation.payPeriod.start, tz)} - {formatDate(calculation.payPeriod.end, tz)}
+                  {formatDate(calculation.payPeriod.start, tz)} – {formatDate(calculation.payPeriod.end, tz)}
                 </div>
               )}
             </div>
@@ -818,7 +888,7 @@ export default function Timesheet() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">
-                    Montana State Tax {calculation.stateTaxRate ? `(${(calculation.stateTaxRate * 100).toFixed(2)}%)` : '(Progressive: 4.7% up to $21,100, 5.9% above)'}
+                    Montana state tax
                   </span>
                   <span className="text-gray-900 dark:text-white">
                     {formatCurrency(calculation.stateTax)}
@@ -847,29 +917,27 @@ export default function Timesheet() {
       </motion.div>
 
       {/* Edit/Create Entry Modal */}
-      {editingEntry && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6"
-          >
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              {creatingEntry ? 'Add Time Entry' : 'Edit Time Entry'}
-            </h2>
-            <EditEntryForm
-              entry={editingEntry}
-              timeZone={tz}
-              isCreating={creatingEntry}
-              onSave={handleSaveEdit}
-              onCancel={() => {
-                setEditingEntry(null)
-                setCreatingEntry(false)
-              }}
-            />
-          </motion.div>
-        </div>
-      )}
+      <Sheet
+        open={!!editingEntry}
+        title={creatingEntry ? 'Add Time Entry' : 'Edit Time Entry'}
+        onClose={() => {
+          setEditingEntry(null)
+          setCreatingEntry(false)
+        }}
+      >
+        {editingEntry && (
+          <EditEntryForm
+            entry={editingEntry}
+            timeZone={tz}
+            isCreating={creatingEntry}
+            onSave={handleSaveEdit}
+            onCancel={() => {
+              setEditingEntry(null)
+              setCreatingEntry(false)
+            }}
+          />
+        )}
+      </Sheet>
 
       {/* Dialog */}
       <Dialog
@@ -1109,7 +1177,7 @@ function EditEntryForm({
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Start Time

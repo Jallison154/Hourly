@@ -157,8 +157,8 @@ export default function ClockInOut() {
 
   return (
     <PullToRefresh onRefresh={loadStatus}>
-      <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 page-with-nav">
-      <div className="max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6 h-full overflow-y-auto overscroll-y-contain">
+      <div className="min-h-dvh bg-gray-50 dark:bg-gray-900 page-with-nav">
+      <div className="max-w-2xl mx-auto px-3 sm:px-6 py-3 sm:py-6">
         {/* Weekly Summary */}
         <WeeklySummary />
 
@@ -355,7 +355,7 @@ export default function ClockInOut() {
         createPortal(
           <AnimatePresence>
             {showBreakDialog && (
-              <div className="fixed inset-0 z-[100] grid place-items-center p-4">
+              <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
                 <motion.button
                   type="button"
                   aria-label="Close"
@@ -374,9 +374,11 @@ export default function ClockInOut() {
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ type: 'spring', damping: 28, stiffness: 320 }}
                   className="
-                    relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col
-                    rounded-2xl bg-white shadow-2xl
+                    relative z-10 flex max-h-[min(92dvh,100%)] w-full max-w-md flex-col
+                    overflow-hidden rounded-t-2xl bg-white shadow-2xl
+                    pb-[env(safe-area-inset-bottom)]
                     dark:bg-gray-800
+                    sm:rounded-2xl sm:pb-0
                   "
                   onClick={(e) => e.stopPropagation()}
                 >
