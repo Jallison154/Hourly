@@ -129,4 +129,88 @@ describe('money', () => {
     expect(roundMoney(weekFederal)).toBe(summary.period.federalTax)
     expect(roundMoney(weekNet)).toBe(summary.period.netPay)
   })
+
+  it('metrics and timesheet agree: prior-week hours push in-period hours into OT', () => {
+    // Period starts mid-week. 18.25h before the period in the same week + 40h in-period
+    // → 21.75 regular / 18.25 OT for paid hours (matches the Sep 11 boundary gap).
+    const weekStart = new Date('2026-09-06T06:00:00.000Z')
+    const nextWeek = new Date('2026-09-13T06:00:00.000Z')
+    const periodStart = new Date('2026-09-11T06:00:00.000Z')
+    const periodEnd = new Date('2026-10-10T05:59:59.999Z')
+
+    const priorHours = 18.25
+    const inPeriodHours = 40
+    const rate = 34
+
+    const summary = summarizePayPeriod({
+      entries: [
+        {
+          id: 'prior',
+          clockIn: new Date('2026-09-08T15:00:00.000Z'),
+          clockOut: new Date('2026-09-09T09:15:00.000Z'),
+          workedHours: priorHours,
+        },
+        {
+          id: 'boundary',
+          clockIn: new Date('2026-09-11T15:00:00.000Z'),
+          clockOut: new Date('2026-09-13T07:00:00.000Z'),
+          workedHours: inPeriodHours,
+        },
+      ],
+      weeks: [{ start: weekStart, endExclusive: nextWeek, weekNumber: 1 }],
+      periodStart,
+      periodEnd,
+      hourlyRate: rate,
+      overtimeRate: 1.5,
+      overtimeThresholdHours: 40,
+      payPeriodType: 'monthly',
+      state: 'MT',
+      filingStatus: 'single',
+    })
+
+    // Old metrics path: only in-period entries → treats the week as 40 regular / 0 OT
+    const periodOnly = calculatePayForEntries(
+      [
+        {
+          clockIn: new Date('2026-09-11T15:00:00.000Z'),
+          clockOut: new Date(Date.parse('2026-09-11T15:00:00.000Z') + inPeriodHours * 3600 * 1000),
+          totalBreakMinutes: 0,
+        },
+      ],
+      rate,
+      1.5,
+      'MT',
+      null,
+      'single',
+      'America/Denver',
+      40,
+      0,
+      'monthly'
+    )
+
+    expect(summary.weeks[0].priorWeekHours).toBe(priorHours)
+    expect(summary.period.regularHours).toBeCloseTo(21.75, 5)
+    expect(summary.period.overtimeHours).toBeCloseTo(18.25, 5)
+    expect(summary.period.regularHours + summary.period.overtimeHours).toBeCloseTo(inPeriodHours, 5)
+
+    expect(periodOnly.regularHours).toBeCloseTo(40, 5)
+    expect(periodOnly.overtimeHours).toBeCloseTo(0, 5)
+    expect(roundMoney(summary.period.overtimeHours - periodOnly.overtimeHours)).toBe(18.25)
+
+    // Extra OT premium vs period-only: 18.25h × $17 (half of $34) = $310.25
+    expect(roundMoney(summary.period.grossPay - periodOnly.grossPay)).toBe(310.25)
+
+    const expectedGross = roundMoney(
+      mulHoursRate(21.75, rate) + mulHoursRate(18.25, rate * 1.5)
+    )
+    expect(summary.period.grossPay).toBe(expectedGross)
+    expect(summary.period.netPay).toBe(
+      roundMoney(
+        summary.period.grossPay -
+          summary.period.federalTax -
+          summary.period.stateTax -
+          summary.period.fica
+      )
+    )
+  })
 })

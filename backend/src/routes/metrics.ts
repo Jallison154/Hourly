@@ -1,10 +1,10 @@
 import express from 'express'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
-import { getCurrentPayPeriodInTimezone } from '../utils/payPeriod'
+import { getCurrentPayPeriodInTimezone, getWeeksInPayPeriodTz } from '../utils/payPeriod'
 import { toLocalDayKey, getWeekStartSundayUtc } from '../utils/timezone'
 import { getEffectiveBreakMinutes } from '../utils/breakMinutes'
-import { calculatePayForEntries } from '../utils/payCalculator'
+import { summarizePayPeriod } from '../utils/payCalculator'
 
 const router = express.Router()
 
@@ -18,6 +18,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         hourlyRate: true,
         overtimeRate: true,
         overtimeThresholdHours: true,
+        paycheckAdjustment: true,
         workweekStartDay: true,
         payPeriodType: true,
         payPeriodEndDay: true,
@@ -38,11 +39,23 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       user.payPeriodEndDay ?? 10,
       tz
     )
-    
+    const weeks = getWeeksInPayPeriodTz(payPeriod, tz)
+    const rangeStart = weeks.length > 0 ? weeks[0].start : payPeriod.start
+
+    // In-period entries (for totals / patterns)
     const entries = await prisma.timeEntry.findMany({
       where: {
         userId: req.userId!,
         clockIn: { gte: payPeriod.start, lte: payPeriod.end }
+      },
+      include: { breaks: true }
+    })
+    // Span includes the start of the first week so prior-week hours count toward OT
+    const spanEntries = await prisma.timeEntry.findMany({
+      where: {
+        userId: req.userId!,
+        clockIn: { gte: rangeStart, lte: payPeriod.end },
+        clockOut: { not: null }
       },
       include: { breaks: true }
     })
@@ -53,6 +66,17 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       },
       include: { breaks: true }
     })
+
+    const workedHoursFor = (entry: {
+      clockIn: Date
+      clockOut: Date | null
+      breaks?: Array<{ duration?: number | null; endTime?: Date | null; startTime?: Date }>
+      totalBreakMinutes: number
+    }) => {
+      if (!entry.clockOut) return 0
+      const span = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
+      return Math.max(0, span - getEffectiveBreakMinutes(entry) / 60)
+    }
     
     // Calculate totals for current period
     let totalHours = 0
@@ -61,9 +85,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     
     entries.forEach(entry => {
       if (entry.clockOut) {
-        const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = getEffectiveBreakMinutes(entry) / 60
-        const workedHours = hours - breakHours
+        const workedHours = workedHoursFor(entry)
         
         totalHours += workedHours
         completedEntries++
@@ -80,9 +102,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     
     allEntries.forEach(entry => {
       if (entry.clockOut) {
-        const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-        const breakHours = getEffectiveBreakMinutes(entry) / 60
-        const workedHours = hours - breakHours
+        const workedHours = workedHoursFor(entry)
         
         // Group by week and month in user timezone
         const dayKey = toLocalDayKey(entry.clockIn, tz)
@@ -95,25 +115,28 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       }
     })
     
-    // Calculate pay
-    const completed = entries.filter(e => e.clockOut !== null)
-    const payCalculation = calculatePayForEntries(
-      completed.map(e => ({
-        clockIn: e.clockIn,
-        clockOut: e.clockOut!,
-        totalBreakMinutes: getEffectiveBreakMinutes(e),
-        breaks: e.breaks.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
+    // Same pay path as timesheet / paycheck estimate (includes boundary-week OT)
+    const filingStatus = (user.filingStatus === 'married' ? 'married' : 'single') as 'single' | 'married'
+    const paySummary = summarizePayPeriod({
+      entries: spanEntries.map((entry) => ({
+        id: entry.id,
+        clockIn: entry.clockIn,
+        clockOut: entry.clockOut,
+        workedHours: workedHoursFor(entry),
       })),
-      user.hourlyRate || 0,
-      user.overtimeRate || 1.5,
-      user.state,
-      user.stateTaxRate,
-      (user.filingStatus === 'married' ? 'married' : 'single'),
-      tz,
-      user.overtimeThresholdHours || 40,
-      user.workweekStartDay ?? 0,
-      user.payPeriodType || 'monthly'
-    )
+      weeks,
+      periodStart: payPeriod.start,
+      periodEnd: payPeriod.end,
+      hourlyRate: user.hourlyRate || 0,
+      overtimeRate: user.overtimeRate || 1.5,
+      overtimeThresholdHours: user.overtimeThresholdHours || 40,
+      payPeriodType: user.payPeriodType || 'monthly',
+      state: user.state,
+      stateTaxRate: user.stateTaxRate,
+      filingStatus,
+      adjustment: user.paycheckAdjustment || 0,
+    })
+    const payCalculation = paySummary.period
     
     // Get average hours per day
     const daysWorked = Object.keys(dailyHours).length
@@ -156,9 +179,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
     })
     const recentHours = recentEntries.reduce((total, entry) => {
       if (!entry.clockOut) return total
-      const hours = (entry.clockOut.getTime() - entry.clockIn.getTime()) / (1000 * 60 * 60)
-      const breakHours = getEffectiveBreakMinutes(entry) / 60
-      return total + (hours - breakHours)
+      return total + workedHoursFor(entry)
     }, 0)
     
     res.json({
@@ -195,5 +216,3 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 })
 
 export default router
-
-
